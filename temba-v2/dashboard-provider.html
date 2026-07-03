@@ -807,6 +807,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
       <button class="notif-mark-btn" onclick="markAllNotifsRead()" data-i18n="notif_mark_all_read">Mark all read</button>
+      <button class="notif-mark-btn" onclick="clearAllNotifs()" style="color:#DC2626;border-color:#FECACA;" title="Delete all notifications"><i class="ti ti-trash" style="font-size:13px;margin-right:3px;"></i>Clear all</button>
       <button onclick="closeNotifDrawer()" style="background:none;border:none;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray-400);font-size:18px;" title="Close"><i class="ti ti-x"></i></button>
     </div>
   </div>
@@ -2573,7 +2574,26 @@ function _renderNotifList() {
       ${n.read
         ? '<i class="ti ti-check" style="color:var(--gray-300);font-size:14px;flex-shrink:0;align-self:center;"></i>'
         : '<div class="notif-unread-dot"></div>'}
+      <button onclick="event.stopPropagation();deleteNotif('${n.id}')" title="Delete notification"
+        style="background:none;border:none;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray-300);font-size:15px;flex-shrink:0;transition:color .15s,background .15s;"
+        onmouseover="this.style.color='#DC2626';this.style.background='#FEF2F2';"
+        onmouseout="this.style.color='var(--gray-300)';this.style.background='none';">
+        <i class="ti ti-x"></i>
+      </button>
     </div>`).join('');
+}
+
+function deleteNotif(id) {
+  saveNotifs(getNotifs().filter(n => n.id !== id));
+  updateNotifBadge();
+  _renderNotifList();
+}
+
+function clearAllNotifs() {
+  if (!confirm('Delete all notifications? This cannot be undone.')) return;
+  saveNotifs([]);
+  updateNotifBadge();
+  _renderNotifList();
 }
 </script>
 <script src="temba-i18n.js"></script>
