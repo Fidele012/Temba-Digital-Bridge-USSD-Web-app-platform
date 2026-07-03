@@ -1,10 +1,10 @@
 # Temba Digital Bridge
 
-> A bilingual (English / Kinyarwanda) digital platform that connects Rwandan communities to water service providers through a web interface and a USSD feature-phone channel — so every citizen, regardless of smartphone access, can report water issues, book appointments, and track resolutions in real time.
+> A bilingual (English / Kinyarwanda) civic-tech platform that connects Rwandan communities to water service providers through a responsive web interface and a USSD feature-phone channel — so every citizen, regardless of smartphone access, can report water issues, book appointments, and track resolutions in real time.
 
 ![Tests](https://img.shields.io/badge/tests-55%2F55%20passing-2E7D32?style=flat-square)
 ![Coverage](https://img.shields.io/badge/coverage-57%25-0097A7?style=flat-square)
-![Python](https://img.shields.io/badge/Python-3.10%2B-1565C0?style=flat-square&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11%2B-1565C0?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/licence-ALU%20Capstone-0A2540?style=flat-square)
 
@@ -12,33 +12,34 @@
 
 ![Temba Digital Bridge — Landing Page](docs/screenshots/Landing.png)
 
-> **[GitHub Repository](https://github.com/Fidele012/Temba_Digital_Bridge.git)**
+> **[GitHub Repository](https://github.com/Fidele012/Temba-Digital-Bridge-USSD-Web-app-platform)**
 
 ---
 
 ## Table of Contents
 
 1. [Project Description](#1-project-description)
-2. [Key Features](#2-key-features)
-3. [System Architecture](#3-system-architecture)
-4. [Technology Stack](#4-technology-stack)
-5. [Demo Video](#demo-video)
-6. [Testing](#testing)
-7. [Designs](#5-designs)
-   - [Figma Prototype](#51-figma-prototype)
-   - [App Interface Screenshots](#52-app-interface-screenshots)
-   - [System Architecture Diagram](#53-system-architecture-diagram)
-8. [Getting Started](#6-getting-started)
-   - [Prerequisites](#61-prerequisites)
-   - [Clone the Repository](#62-clone-the-repository)
-   - [Backend Setup](#63-backend-setup)
-   - [Frontend Setup](#64-frontend-setup)
-   - [Africa's Talking USSD Setup](#65-africas-talking-ussd-setup)
-9. [Environment Variables](#7-environment-variables)
-10. [Deployment Plan](#8-deployment-plan)
-11. [API Reference](#9-api-reference)
-12. [Project Structure](#10-project-structure)
-13. [Database Schema](#11-database-schema)
+2. [Functional Requirements](#2-functional-requirements)
+3. [Non-Functional Requirements](#3-non-functional-requirements)
+4. [Key Features](#4-key-features)
+5. [System Architecture](#5-system-architecture)
+6. [Technology Stack](#6-technology-stack)
+7. [Demo Video](#7-demo-video)
+8. [Testing](#8-testing)
+9. [Designs](#9-designs)
+   - [Figma Prototype](#91-figma-prototype)
+   - [App Interface Screenshots](#92-app-interface-screenshots)
+10. [Getting Started](#10-getting-started)
+    - [Prerequisites](#101-prerequisites)
+    - [Clone the Repository](#102-clone-the-repository)
+    - [Backend Setup](#103-backend-setup)
+    - [Frontend Setup](#104-frontend-setup)
+    - [Africa's Talking USSD Setup](#105-africas-talking-ussd-setup)
+11. [Environment Variables](#11-environment-variables)
+12. [Deployment Plan](#12-deployment-plan)
+13. [API Reference](#13-api-reference)
+14. [Project Structure](#14-project-structure)
+15. [Database Schema](#15-database-schema)
 
 ---
 
@@ -47,6 +48,8 @@
 ### Problem Statement
 
 Access to clean water is a fundamental human right, yet millions of Rwandans still face daily challenges with water supply disruption, pipe bursts, contamination, and billing errors. The gap between affected communities and the water service providers responsible for resolving those issues is wide — residents have no reliable, structured way to report problems, track progress, or hold providers accountable. Meanwhile, providers lack visibility into their service quality and response times.
+
+This problem is acute in Karangazi Sector, Mbale Cell, Nyagatare District, Rwanda's Eastern Province, where 60% of households report regular water infrastructure failures (NISR, 2025), yet complaints relied on informal escalation through local leaders with no tracking, acknowledgement, or accountability mechanism.
 
 ### What Temba Digital Bridge Does
 
@@ -60,6 +63,7 @@ Access to clean water is a fundamental human right, yet millions of Rwandans sti
 - Track any submitted issue in real time using a unique reference code (e.g. `RPT-20260614-K7M3`)
 - Receive in-app and SMS notifications at every stage of resolution
 - Verify whether a provider's resolution actually fixed their problem
+- Submit an anonymous star rating after verification
 
 **USSD Feature-Phone Channel** — Accessible by dialling `*384*36640#` on any basic mobile phone, no internet required. Community members can:
 
@@ -70,12 +74,11 @@ Access to clean water is a fundamental human right, yet millions of Rwandans sti
 
 **Provider Dashboard** — Water service organisations (WASAC, IRIBA, Pro Water Rwanda, and others) access a dedicated dashboard to:
 
-- View all reports and service requests assigned to their organisation
+- View all reports and service requests sorted by priority (P1 Critical → P2 Urgent → P3 Standard)
 - Update report status through a defined workflow (Acknowledged → Under Review → In Progress → Resolution Submitted)
 - Manage team members (Supervisors, Regional Managers, Executives) with role-based access
 - View SLA deadlines and receive escalation alerts when response times are breached
 - Respond to appointment bookings and propose alternative times
-- Set and manage availability so community members can book appropriate slots
 
 **Admin Panel** — Platform administrators can:
 
@@ -86,11 +89,13 @@ Access to clean water is a fundamental human right, yet millions of Rwandans sti
 
 ### What Makes This Unique
 
-Unlike generic complaint portals, Temba is built specifically for Rwanda's administrative geography. The USSD registration flow contains the complete Rwanda administrative hierarchy — all 5 provinces, 30 districts, ~416 sectors, ~2,148 cells, and over 14,800 villages — presented as numbered paginated menus. This means a farmer in a rural cell with no smartphone can register and file a report in the same system as an urban professional using the web app.
+Unlike generic complaint portals, Temba is built specifically for Rwanda's administrative geography. The USSD registration flow contains the complete Rwanda administrative hierarchy — all 5 provinces, 30 districts, ~416 sectors — presented as numbered paginated menus. A farmer in a rural cell with no smartphone can register and file a report in the same system as an urban professional using the web app.
 
-The platform enforces a structured **accountability loop**: a report is not "closed" by the provider alone. The community member who submitted it must verify that the issue was genuinely resolved. If they dispute the resolution, the case escalates automatically — first to a supervisor, then a regional manager, then an executive — with SMS alerts at each level and SLA deadlines tracked per category (contamination and pipe bursts: 4-hour SLA; no supply: 24 hours; other issues: 72 hours).
+The platform enforces a structured **accountability loop**: a report is not "closed" by the provider alone. The community member who submitted it must verify that the issue was genuinely resolved. If they dispute the resolution, the case is automatically escalated with SMS alerts at each level and SLA deadlines tracked per priority class.
 
-The platform is also fully **bilingual**. Every USSD menu, every SMS notification, and every in-app label is available in both English and Kinyarwanda, toggled by the user's language preference — making the system genuinely accessible to all Rwandans.
+Every report is automatically classified into **P1 Critical (4h SLA)**, **P2 Urgent (24h SLA)**, or **P3 Standard (72h SLA)** based on a matrix combining report category and urgency — ensuring contamination and pipe bursts always get the fastest response regardless of user-selected urgency level.
+
+The platform is fully **bilingual** — every USSD menu, SMS notification, and in-app label is available in both English and Kinyarwanda, toggled by the user's language preference.
 
 ### Target Users
 
@@ -103,50 +108,120 @@ The platform is also fully **bilingual**. Every USSD menu, every SMS notificatio
 
 ---
 
-## 2. Key Features
+## 2. Functional Requirements
+
+| ID | Requirement |
+|----|-------------|
+| FR1 | The system shall allow community members to register and authenticate via both web (email + password) and USSD (phone number + 4-digit PIN) channels. |
+| FR2 | The system shall allow water service providers to register with mandatory SLA commitments (response time, resolution time) and escalation contacts (Officer and Supervisor). |
+| FR3 | Provider registration shall require admin verification before activation — a verification email is sent to the platform administrator for review. |
+| FR4 | The USSD interface shall support bilingual navigation in English and Kinyarwanda, selectable at session start. |
+| FR5 | Community members shall be able to report water infrastructure failures by selecting category (contamination, pipe burst, no supply, low pressure, other), urgency level, and the responsible water service provider. |
+| FR6 | The system shall auto-classify reports into three priority levels: P1 Critical (4-hour SLA), P2 Urgent (24-hour SLA), P3 Standard (72-hour SLA), based on category and urgency. |
+| FR7 | Each report shall generate a unique reference code (RPT-YYYYMMDD-XXXX) displayed to the community member for tracking. |
+| FR8 | Community members shall be able to track report status by entering the reference code on the web platform without requiring login. |
+| FR9 | Water service providers shall receive real-time in-app notifications and email alerts when new reports are assigned to their organisation. |
+| FR10 | The provider dashboard shall display reports sorted by priority (P1 → P2 → P3), with color-coded badges (red, amber, blue). |
+| FR11 | Providers shall be able to update report status through the lifecycle: Open → Acknowledged → In Progress → Resolution Submitted. |
+| FR12 | The system shall run automated SLA monitoring (Celery Beat, hourly) that triggers escalation emails to the Officer (Level 1, 0h overdue) and Supervisor (Level 2, +24h overdue). |
+| FR13 | Community members shall be able to verify provider resolutions with three verdict options: Verified, Partially Resolved, or Not Resolved. |
+| FR14 | After verification, community members shall be able to submit an anonymous rating (1–5 stars with optional comment). No user_id is stored on the rating record. |
+| FR15 | The system shall support appointment booking (date, time, reason, provider selection) and service request submission via both web and USSD. |
+| FR16 | Community members shall be able to reset passwords via email (OTP sent to inbox) or phone number (OTP sent via SMS). |
+| FR17 | All user actions shall be recorded in an immutable audit log (actor, action, resource, timestamp, IP address). |
+
+---
+
+## 3. Non-Functional Requirements
+
+| ID | Requirement |
+|----|-------------|
+| NFR1 | The USSD interface shall function on any mobile phone (feature phone or smartphone) without internet access. |
+| NFR2 | The USSD menu shall respond within 3 seconds per interaction step. |
+| NFR3 | The system shall encrypt all data transmission using HTTPS/TLS between web clients and the API server. |
+| NFR4 | Passwords shall be hashed using bcrypt; JWT HS256 tokens shall be used for session management (15-minute access tokens, 7-day refresh tokens stored in Redis). |
+| NFR5 | The platform shall be scalable to handle increasing numbers of users across all 5 provinces of Rwanda. |
+| NFR6 | The NGINX load balancer shall perform SSL/TLS termination, Layer 7 reverse proxy routing, and per-IP rate limiting (60 requests/minute general, 10 requests/minute for auth endpoints). |
+| NFR7 | The system shall support English and Kinyarwanda across all USSD menus, web interfaces, and email templates. |
+| NFR8 | Real-time synchronization between USSD-submitted data and the web dashboard shall maintain < 5% data discrepancy. |
+| NFR9 | The system shall store data backups regularly to prevent data loss, with PostgreSQL WAL archiving enabled. |
+| NFR10 | The platform shall comply with Rwanda's data protection standards; no personal data shall be exposed in API responses beyond what is necessary for the requesting user's role. |
+
+---
+
+## 4. Key Features
 
 ### Community
 
 - Bilingual interface — English and Kinyarwanda on all USSD menus, SMS messages, and web UI
 - Five-level Rwanda location picker (province → district → sector → cell → village) on both web and USSD
 - Issue reporting with 8 categories (contamination, pipe burst, low pressure, no supply, water quality, billing, meter, other) and 4 urgency levels
-- Public tracking page — enter a code and see full status, no account needed
+- Auto-priority classification: P1 Critical (4h SLA), P2 Urgent (24h SLA), P3 Standard (72h SLA)
+- Public tracking page — enter a reference code and see full status, no account needed
 - Service request submission (new water connection, truck delivery, meter support, inspection)
-- Appointment booking with provider availability calendar
-- Full report history with status timeline
+- Appointment booking with provider availability calendar (In-Person, Phone Call, or Site Visit)
 - Resolution verification — community confirms fix before case closes
+- Anonymous post-verification rating (1–5 stars + optional comment)
+- Delete completed, cancelled, or resolved records from history
 - SMS notifications for every status change
 
 ### Provider
 
-- Organisation dashboard with paginated report inbox, filterable by status and urgency
+- Priority-sorted report inbox: P1 Critical (red) → P2 Urgent (amber) → P3 Standard (blue)
+- Completion modal with provider notes before sending resolution to community for approval
 - SLA countdown indicators — visual warnings before deadlines breach
 - Team management — add staff with Supervisor / Regional Manager / Executive roles
 - Appointment calendar management with reschedule proposal flow
-- Service area and availability configuration
-- Members' requested services management
-- Alerts and announcements publishing
+- Per-notification delete and clear-all on notification drawer
+- Aggregate community star rating display (★ average/5, total reviews)
 
 ### Platform
 
 - JWT authentication with 15-minute access tokens and 7-day refresh tokens
-- Bcrypt-hashed passwords (web) and 4-digit PINs (USSD)
-- Celery-powered background job queue for SLA checks and escalations
+- Bcrypt-hashed passwords (web) and bcrypt-hashed 4-digit PINs (USSD)
+- Celery-powered background job queue for hourly SLA checks and 4-level escalation
+- Celery Beat daily task to auto-close cases unverified after 7 days (CLOSED_UNVERIFIED)
 - MinIO (S3-compatible) file storage for report media attachments
-- Audit trail — every status change and user action is logged
+- Immutable audit trail — every status change and user action is logged
 - Rate limiting on authentication endpoints (10 req/min)
 - Sentry error monitoring integration
-- Language switching between English and Kinyarwanda
+- Full English + Kinyarwanda i18n via `temba-i18n.js`
 
 ---
 
-## 3. System Architecture
+## 5. System Architecture
+
+The platform follows a **seven-phase chronological user journey** from registration to verified resolution:
+
+**Phase 1 — User Entry (Registration):**
+Community members register via web (email, password, Rwanda 5-level location hierarchy) or via USSD by dialling `*384*36640#` (name, province, district, 4-digit PIN). Water service providers register with organisation details, mandatory SLA commitments, and escalation contacts (Officer + Supervisor). Provider registration triggers a verification email to the platform administrator for review before activation.
+
+**Phase 2 — Authentication:**
+Web users authenticate via JWT HS256 (bcrypt-hashed passwords, 15-minute access tokens, 7-day refresh tokens in Redis). USSD users authenticate via 4-digit PIN verified against the phone number stored in the database. All requests pass through NGINX (SSL/TLS termination, rate limiting, API gateway routing).
+
+**Phase 3 — Community Member Actions (FastAPI :8000):**
+Authenticated community members can report water issues (category, urgency, provider selection, optional photo upload), submit service requests, book appointments (In-Person / Phone Call / Site Visit), and track issues by reference code (no login required for tracking).
+
+**Phase 4 — Auto Priority Classification:**
+Every report is automatically classified into P1 Critical (4h SLA), P2 Urgent (24h SLA), or P3 Standard (72h SLA) based on a matrix combining category and urgency. P1 is always triggered by contamination (any urgency) or pipe_burst + high/critical. The SLA deadline is set from the priority class, not the category alone.
+
+**Phase 5 — Water Service Provider Processing:**
+Providers receive reports on their dashboard sorted by priority (P1 on top, red badge). The sequential workflow is: Receive Report → Acknowledge → Work on Issue (IN_PROGRESS) → Open completion modal → Submit Resolution (RESOLUTION_SUBMITTED) → Community member receives verification banner.
+
+**Phase 6 — SLA & Accountability Engine (Celery):**
+Celery Beat runs hourly SLA checks. When a deadline is missed: Level 1 (0h overdue) → Officer receives email + SMS alert; Level 2 (+24h overdue) → Supervisor receives escalation email with full report details and escalation history. Every escalation action is recorded in the immutable audit log.
+
+**Phase 7 — Community Verification & Anonymous Feedback:**
+After the provider submits a resolution, the community member sees a purple verification banner and can choose: Confirmed Fixed (status → VERIFIED), Disputed (status → FOLLOW_UP_REQUIRED, reopen_count incremented; ≥ 2 disputes → MANAGEMENT_REVIEW), or No Response after 7 days (status → CLOSED_UNVERIFIED, auto-closed by Celery daily task). After verification, the community member can submit an anonymous 1–5 star rating. The Rating record stores report_id and provider_id but intentionally omits user_id — anonymity is enforced at the data model level.
+
+**Infrastructure:**
+PostgreSQL 16 (primary database), Redis 7 (JWT token store, Celery task queue, OTP codes), MinIO S3 (report photo uploads), Africa's Talking (USSD gateway + SMS delivery), Gmail SMTP (verification, password reset OTPs, SLA escalation, provider verification emails).
 
 ```text
 ┌──────────────────────┐    ┌────────────────────────┐
 │   Community Web App  │    │  Provider Web Dashboard │
-│  (temba-v2/*.html)   │    │  (temba-v2/dashboard-  │
-│   Vanilla JS / CSS   │    │   provider.html)        │
+│  (temba-v2/*.html)   │    │  (dashboard-provider   │
+│   Vanilla JS / CSS   │    │   .html)                │
 └──────────┬───────────┘    └───────────┬────────────┘
            │  REST API (JWT)             │  REST API (JWT)
            ▼                             ▼
@@ -176,7 +251,7 @@ Feature Phone User
   dials *384*36640#
        │
   ┌────▼─────────────┐     ┌──────────────────────┐
-  │ Africa's Talking │────▶│  ngrok HTTPS tunnel  │
+  │ Africa's Talking │────▶│  HTTPS endpoint      │
   │  USSD Gateway    │     │  → /api/v1/ussd/     │
   └──────────────────┘     │    callback          │
                            └──────────────────────┘
@@ -184,11 +259,12 @@ Feature Phone User
 
 ---
 
-## 4. Technology Stack
+## 6. Technology Stack
 
 | Layer | Technology | Version |
 | --- | --- | --- |
 | **Frontend** | HTML5, CSS3, Vanilla JavaScript | — |
+| **Internationalisation** | Custom i18n engine (`temba-i18n.js`) | — |
 | **Backend Framework** | FastAPI | 0.111.0 |
 | **Runtime** | Python | 3.11 |
 | **ORM** | SQLAlchemy (async) | 2.0.30 |
@@ -203,14 +279,16 @@ Feature Phone User
 | **Validation** | Pydantic v2 | 2.7.1 |
 | **USSD / SMS** | Africa's Talking SDK | 1.2.5 |
 | **Email** | Gmail SMTP via emails | 0.6.0 |
+| **Load Balancer** | NGINX 1.25 | SSL/TLS termination, rate limiting |
 | **Containerisation** | Docker + Docker Compose | — |
 | **USSD Tunnel (dev)** | ngrok | — |
-| **Monitoring** | Sentry | 2.2.0 |
+| **Error Monitoring** | Sentry | 2.2.0 |
 | **Logging** | structlog | 24.1.0 |
+| **Testing** | pytest + pytest-asyncio + httpx | — |
 
 ---
 
-## Demo Video
+## 7. Demo Video
 
 A full technical walkthrough demonstrating the complete Temba Digital Bridge system — USSD feature-phone flow, web dashboard, chatbot, and provider management.
 
@@ -220,9 +298,9 @@ A full technical walkthrough demonstrating the complete Temba Digital Bridge sys
 
 ---
 
-## Testing
+## 8. Testing
 
-The full test suite runs 55 tests across 7 modules and passes in under 64 seconds with zero failures.
+The full test suite runs **55 tests across 7 modules** and passes in under 64 seconds with zero failures.
 
 ```bash
 cd temba-backend
@@ -241,20 +319,47 @@ pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 | `test_edge_cases.py` | 12 | Boundary values, coordinates, all enums, Unicode names |
 | `test_ussd.py` | 18 | Full bilingual USSD flows via AT callback simulation |
 
-Four distinct testing strategies are used:
+### Testing Strategies
 
-- **Unit** — each endpoint tested in isolation with SQLite in-memory + FakeRedis
-- **Integration** — multi-step workflows (book → approve, create → update status) through the full ASGI stack
-- **Security** — JWT forgery, RBAC enforcement, weak passwords, SQL injection, data isolation
-- **Functional / USSD** — simulated Africa's Talking POST requests for 18 distinct USSD navigation paths
+**1. Integration Testing (14 tests):** Full HTTP request → response through FastAPI, testing real endpoint behaviour with database interactions. Covers user registration (success + duplicate email rejection), login (success + wrong password), JWT token issuance, report creation with auto-generated reference numbers, report listing with role-based filtering, appointment booking with provider approval flow, and two-way reschedule negotiation.
 
-For the full coverage report with individual test descriptions, see [`docs/testing-report.html`](docs/testing-report.html).
+**2. Security Testing (11 tests):** Unauthenticated access returns 401. Invalid/expired JWT tokens rejected. Community members cannot access provider-only endpoints (403). Report owner isolation (user A cannot read user B's report). Weak passwords rejected at registration (422). Invalid email format rejected. SQL injection attempts in email field rejected. Password hashes never exposed in API responses.
+
+**3. Boundary Value Testing (4 tests):** Report title at exact minimum length (5 chars) accepted. Title one character below minimum rejected. Valid GPS coordinates accepted. Invalid latitude (999.0) rejected.
+
+**4. Different Data Values (6 tests):** All valid report categories tested (contamination, pipe_burst, low_pressure, no_supply, other). All urgency levels tested (low, medium, high, critical). Rwandan phone number format (+250788123456) accepted. Kinyarwanda names (Uwimana Jean Baptiste) accepted.
+
+**5. USSD Channel Testing (18 tests):** Welcome screen rendering. English and Kinyarwanda language selection. Exit command. Unregistered phone number handling. Wrong PIN rejection. Correct PIN → main menu display. Full report flow (category → urgency → provider → confirm → reference code). Report tracking. Appointment booking flow. Service request flow. Kinyarwanda full report flow.
+
+**6. Error Handling:** Nonexistent report returns 403/404. Nonexistent endpoint returns 404. Health check returns `{"status": "ok"}`.
+
+### Dashboard Synchronisation Testing
+
+An end-to-end synchronisation test confirmed real-time bidirectional communication between dashboards:
+
+1. Community member submits report → Provider sees it instantly on their dashboard
+2. Provider acknowledges → Community sees "acknowledged" status immediately
+3. Provider sets IN_PROGRESS → Both dashboards and public tracking reflect the change
+4. Provider submits resolution with notes → Community sees status + resolution notes + verification banner
+5. Community verifies → Status changes to VERIFIED across all views
+6. Service request lifecycle: submitted → acknowledged (bidirectional sync verified)
+7. Appointment lifecycle: pending → approved (bidirectional sync verified)
+
+All 7 synchronisation tests passed.
+
+### Infrastructure Notes
+
+The test infrastructure uses three adaptations to run PostgreSQL-designed models in SQLite:
+
+1. PostgreSQL `ARRAY` and `JSONB` column types are replaced with `TEXT` at DDL time via a SQLAlchemy `before_create` event listener.
+2. A `FakeRedis` class (in-memory dict-backed) replaces all Redis operations by injecting into `app.db.redis._redis` before any endpoint code calls `get_redis()`.
+3. Python-side `default=lambda: datetime.now(timezone.utc)` was added to `TimestampMixin` columns to ensure ORM objects have timestamps without relying on PostgreSQL's `RETURNING` clause.
 
 ---
 
-## 5. Designs
+## 9. Designs
 
-### 5.1 Figma Prototype
+### 9.1 Figma Prototype
 
 The complete UI design for all 25 screens was created in Figma as a single-page interactive prototype. The design follows a consistent style guide:
 
@@ -268,104 +373,88 @@ The complete UI design for all 25 screens was created in Figma as a single-page 
 
 #### Screen Map — All 22 Screens
 
-The screens are organised into four user flows on a single Figma page.
+**Row 1 — Authentication & Onboarding (6 screens)**
 
-#### Row 1 — Authentication & Onboarding (6 screens)
+| Screen | Description |
+| --- | --- |
+| Landing Page | Hero section, public issue tracker, features overview |
+| Sign In | Email and password login for all roles |
+| Sign Up — Community | Community member registration with location picker |
+| Sign Up — Provider | Water organisation registration form |
+| Reset Password | Email-based password reset flow |
+| Language Switching | EN ↔ Kinyarwanda language toggle UI |
 
-| Screen | File | Description |
-| --- | --- | --- |
-| Landing Page | `Landing` | Hero section, public issue tracker, features overview |
-| Sign In | `Signin` | Email and password login for all roles |
-| Sign Up — Community | `Signup_community` | Community member registration with location picker |
-| Sign Up — Provider | `Signup_water_provider` | Water organisation registration form |
-| Reset Password | `Reset_Password` | Email-based password reset flow |
-| Language Switching | `Language_switching` | EN ↔ Kinyarwanda language toggle UI |
+**Row 2 — Community Portal (10 screens)**
 
-#### Row 2 — Community Portal (10 screens)
+| Screen | Description |
+| --- | --- |
+| Community Dashboard | Overview cards, quick actions, notification feed |
+| Submit Report | Report category, urgency, description, photo upload |
+| Report History | Full list of submitted reports with status badges |
+| Individual Accountability | Single report timeline, provider updates, verify button |
+| Water Quality Report | Dedicated water quality issue submission |
+| Service Request | New service request form (connection, truck, meter) |
+| Service Requested | Confirmation screen after service request submitted |
+| Book Appointment | Provider picker, calendar, available time slots |
+| Booked Appointments | List of upcoming and past appointments |
+| Browse Providers | Directory of approved water service providers |
 
-| Screen | File | Description |
-| --- | --- | --- |
-| Community Dashboard | `Community_member_portal` | Overview cards, quick actions, notification feed |
-| Submit Report | `Community_report` | Report category, urgency, description, photo upload |
-| Report History | `History` | Full list of submitted reports with status badges |
-| Individual Accountability | `Accountability_individual` | Single report timeline, provider updates, verify button |
-| Water Quality Report | `Water_quality` | Dedicated water quality issue submission |
-| Service Request | `Service_request` | New service request form (connection, truck, meter) |
-| Service Requested | `Service_requested` | Confirmation screen after service request submitted |
-| Book Appointment | `Appointment_booking` | Provider picker, calendar, available time slots |
-| Booked Appointments | `Appointments_booked` | List of upcoming and past appointments |
-| Browse Providers | `Providers` | Directory of approved water service providers |
+**Row 3 — Provider Portal (4 screens)**
 
-#### Row 3 — Provider Portal (4 screens)
+| Screen | Description |
+| --- | --- |
+| Provider Dashboard | Stats cards, recent activity, SLA indicators |
+| Reports Inbox | Paginated report list with filters and status controls |
+| Member Services | Service requests submitted by community members |
+| Availability Management | Set working days, hours, and blackout dates |
 
-| Screen | File | Description |
-| --- | --- | --- |
-| Provider Dashboard | `Water_provider_portal` | Stats cards, recent activity, SLA indicators |
-| Reports Inbox | `Reports_inbox` | Paginated report list with filters and status controls |
-| Member Services | `Members_requested_services` | Service requests submitted by community members |
-| Availability Management | `My_availability` | Set working days, hours, and blackout dates |
+**Row 4 — Admin & Shared (2 screens)**
 
-#### Row 4 — Admin & Shared (2 screens)
-
-| Screen | File | Description |
-| --- | --- | --- |
-| Alerts & Announcements | `Alerts_Announcements` | View platform-wide alerts and notices |
-| Publish Announcement | `Announcements_publishing` | Admin/provider announcement publishing form |
+| Screen | Description |
+| --- | --- |
+| Alerts & Announcements | View platform-wide alerts and notices |
+| Publish Announcement | Admin/provider announcement publishing form |
 
 ---
 
-### 5.2 App Interface Screenshots
+### 9.2 App Interface Screenshots
 
 All screenshots below are taken from the live running application.
-
----
 
 #### Authentication & Onboarding
 
 ##### Landing Page
-
 Hero section with public issue tracker and feature highlights.
-
 ![Landing Page](docs/screenshots/Landing.png)
 
 ---
 
 ##### Sign In
-
 Secure login for community members, providers, and admins.
-
 ![Sign In](docs/screenshots/Signin.png)
 
 ---
 
 ##### Sign Up — Community Member
-
 Registration form with Rwanda five-level location picker.
-
 ![Sign Up Community](docs/screenshots/Signup_community.png)
 
 ---
 
 ##### Sign Up — Water Provider
-
 Organisation registration and service category selection.
-
 ![Sign Up Provider](docs/screenshots/Signup_water_provider.png)
 
 ---
 
 ##### Reset Password
-
 Email-based password recovery flow.
-
 ![Reset Password](docs/screenshots/Reset_Password.png)
 
 ---
 
 ##### Language Switching
-
 Toggle between English and Kinyarwanda across the entire interface.
-
 ![Language Switching](docs/screenshots/Language_switching.png)
 
 ---
@@ -373,89 +462,67 @@ Toggle between English and Kinyarwanda across the entire interface.
 #### Community Portal
 
 ##### Community Dashboard
-
 Central hub showing active reports, appointments, and quick-action cards.
-
 ![Community Dashboard](docs/screenshots/Community_member_portal.png)
 
 ---
 
 ##### Submit a Report
-
 Water issue reporting with category, urgency level, description, and optional photo upload.
-
 ![Submit Report](docs/screenshots/Community_report.png)
 
 ---
 
 ##### Report History
-
 Complete list of all submitted reports with real-time status badges and tracking codes.
-
 ![Report History](docs/screenshots/History.png)
 
 ---
 
 ##### Individual Report Accountability
-
 Detailed view of a single report: full status timeline, provider notes, and community verification button.
-
 ![Individual Accountability](docs/screenshots/Accountability_individual.png)
 
 ---
 
 ##### Water Quality Report
-
 Dedicated submission form for water quality and contamination issues.
-
 ![Water Quality](docs/screenshots/Water_quality.png)
 
 ---
 
 ##### Service Request
-
 Submit a formal service request (new water connection, tank delivery, meter support, or inspection).
-
 ![Service Request](docs/screenshots/Service_request.png)
 
 ---
 
 ##### Service Request Submitted
-
 Confirmation screen after a service request is successfully submitted, showing the reference number.
-
 ![Service Requested](docs/screenshots/Service_requested.png)
 
 ---
 
 ##### Book an Appointment
-
 Browse providers, select a date on the availability calendar, and choose a time slot.
-
 ![Appointment Booking](docs/screenshots/Appointment_booking.png)
 
 ---
 
 ##### My Appointments
-
 Upcoming and past appointments with status indicators and reschedule options.
-
 ![Appointments Booked](docs/screenshots/Appointments_booked.png)
 
 ---
 
 ##### Browse Providers
-
 Directory of all approved water service providers with service categories and coverage areas.
-
 ![Providers](docs/screenshots/Providers.png)
 
 ---
 
 ##### Member Requested Services
-
 Full list of service requests the community member has submitted.
-
 ![Members Requested Services](docs/screenshots/Members_requested_services.png)
 
 ---
@@ -463,25 +530,19 @@ Full list of service requests the community member has submitted.
 #### Provider Portal
 
 ##### Provider Dashboard
-
 Organisation command centre with statistics, SLA indicators, and recent activity.
-
 ![Provider Dashboard](docs/screenshots/Water_provider_portal.png)
 
 ---
 
 ##### Reports Inbox
-
 Paginated queue of all incoming reports assigned to the provider, with status filters and urgency indicators.
-
 ![Reports Inbox](docs/screenshots/Reports_inbox.png)
 
 ---
 
 ##### Availability Management
-
 Set working days, working hours, maximum daily appointments, and blackout dates.
-
 ![My Availability](docs/screenshots/My_availability.png)
 
 ---
@@ -489,34 +550,20 @@ Set working days, working hours, maximum daily appointments, and blackout dates.
 #### Admin & Shared
 
 ##### Alerts & Announcements
-
 Platform-wide alerts, notices, and announcements visible to all users.
-
 ![Alerts Announcements](docs/screenshots/Alerts_Announcements.png)
 
 ---
 
 ##### Publish Announcement
-
 Admin and provider form to draft and publish announcements to the platform.
-
 ![Announcements Publishing](docs/screenshots/Announcements_publishing.png)
 
 ---
 
-### 5.3 System Architecture Diagram
+## 10. Getting Started
 
-The ASCII diagram in Section 3 shows the full architecture. For a visual version, draw the same diagram using [draw.io](https://app.diagrams.net), export as PNG, and save to `docs/diagrams/architecture.png`.
-
-![System Architecture](docs/diagrams/architecture.png)
-
----
-
-## 6. Getting Started
-
-### 6.1 Prerequisites
-
-Install the following tools before starting. Each link goes to the official download page.
+### 10.1 Prerequisites
 
 | Tool | Version | Purpose |
 | --- | --- | --- |
@@ -532,30 +579,26 @@ Install the following tools before starting. Each link goes to the official down
 
 ---
 
-### 6.2 Clone the Repository
-
-Open a terminal and run:
+### 10.2 Clone the Repository
 
 ```bash
-git clone https://github.com/Fidele012/Temba_Digital_Bridge.git
-cd Temba_Digital_Bridge
+git clone https://github.com/Fidele012/Temba-Digital-Bridge-USSD-Web-app-platform.git
+cd Temba-Digital-Bridge-USSD-Web-app-platform
 ```
 
 The project has two top-level folders:
 
 ```text
-Temba_Digital_Bridge/
+Temba-Digital-Bridge-USSD-Web-app-platform/
 ├── temba-backend/      # FastAPI Python backend
 └── temba-v2/           # Frontend (HTML / CSS / JS)
 ```
 
 ---
 
-### 6.3 Backend Setup
+### 10.3 Backend Setup
 
 Choose **Option A (Docker — easiest)** or **Option B (manual install)**.
-
----
 
 #### Option A — Docker Compose (Recommended)
 
@@ -568,7 +611,7 @@ cd temba-backend
 cp .env.example .env
 ```
 
-If `.env.example` does not exist, create `.env` manually with the content from [Section 7](#7-environment-variables) below.
+If `.env.example` does not exist, create `.env` manually with the content from [Section 11](#11-environment-variables) below.
 
 ##### Step 2 — Build and start all services
 
@@ -581,8 +624,6 @@ Wait about 30 seconds for all containers to become healthy. Check status:
 ```bash
 docker compose ps
 ```
-
-All services should show `healthy` or `running`.
 
 ##### Step 3 — Run database migrations
 
@@ -603,8 +644,6 @@ Open your browser and go to `http://localhost:8000/docs`. You should see the Tem
 ---
 
 #### Option B — Manual (without Docker)
-
-Use this if you prefer to install PostgreSQL and Redis directly on your machine.
 
 ##### Step 1 — Create and activate a Python virtual environment
 
@@ -639,7 +678,7 @@ GRANT ALL PRIVILEGES ON DATABASE temba_db TO temba;
 
 ##### Step 4 — Set up Redis
 
-Make sure Redis is running on the default port `6379`. On Windows use the Redis Windows installer or WSL. On macOS:
+Make sure Redis is running on the default port `6379`. On macOS:
 
 ```bash
 brew install redis && brew services start redis
@@ -649,7 +688,7 @@ brew install redis && brew services start redis
 
 ```bash
 cp .env.example .env
-# Open .env and fill in the values from Section 7
+# Open .env and fill in the values from Section 11
 ```
 
 ##### Step 6 — Run database migrations
@@ -689,7 +728,7 @@ celery -A app.worker worker --loglevel=info
 
 ---
 
-### 6.4 Frontend Setup
+### 10.4 Frontend Setup
 
 The frontend is plain HTML / CSS / JavaScript — no build step required.
 
@@ -726,7 +765,7 @@ Available pages:
 
 ---
 
-### 6.5 Africa's Talking USSD Setup
+### 10.5 Africa's Talking USSD Setup
 
 The USSD channel lets feature-phone users access the platform by dialling `*384*36640#`.
 
@@ -774,7 +813,7 @@ After submitting a report, an SMS with the tracking code is sent to your test nu
 
 ---
 
-## 7. Environment Variables
+## 11. Environment Variables
 
 Create `temba-backend/.env` with the following content. Values marked `CHANGE_ME` must be updated before running the application.
 
@@ -839,13 +878,13 @@ RATE_LIMIT_AUTH_PER_MINUTE=10
 
 ---
 
-## 8. Deployment Plan
+## 12. Deployment Plan
 
 Temba Digital Bridge is deployed as two separate parts: the **frontend** on Vercel and the **backend** on a persistent cloud server.
 
 ---
 
-### 8.1 Frontend — Vercel
+### 12.1 Frontend — Vercel
 
 The `temba-v2/` folder is a static site (HTML + CSS + JS) and deploys to Vercel in minutes.
 
@@ -861,7 +900,7 @@ git push origin main
 
 1. Go to [vercel.com](https://vercel.com) → Log in with GitHub
 2. Click **Add New → Project**
-3. Select your `Temba_Digital_Bridge` repository
+3. Select your `Temba-Digital-Bridge-USSD-Web-app-platform` repository
 4. In the configuration screen set:
    - **Framework Preset**: Other
    - **Root Directory**: `temba-v2`
@@ -885,17 +924,9 @@ Replace with your production backend URL:
 https://your-backend-url.up.railway.app
 ```
 
-Then commit, push, and Vercel will automatically redeploy.
-
-#### Step 4 — Custom domain (optional)
-
-In Vercel → Project → Domains, add a custom domain like `temba.rw`.
-
 ---
 
-### 8.2 Backend — Railway
-
-The FastAPI backend requires PostgreSQL, Redis, and a persistent server — Vercel's serverless functions are not suitable for this. **Railway** is the simplest cloud platform for this stack and has a free starter tier.
+### 12.2 Backend — Railway
 
 #### Step 1 — Sign up at Railway
 
@@ -903,7 +934,7 @@ Go to [railway.app](https://railway.app) and sign up with GitHub.
 
 #### Step 2 — Create a new project
 
-Click **New Project → Deploy from GitHub repo** → select `Temba_Digital_Bridge`. Set the **Root Directory** to `temba-backend`.
+Click **New Project → Deploy from GitHub repo** → select `Temba-Digital-Bridge-USSD-Web-app-platform`. Set the **Root Directory** to `temba-backend`.
 
 #### Step 3 — Add services
 
@@ -912,15 +943,12 @@ In the Railway project dashboard, click `+` and add:
 - **PostgreSQL** → Database → PostgreSQL
 - **Redis** → Database → Redis
 
-Railway gives you internal connection strings for each service.
-
 #### Step 4 — Set environment variables
 
-In Railway → your API service → Variables, add all values from Section 7. Use Railway's reference syntax:
+In Railway → your API service → Variables, add all values from Section 11. Use Railway's reference syntax:
 
 ```text
 DATABASE_URL=postgresql+asyncpg://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
-DATABASE_URL_SYNC=postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
 REDIS_URL=redis://${{Redis.REDIS_URL}}
 CELERY_BROKER_URL=redis://${{Redis.REDIS_URL}}/1
 CELERY_RESULT_BACKEND=redis://${{Redis.REDIS_URL}}/2
@@ -938,28 +966,17 @@ In Railway → your service → Shell tab:
 python seed_providers.py
 ```
 
-#### Step 7 — Note your public backend URL
-
-Railway gives you a URL like `https://temba-backend.up.railway.app`. Use this in the Vercel API URL update above.
-
 ---
 
-### 8.3 USSD in Production
+### 12.3 USSD in Production
 
-For production, replace the ngrok URL with your Railway backend URL in the Africa's Talking dashboard:
+For production, register your Railway backend URL in the Africa's Talking dashboard:
 
 - **USSD Callback URL**: `https://temba-backend.up.railway.app/api/v1/ussd/callback`
 
-Update your Railway environment variables:
-
-```ini
-AT_USERNAME=your_production_at_username
-AT_API_KEY=your_production_api_key
-```
-
 ---
 
-### 8.4 Deployment Summary
+### 12.4 Deployment Summary
 
 | Service | Platform | URL |
 | --- | --- | --- |
@@ -972,7 +989,7 @@ AT_API_KEY=your_production_api_key
 
 ---
 
-## 9. API Reference
+## 13. API Reference
 
 The full interactive API documentation is auto-generated by FastAPI:
 
@@ -992,23 +1009,27 @@ https://temba-backend.up.railway.app/docs        (production)
 | POST | `/api/v1/reports` | JWT | Submit a new report |
 | PUT | `/api/v1/reports/{id}` | JWT (provider/admin) | Update report status |
 | POST | `/api/v1/reports/{id}/verify` | JWT (owner) | Verify resolution |
+| POST | `/api/v1/reports/{id}/rate` | JWT (owner) | Submit anonymous rating (1–5 stars) |
 | GET | `/api/v1/track/{ref}` | None | Public issue tracking (no login) |
 | POST | `/api/v1/ussd/callback` | AT signature | USSD callback (feature phones) |
 | GET | `/api/v1/appointments` | JWT | List appointments |
 | POST | `/api/v1/appointments` | JWT | Book appointment |
+| DELETE | `/api/v1/appointments/{id}` | JWT | Cancel appointment |
 | GET | `/api/v1/service-requests` | JWT | List service requests |
 | POST | `/api/v1/service-requests` | JWT | Submit service request |
+| DELETE | `/api/v1/service-requests/{id}` | JWT | Cancel service request |
 | GET | `/api/v1/providers` | None | List approved providers |
 | POST | `/api/v1/providers` | JWT | Register as provider |
+| GET | `/api/v1/providers/{id}/ratings` | None | Provider aggregate rating |
 | GET | `/api/v1/analytics/stats` | JWT (admin) | Platform-wide statistics |
 | GET | `/api/v1/notifications` | JWT | In-app notification feed |
 
 ---
 
-## 10. Project Structure
+## 14. Project Structure
 
 ```text
-Temba_Digital_Bridge/
+Temba-Digital-Bridge-USSD-Web-app-platform/
 │
 ├── temba-v2/                          # Frontend (static HTML/CSS/JS)
 │   ├── index.html                     # Landing page + public tracker
@@ -1019,24 +1040,32 @@ Temba_Digital_Bridge/
 │   ├── dashboard-provider.html        # Water provider dashboard
 │   ├── report.html                    # Submit a water issue report
 │   ├── report-detail.html             # View single report timeline
+│   ├── temba.css                      # Global stylesheet
+│   ├── temba-auth.js                  # Authentication helpers (JWT refresh)
 │   ├── temba-chatbot.js               # In-page AI chatbot widget
 │   ├── temba-about.js                 # About / info modal
-│   └── rwanda_data.js                 # Rwanda administrative hierarchy data
+│   ├── temba-i18n.js                  # Full EN + Kinyarwanda translation engine
+│   ├── rwanda_data.js                 # Rwanda administrative hierarchy data
+│   └── vercel.json                    # Vercel deployment configuration
 │
 ├── temba-backend/                     # Backend (FastAPI / Python 3.11)
 │   ├── app/
 │   │   ├── main.py                    # FastAPI application entry point
+│   │   ├── events.py                  # App startup / shutdown events
+│   │   ├── worker.py                  # Celery application factory
+│   │   ├── tasks.py                   # Celery SLA escalation jobs
 │   │   ├── api/v1/
 │   │   │   ├── router.py              # All routers registered here
 │   │   │   └── endpoints/
 │   │   │       ├── auth.py            # Login, refresh, logout
 │   │   │       ├── users.py           # Profile, avatar upload
 │   │   │       ├── providers.py       # Provider registration and approval
-│   │   │       ├── reports.py         # Issue reporting lifecycle
+│   │   │       ├── reports.py         # Issue reporting lifecycle + rating
 │   │   │       ├── service_requests.py# Water service requests
 │   │   │       ├── appointments.py    # Booking and scheduling
 │   │   │       ├── notifications.py   # In-app notifications
 │   │   │       ├── analytics.py       # Admin statistics
+│   │   │       ├── events.py          # SSE push events
 │   │   │       ├── ussd.py            # USSD callback + bilingual menus
 │   │   │       └── track.py           # Public issue tracking (no auth)
 │   │   ├── models/
@@ -1044,28 +1073,48 @@ Temba_Digital_Bridge/
 │   │   │   ├── provider.py            # Provider, ProviderStaff, ServiceArea
 │   │   │   ├── report.py              # Report, ReportMedia
 │   │   │   ├── service_request.py     # ServiceRequest
-│   │   │   ├── appointment.py         # Appointment
-│   │   │   └── notification.py        # Notification
+│   │   │   ├── appointment.py         # Appointment (MeetingType enum)
+│   │   │   ├── notification.py        # Notification
+│   │   │   ├── announcement.py        # Announcement
+│   │   │   ├── audit_log.py           # AuditLog (append-only)
+│   │   │   └── rating.py              # Rating (no user_id — anonymous by design)
 │   │   ├── schemas/                   # Pydantic v2 request/response schemas
+│   │   │   ├── auth.py
+│   │   │   ├── user.py
+│   │   │   ├── provider.py
+│   │   │   ├── report.py
+│   │   │   ├── service_request.py
+│   │   │   ├── appointment.py
+│   │   │   ├── notification.py
+│   │   │   ├── rating.py
+│   │   │   └── common.py
 │   │   ├── core/
 │   │   │   ├── config.py              # Settings loaded from .env
 │   │   │   ├── security.py            # JWT creation and bcrypt helpers
 │   │   │   ├── dependencies.py        # get_current_user, require_staff, etc.
-│   │   │   └── sla.py                 # SLA deadline calculator per category
+│   │   │   ├── provider_utils.py      # Provider helper utilities
+│   │   │   ├── logging.py             # structlog configuration
+│   │   │   └── sla.py                 # Priority classification + SLA deadline calculator
 │   │   ├── db/
-│   │   │   └── session.py             # Async SQLAlchemy session factory
-│   │   ├── services/
-│   │   │   ├── file_service.py        # MinIO / S3 upload handling
-│   │   │   ├── notification_service.py# In-app notification helper
-│   │   │   └── sms_service.py         # Africa's Talking SMS wrapper
-│   │   └── worker/
-│   │       └── tasks.py               # Celery SLA escalation jobs
+│   │   │   ├── session.py             # Async SQLAlchemy session factory
+│   │   │   ├── base.py                # Import all models for Alembic
+│   │   │   ├── base_class.py          # UUIDMixin, TimestampMixin
+│   │   │   ├── init_db.py             # Admin seeding on startup
+│   │   │   └── redis.py               # Redis connection factory
+│   │   └── services/
+│   │       ├── file_service.py        # MinIO / S3 upload handling
+│   │       └── notification_service.py# In-app notification helper
 │   ├── alembic/
 │   │   └── versions/                  # Auto-generated migration files
 │   ├── tests/
-│   │   ├── test_auth.py
-│   │   ├── test_reports.py
-│   │   └── test_appointments.py
+│   │   ├── conftest.py                # Async test client, SQLite fixtures, FakeRedis
+│   │   ├── test_auth.py               # 6 tests — auth lifecycle
+│   │   ├── test_reports.py            # 3 tests — report CRUD + access control
+│   │   ├── test_appointments.py       # 2 tests — booking + reschedule
+│   │   ├── test_service_requests.py   # 3 tests — service request lifecycle
+│   │   ├── test_security.py           # 11 tests — JWT, RBAC, SQL injection
+│   │   ├── test_edge_cases.py         # 12 tests — boundary values, enums, Unicode
+│   │   └── test_ussd.py               # 18 tests — full bilingual USSD flows
 │   ├── seed_providers.py              # Seeds 3 providers + admin account
 │   ├── requirements.txt               # Python dependencies
 │   ├── Dockerfile                     # Multi-stage build (Python 3.11 slim)
@@ -1075,36 +1124,14 @@ Temba_Digital_Bridge/
 │
 └── docs/                              # Documentation assets
     ├── screenshots/                   # App interface screenshots (22 screens)
-    │   ├── Landing.png
-    │   ├── Signin.png
-    │   ├── Signup_community.png
-    │   ├── Signup_water_provider.png
-    │   ├── Reset_Password.png
-    │   ├── Language_switching.png
-    │   ├── Community_member_portal.png
-    │   ├── Community_report.png
-    │   ├── History.png
-    │   ├── Accountability_individual.png
-    │   ├── Water_quality.png
-    │   ├── Service_request.png
-    │   ├── Service_requested.png
-    │   ├── Appointment_booking.png
-    │   ├── Appointments_booked.png
-    │   ├── Providers.png
-    │   ├── Members_requested_services.png
-    │   ├── Water_provider_portal.png
-    │   ├── Reports_inbox.png
-    │   ├── My_availability.png
-    │   ├── Alerts_Announcements.png
-    │   └── Announcements_publishing.png
-    ├── figma/                         # Figma frame exports (optional)
-    └── diagrams/
-        └── architecture.png           # System architecture diagram
+    ├── figma/                         # Figma frame exports
+    ├── mission_capstone_chapters_3_to_6.md   # Capstone chapters 3–6
+    └── mission_capstone_chapters_3_to_6.html # HTML version of capstone chapters
 ```
 
 ---
 
-## 11. Database Schema
+## 15. Database Schema
 
 The backend uses **PostgreSQL 16** with **SQLAlchemy 2 (async)**. Every table shares two mixins applied at the ORM level:
 
@@ -1115,7 +1142,7 @@ The backend uses **PostgreSQL 16** with **SQLAlchemy 2 (async)**. Every table sh
 
 ---
 
-### 11.1 Entity Relationship Overview
+### 15.1 Entity Relationship Overview
 
 ```text
 users ──────────────────────────────────────────────────┐
@@ -1136,6 +1163,7 @@ providers ───────────────────────�
  └──< appointments           (provider_id FK, CASCADE)   │
 
 reports ──< report_media (report_id FK, CASCADE)
+reports ──< ratings      (report_id FK, UNIQUE — one rating per report)
 
 announcements → authored by users (author_id FK, SET NULL)
 audit_logs    → actor is a user   (actor_id FK, SET NULL)
@@ -1143,7 +1171,7 @@ audit_logs    → actor is a user   (actor_id FK, SET NULL)
 
 ---
 
-### 11.2 Table Definitions
+### 15.2 Table Definitions
 
 #### `users`
 
@@ -1159,7 +1187,7 @@ audit_logs    → actor is a user   (actor_id FK, SET NULL)
 | `is_verified` | BOOLEAN | default `false` |
 | `avatar_url` | TEXT | nullable |
 | `province` / `district` / `sector` / `cell` / `village` | VARCHAR(100) | nullable — Rwanda location |
-| `ussd_pin_hash` | VARCHAR(255) | nullable — bcrypt hashed 4-digit PIN for feature-phone access |
+| `ussd_pin_hash` | VARCHAR(255) | nullable — bcrypt hashed 4-digit PIN |
 | `verification_token` | VARCHAR(255) | nullable |
 | `reset_token` | VARCHAR(255) | nullable |
 | `reset_token_expires` | TIMESTAMPTZ | nullable |
@@ -1177,37 +1205,13 @@ audit_logs    → actor is a user   (actor_id FK, SET NULL)
 | `registration_number` | VARCHAR(100) | UNIQUE, nullable |
 | `status` | ENUM | `pending` / `approved` / `suspended` / `rejected` |
 | `service_categories` | VARCHAR[] | PostgreSQL ARRAY (8 standard categories) |
-| `custom_services` | VARCHAR[] | PostgreSQL ARRAY |
-| `description` | TEXT | nullable |
-| `logo_url` | TEXT | nullable |
-| `website` / `phone` / `email` | VARCHAR | nullable |
+| `sla_response_hours` / `sla_resolution_hours` | INTEGER | NOT NULL — mandatory SLA commitments |
+| `escalation_officer_name` / `escalation_officer_email` | VARCHAR | nullable — Level 1 escalation contact |
+| `escalation_supervisor_name` / `escalation_supervisor_email` | VARCHAR | nullable — Level 2 escalation contact |
 | `working_days` | VARCHAR[] | PostgreSQL ARRAY |
 | `work_start_time` / `work_end_time` | VARCHAR(5) | nullable — `"HH:MM"` |
 | `max_appointments_per_day` | INTEGER | default 10 |
 | `unavailable_dates` | VARCHAR[] | PostgreSQL ARRAY |
-
----
-
-#### `provider_service_areas`
-
-| Column | Type | Constraints |
-| --- | --- | --- |
-| `id` | UUID | PK |
-| `provider_id` | UUID | FK → `providers.id` CASCADE, indexed |
-| `province` | VARCHAR(100) | NOT NULL |
-| `district` | VARCHAR(100) | nullable |
-| `sector` | VARCHAR(100) | nullable |
-
----
-
-#### `provider_staff`
-
-| Column | Type | Constraints |
-| --- | --- | --- |
-| `id` | UUID | PK |
-| `provider_id` | UUID | FK → `providers.id` CASCADE, indexed |
-| `user_id` | UUID | FK → `users.id` CASCADE, indexed |
-| `staff_role` | ENUM | `supervisor` / `regional_manager` / `executive` |
 
 ---
 
@@ -1220,33 +1224,19 @@ audit_logs    → actor is a user   (actor_id FK, SET NULL)
 | `provider_id` | UUID | FK → `providers.id` SET NULL, nullable, indexed |
 | `category` | ENUM | `contamination` / `pipe_burst` / `low_pressure` / `no_supply` / `water_quality` / `billing` / `meter` / `other` |
 | `urgency` | ENUM | `low` / `medium` / `high` / `critical` |
+| `priority_class` | ENUM | `P1` (Critical 4h) / `P2` (Urgent 24h) / `P3` (Standard 72h) |
 | `status` | ENUM | `open` → `acknowledged` → `in_progress` → `resolution_submitted` → `verified` / `closed_unverified` / `management_review` |
 | `title` | VARCHAR(255) | NOT NULL |
 | `description` | TEXT | NOT NULL |
 | `reference_number` | VARCHAR(20) | UNIQUE, nullable, indexed (e.g. `RPT-20260614-K7M3`) |
 | `resolution_notes` | TEXT | nullable |
-| `sla_deadline` | TIMESTAMPTZ | nullable — set on creation per category |
+| `sla_deadline` | TIMESTAMPTZ | nullable — set on creation per priority class |
 | `overdue_flagged` | BOOLEAN | default `false` |
-| `escalation_level` | INTEGER | default 0 — 0 to 4, incremented by Celery task |
+| `escalation_level` | INTEGER | default 0 — 0 to 4, incremented by Celery |
 | `reopen_count` | INTEGER | default 0 |
-| `first_responded_at` | TIMESTAMPTZ | nullable |
-| `resolution_submitted_at` | TIMESTAMPTZ | nullable |
-| `verified_at` | TIMESTAMPTZ | nullable |
+| `first_responded_at` / `resolution_submitted_at` / `verified_at` | TIMESTAMPTZ | nullable |
 | `province` / `district` / `sector` / `cell` / `village` | VARCHAR(100) | nullable |
 | `latitude` / `longitude` | FLOAT | nullable |
-
----
-
-#### `report_media`
-
-| Column | Type | Constraints |
-| --- | --- | --- |
-| `id` | UUID | PK |
-| `report_id` | UUID | FK → `reports.id` CASCADE, indexed |
-| `url` | TEXT | NOT NULL — MinIO/S3 object URL |
-| `media_type` | VARCHAR(50) | `image` / `video` / `document` |
-| `file_name` | VARCHAR(255) | nullable |
-| `file_size` | INTEGER | nullable (bytes) |
 
 ---
 
@@ -1260,16 +1250,12 @@ audit_logs    → actor is a user   (actor_id FK, SET NULL)
 | `request_type` | ENUM | `water_connection` / `tank_delivery` / `truck_delivery` / `meter_support` / `inspection` |
 | `urgency` | ENUM | `low` / `medium` / `high` |
 | `status` | ENUM | `submitted` → `acknowledged` → `approved` → `in_progress` → `resolution_submitted` → `verified` / `closed_unverified` / `rejected` / `cancelled` |
-| `reference_number` | VARCHAR(20) | UNIQUE, nullable, indexed |
 | `description` | TEXT | NOT NULL |
 | `provider_notes` | TEXT | nullable |
 | `sla_deadline` | TIMESTAMPTZ | nullable |
-| `overdue_flagged` | BOOLEAN | default `false` |
-| `escalation_level` | INTEGER | default 0 |
-| `reopen_count` | INTEGER | default 0 |
+| `escalation_level` / `reopen_count` | INTEGER | default 0 |
 | `first_responded_at` / `resolution_submitted_at` / `verified_at` | TIMESTAMPTZ | nullable |
-| `province` / `district` / `sector` / `cell` / `village` | VARCHAR(100) | nullable |
-| `address_detail` | VARCHAR(500) | nullable |
+| `province` / `district` / `sector` / `cell` / `village` / `address_detail` | VARCHAR | nullable |
 
 ---
 
@@ -1282,49 +1268,27 @@ audit_logs    → actor is a user   (actor_id FK, SET NULL)
 | `provider_id` | UUID | FK → `providers.id` CASCADE, indexed |
 | `reason` | ENUM | `water_connection` / `meter_reading` / `pipe_repair` / `consultation` / `inspection` / `billing` / `other` |
 | `meeting_type` | ENUM | `in_person` / `phone_call` / `site_visit` |
-| `status` | ENUM | `pending` / `approved` / `rejected` / `reschedule_requested` / `rescheduled` / `cancelled` / `resolution_submitted` / `verified` / `closed_unverified` |
-| `notes` | TEXT | nullable |
+| `status` | ENUM | `pending` / `approved` / `rejected` / `reschedule_requested` / `rescheduled` / `cancelled` |
 | `appointment_date` | DATE | NOT NULL — confirmed date |
 | `appointment_time` | VARCHAR(5) | NOT NULL — `"HH:MM"` |
-| `requested_date` / `requested_time` | DATE / VARCHAR(5) | nullable — user reschedule request |
-| `reschedule_reason` | TEXT | nullable |
+| `notes` / `reschedule_reason` / `proposed_message` / `provider_note` | TEXT | nullable |
 | `proposed_date` / `proposed_time` | DATE / VARCHAR(5) | nullable — provider counter-proposal |
-| `proposed_message` | TEXT | nullable |
-| `provider_note` | TEXT | nullable — rejection or cancellation reason |
 | `sla_deadline` | TIMESTAMPTZ | nullable |
-| `overdue_flagged` | BOOLEAN | default `false` |
 | `escalation_level` | INTEGER | default 0 |
-| `resolution_submitted_at` / `verified_at` | TIMESTAMPTZ | nullable |
 
 ---
 
-#### `notifications`
+#### `ratings`
 
 | Column | Type | Constraints |
 | --- | --- | --- |
 | `id` | UUID | PK |
-| `user_id` | UUID | FK → `users.id` CASCADE, indexed |
-| `notification_type` | ENUM | `report_update` / `service_request_update` / `appointment_update` / `announcement` / `system` |
-| `title` | VARCHAR(255) | NOT NULL |
-| `body` | TEXT | NOT NULL |
-| `is_read` | BOOLEAN | default `false` |
-| `reference_id` | VARCHAR(36) | nullable — UUID of related entity |
-| `reference_type` | VARCHAR(50) | nullable — `"report"` / `"appointment"` / `"service_request"` |
+| `report_id` | UUID | FK → `reports.id` CASCADE, UNIQUE — one rating per report |
+| `provider_id` | UUID | FK → `providers.id` CASCADE, indexed |
+| `score` | INTEGER | 1–5, NOT NULL |
+| `comment` | TEXT | nullable — optional text feedback |
 
----
-
-#### `announcements`
-
-| Column | Type | Constraints |
-| --- | --- | --- |
-| `id` | UUID | PK |
-| `author_id` | UUID | FK → `users.id` SET NULL, nullable |
-| `title` | VARCHAR(255) | NOT NULL |
-| `body` | TEXT | NOT NULL |
-| `audience` | ENUM | `all` / `community` / `providers` |
-| `is_pinned` | BOOLEAN | default `false` |
-| `is_published` | BOOLEAN | default `true` |
-| `published_at` / `expires_at` | TIMESTAMPTZ | nullable |
+> **Note:** The `ratings` table intentionally has **no `user_id` column**. Anonymity is enforced at the data model level — the provider can only see aggregate scores (`AVG(score)`, `COUNT(id)`), never individual raters.
 
 ---
 
@@ -1347,17 +1311,18 @@ Rows are **never updated or deleted** — this is an immutable audit trail.
 
 ---
 
-### 11.3 Key Design Decisions
+### 15.3 Key Design Decisions
 
 | Decision | Reason |
 |---|---|
 | UUID primary keys on all tables | No sequential ID guessing; safe for distributed use |
-| Rwanda location fields denormalized onto `users`, `reports`, `service_requests` | Avoids joins on the most common query patterns |
+| Rwanda location fields denormalised onto `users`, `reports`, `service_requests` | Avoids joins on the most common query patterns |
 | PostgreSQL `ARRAY` for `service_categories`, `working_days`, `unavailable_dates` | Simple multi-value fields that do not warrant their own join tables |
-| `sla_deadline` + `overdue_flagged` + `escalation_level` on 3 tables | Powers the hourly Celery SLA checker with 4-level escalation (officer → supervisor → regional manager → executive) |
+| `priority_class` + `sla_deadline` + `overdue_flagged` + `escalation_level` on 3 tables | Powers the hourly Celery SLA checker with 4-level escalation (officer → supervisor → regional manager → executive) |
 | `reopen_count` + `first_responded_at` + `verified_at` | Inputs to the provider accountability score formula |
 | `audit_logs` as append-only | Compliance requirement; tamper-evident history of every status change and user action |
-| `reference_id` + `reference_type` on `notifications` | Polymorphic link to any entity type without separate FK columns per entity |
+| No `user_id` on `ratings` | Anonymity enforced at schema level — not just application level |
+| `meeting_type` ENUM on `appointments` | Correctly records In-Person / Phone Call / Site Visit; prevents all meetings defaulting to in-person |
 | bcrypt pinned to `3.2.2` | passlib 1.7.4 is incompatible with bcrypt ≥ 4 |
 
 ---
