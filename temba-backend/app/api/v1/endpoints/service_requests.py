@@ -30,6 +30,10 @@ from app.services.notification_service import notify_user
 router = APIRouter(prefix="/service-requests", tags=["service-requests"])
 
 _CANCELLABLE = {ServiceRequestStatus.SUBMITTED, ServiceRequestStatus.REVIEWING}
+_DELETABLE_SR = {
+    ServiceRequestStatus.COMPLETED, ServiceRequestStatus.VERIFIED,
+    ServiceRequestStatus.CANCELLED, ServiceRequestStatus.REJECTED, ServiceRequestStatus.CLOSED_UNVERIFIED,
+}
 _PROVIDER_SR_STATUSES = {
     ServiceRequestStatus.ACKNOWLEDGED,
     ServiceRequestStatus.REVIEWING,
@@ -141,12 +145,23 @@ async def update_service_request(
     await write_audit(db, request, "service_request.update", "service_request", str(sr_id), actor=current_user)
 
     if body.status:
+        ref = sr.reference_number or str(sr_id)[:8]
+        if body.status == ServiceRequestStatus.RESOLUTION_SUBMITTED:
+            notif_title = f"Action needed: confirm if your service request {ref} was completed"
+            notif_body = (
+                "The water service provider has submitted a resolution for your request. "
+                "Please open your dashboard to confirm whether the work has actually been completed. "
+                "If not completed, you can reopen the case."
+            )
+        else:
+            notif_title = f"Service request {ref} updated"
+            notif_body = f"Status changed to: {body.status.value.replace('_', ' ').title()}"
         await notify_user(
             db,
             user_id=sr.user_id,
             notification_type="service_request_update",
-            title="Service request updated",
-            body=f"Your service request status: {body.status.value.replace('_', ' ').title()}",
+            title=notif_title,
+            body=notif_body,
             reference_id=str(sr_id),
             reference_type="service_request",
         )
@@ -206,22 +221,44 @@ async def verify_service_request(
     return sr
 
 
-@router.delete("/{sr_id}", response_model=ServiceRequestPublic)
-async def cancel_service_request(
+@router.delete("/{sr_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_or_delete_service_request(
     sr_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> ServiceRequest:
+) -> None:
     result = await db.execute(_with_relations(select(ServiceRequest).where(ServiceRequest.id == sr_id)))
     sr = result.scalar_one_or_none()
     if not sr:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service request not found")
-    if sr.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    if sr.status not in _CANCELLABLE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot cancel at this stage")
 
-    sr.status = ServiceRequestStatus.CANCELLED
-    await write_audit(db, request, "service_request.cancel", "service_request", str(sr_id), actor=current_user)
-    return sr
+    if current_user.role == UserRole.COMMUNITY:
+        if sr.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if sr.status in _DELETABLE_SR:
+            # Terminal — hard delete
+            await write_audit(db, request, "service_request.delete", "service_request", str(sr_id), actor=current_user)
+            await db.delete(sr)
+            return
+        if sr.status not in _CANCELLABLE:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot cancel at this stage")
+        # In-progress — mark cancelled
+        sr.status = ServiceRequestStatus.CANCELLED
+        await write_audit(db, request, "service_request.cancel", "service_request", str(sr_id), actor=current_user)
+
+    elif current_user.role == UserRole.PROVIDER:
+        prov = await get_provider_for_user(current_user, db)
+        if not prov or sr.provider_id != prov.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if sr.status not in _DELETABLE_SR:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Providers can only delete completed, verified, or cancelled service requests.",
+            )
+        await write_audit(db, request, "service_request.delete", "service_request", str(sr_id), actor=current_user)
+        await db.delete(sr)
+
+    else:  # admin
+        await write_audit(db, request, "service_request.delete", "service_request", str(sr_id), actor=current_user)
+        await db.delete(sr)

@@ -270,6 +270,47 @@ async def attach_media(
     return report
 
 
+_DELETABLE_STATUSES = {
+    ReportStatus.VERIFIED, ReportStatus.CLOSED_UNVERIFIED,
+    ReportStatus.RESOLVED, ReportStatus.CLOSED,
+}
+
+
+@router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_report(
+    report_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    result = await db.execute(_with_relations(select(Report).where(Report.id == report_id)))
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+
+    if current_user.role == UserRole.COMMUNITY:
+        if report.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if report.status not in _DELETABLE_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You can only delete reports that are fully resolved or closed.",
+            )
+    elif current_user.role == UserRole.PROVIDER:
+        prov = await get_provider_for_user(current_user, db)
+        if not prov or report.provider_id != prov.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if report.status not in _DELETABLE_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You can only delete reports that are fully resolved or closed.",
+            )
+    # admin can delete anything
+
+    await write_audit(db, request, "report.delete", "report", str(report_id), actor=current_user)
+    await db.delete(report)
+
+
 @router.post("/{report_id}/rate", response_model=RatingPublic, status_code=status.HTTP_201_CREATED)
 async def rate_report(
     report_id: UUID,

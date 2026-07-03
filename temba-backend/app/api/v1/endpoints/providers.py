@@ -38,6 +38,7 @@ from app.schemas.provider import (
     ProviderStaffPublic,
     ProviderStatusUpdate,
     ProviderUpdate,
+    SlaContactsUpdate,
 )
 from app.services.notification_service import notify_user, send_email_background
 
@@ -244,6 +245,27 @@ async def update_availability(
 
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(provider, field, value)
+    await db.refresh(provider, ["service_areas"])
+    return provider
+
+
+# ── SLA escalation contacts ─────────────────────────────────────────────────
+
+@router.put("/me/sla-contacts", response_model=ProviderPublic)
+async def update_sla_contacts(
+    body: SlaContactsUpdate,
+    current_user: Annotated[User, Depends(require_provider)],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Provider:
+    provider = await get_provider_for_user(current_user, db)
+    if not provider:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider profile not found")
+
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(provider, field, value)
+
+    await write_audit(db, request, "provider.sla_contacts.update", "provider", str(provider.id), actor=current_user)
     await db.refresh(provider, ["service_areas"])
     return provider
 

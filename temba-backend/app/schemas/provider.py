@@ -57,6 +57,15 @@ class ProviderUpdate(ORMModel):
     custom_services: list[str] | None = None
 
 
+class SlaContactsUpdate(ORMModel):
+    officer_name: str | None = Field(None, min_length=2, max_length=255)
+    officer_email: EmailStr | None = None
+    officer_phone: str | None = Field(None, pattern=r"^\+?[0-9]{9,15}$")
+    supervisor_name: str | None = Field(None, min_length=2, max_length=255)
+    supervisor_email: EmailStr | None = None
+    supervisor_phone: str | None = Field(None, pattern=r"^\+?[0-9]{9,15}$")
+
+
 class AvailabilityUpdate(ORMModel):
     working_days: list[str] | None = None
     work_start_time: str | None = Field(None, pattern=r"^\d{2}:\d{2}$")

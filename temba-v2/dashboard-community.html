@@ -87,6 +87,22 @@
 
     <!-- ── OVERVIEW ── -->
     <div class="dash-panel active" id="panel-overview">
+      <!-- Verification action banner — shown when provider submitted resolution -->
+      <div id="overviewVerifyAlert" style="display:none;background:linear-gradient(135deg,#7C3AED18,#7C3AED08);border:1.5px solid #7C3AED55;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:none;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#7C3AED;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ti-circle-check" style="font-size:20px;color:#fff;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14px;color:#4C1D95;" id="overviewVerifyTitle">Your provider marked an issue as resolved</div>
+            <div style="font-size:13px;color:#6D28D9;margin-top:2px;" id="overviewVerifyBody">Please confirm whether the issue was actually fixed.</div>
+          </div>
+          <button onclick="_navToPanel('my-reports','resolution_submitted')" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            <i class="ti ti-arrow-right"></i> Review Now
+          </button>
+        </div>
+      </div>
+
       <div class="panel-hero">
         <div>
           <h1 id="greetingText">Good morning, there</h1>
@@ -1129,6 +1145,27 @@ function _refreshAll() {
   _updateSvcBadgeAll(); _updateApptBadgeAll();
   renderOverview(all); renderReportsList(all,'all'); renderSvcList('all'); renderApptList('all');
   renderVerifyBanners();
+  // Show/hide the top overview "action needed" banner
+  const pendingVerify = all.filter(r => r.status === 'resolution_submitted');
+  const allSvc = getAllSvcReqs();
+  const pendingSvc = allSvc.filter(r => r.status === 'resolution_submitted');
+  const totalPending = pendingVerify.length + pendingSvc.length;
+  const va = document.getElementById('overviewVerifyAlert');
+  if (va) {
+    if (totalPending > 0) {
+      const firstName = pendingVerify[0] || pendingSvc[0];
+      const label = pendingVerify.length > 0 ? pendingVerify[0].issue : _svcLabel(pendingSvc[0].type);
+      document.getElementById('overviewVerifyTitle').textContent =
+        totalPending === 1
+          ? `Action needed: "${label}" has been marked as resolved`
+          : `Action needed: ${totalPending} items await your confirmation`;
+      document.getElementById('overviewVerifyBody').textContent =
+        'Your water provider submitted a resolution. Please confirm if the issue was actually fixed.';
+      va.style.display = 'block';
+    } else {
+      va.style.display = 'none';
+    }
+  }
 }
 function _updateSvcBadgeAll() {
   const all = getAllSvcReqs();
@@ -1409,6 +1446,29 @@ function _slaBadge(type, createdAt, status) {
   return `<span class="sla-badge sla-warning"><i class="ti ti-clock"></i> ${Math.round(h - ela)}${t('sla_h_left')}</span>`;
 }
 
+const _DELETABLE_REPORT_STATUSES = new Set(['verified','resolved','closed','closed_unverified']);
+
+async function deleteReport(id, apiId, el) {
+  if (!confirm('Remove this report from your history? This cannot be undone.')) return;
+  const card = el.closest('.card');
+  // Remove from localStorage
+  const stored = getReports().filter(r => r.id !== id && r.apiId !== id);
+  saveReports(stored);
+  // Remove from API cache
+  window._apiReports = (window._apiReports || []).filter(r => r.apiId !== apiId && r.apiId !== id);
+  // Hard-delete via API if it came from API
+  const token = localStorage.getItem('temba_token');
+  if (token && apiId && !apiId.startsWith('local_')) {
+    fetch(`${API_BASE}/reports/${apiId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
+  if (card) card.style.transition = 'opacity .25s'; if (card) card.style.opacity = '0';
+  setTimeout(() => _refreshAll(), 300);
+  toast('Report removed from your history.', 'success');
+}
+
 function renderReportsList(all, filter) {
   const list = filter === 'all' ? all : all.filter(r => r.status === filter);
   document.getElementById('reportsList').innerHTML = list.length
@@ -1437,6 +1497,7 @@ function renderReportsList(all, filter) {
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;" onclick="event.stopPropagation()">
         <a href="report-detail.html?ref=${r.ref}" class="btn-sms" style="text-decoration:none;"><i class="ti ti-eye"></i> ${t('btn_view_details')}</a>
         ${r.status!=='resolved'?(ph=>ph?`<a href="tel:${ph}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'' )(_provPhone(r.provider)):''}
+        ${_DELETABLE_REPORT_STATUSES.has(r.status)?`<button class="btn-action danger" onclick="deleteReport('${r.id||r.ref}','${r.apiId||''}',this)" style="margin-left:auto;"><i class="ti ti-trash"></i> Delete</button>`:''}
       </div>
     </div>`).join('')
     : `<div class="empty-state"><i class="ti ti-flag"></i><p>${t('empty_no_reports_category')}</p></div>`;
@@ -1478,6 +1539,28 @@ function onApptReasonChange() {
   if (val !== 'other') { const inp = document.getElementById('apptOtherReason'); if (inp) inp.value = ''; }
 }
 
+const _DELETABLE_SVC_STATUSES = new Set(['completed','verified','cancelled','rejected','closed_unverified']);
+
+async function deleteSvcReq(id, apiId, el) {
+  if (!confirm('Remove this service request from your history? This cannot be undone.')) return;
+  const card = el.closest('.request-card');
+  // Remove from localStorage
+  const stored = getSvcReqs().filter(r => r.id !== id && r.apiId !== id);
+  saveSvcReqs(stored);
+  window._apiSvcReqs = (window._apiSvcReqs || []).filter(r => r.apiId !== apiId && r.apiId !== id);
+  // Hard-delete via API
+  const token = localStorage.getItem('temba_token');
+  if (token && apiId && !apiId.startsWith('local_')) {
+    fetch(`${API_BASE}/service-requests/${apiId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
+  if (card) { card.style.transition = 'opacity .25s'; card.style.opacity = '0'; }
+  setTimeout(() => _refreshAll(), 300);
+  toast('Service request removed.', 'success');
+}
+
 function renderSvcList(filter) {
   const all = getAllSvcReqs();
   const list = filter === 'all' ? all : all.filter(r => r.type === filter);
@@ -1504,6 +1587,9 @@ function renderSvcList(filter) {
       <div class="request-actions">
         ${r.status==='submitted'||r.status==='reviewing'
           ? `<button class="btn-action danger" onclick="cancelSvcRequest('${r.id}')"><i class="ti ti-x"></i> ${t('btn_cancel')}</button>`
+          : ''}
+        ${_DELETABLE_SVC_STATUSES.has(r.status)
+          ? `<button class="btn-action danger" onclick="deleteSvcReq('${r.id||r.apiId}','${r.apiId||''}',this)"><i class="ti ti-trash"></i> Delete</button>`
           : ''}
         ${(ph=>ph?`<a href="tel:${ph}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'')(_provPhone(r.provider))}
       </div>

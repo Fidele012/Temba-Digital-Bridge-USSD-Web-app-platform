@@ -339,9 +339,57 @@
       </div>
 
       <!-- Team list -->
-      <div class="card">
+      <div class="card" style="margin-bottom:1.5rem;">
         <div style="font-weight:700;font-size:15px;color:var(--navy);margin-bottom:1rem;"><i class="ti ti-shield-check" style="margin-right:6px;color:var(--blue);"></i><span data-i18n="prov_current_chain">Current Escalation Chain</span></div>
         <div id="teamList"><div class="empty-state"><i class="ti ti-users" style="font-size:2rem;color:var(--gray-300);"></i><p data-i18n="prov_no_staff">No staff added yet. Add your supervisor and managers above.</p></div></div>
+      </div>
+
+      <!-- SLA escalation contacts form -->
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:8px;">
+          <i class="ti ti-bell-ringing" style="color:#D97706;"></i> SLA Monitoring Contacts
+        </div>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:1.25rem;line-height:1.6;">These contacts receive automatic escalation emails when cases breach SLA deadlines. They do not need a Temba account. Level 1 Officer is notified first; Level 2 Supervisor is cc'd after 24 h.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+          <!-- Level 1 -->
+          <div>
+            <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#D97706;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:2px solid #FEF3C7;">Level 1 — SLA Officer</div>
+            <div class="field" style="margin-bottom:.75rem;">
+              <label class="field-label">Full Name</label>
+              <div class="field-wrap"><i class="ti ti-user field-icon"></i><input type="text" id="slaOfficerName" placeholder="e.g. Jean de Dieu Nkurunziza" /></div>
+            </div>
+            <div class="field" style="margin-bottom:.75rem;">
+              <label class="field-label">Email</label>
+              <div class="field-wrap"><i class="ti ti-mail field-icon"></i><input type="email" id="slaOfficerEmail" placeholder="officer@provider.rw" /></div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label class="field-label">Phone</label>
+              <div class="field-wrap"><i class="ti ti-phone field-icon"></i><input type="tel" id="slaOfficerPhone" placeholder="+250780000000" /></div>
+            </div>
+          </div>
+          <!-- Level 2 -->
+          <div>
+            <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7C3AED;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:2px solid #EDE9FE;">Level 2 — Supervisor</div>
+            <div class="field" style="margin-bottom:.75rem;">
+              <label class="field-label">Full Name</label>
+              <div class="field-wrap"><i class="ti ti-user field-icon"></i><input type="text" id="slaSupervisorName" placeholder="e.g. Marie Claire Uwimana" /></div>
+            </div>
+            <div class="field" style="margin-bottom:.75rem;">
+              <label class="field-label">Email</label>
+              <div class="field-wrap"><i class="ti ti-mail field-icon"></i><input type="email" id="slaSupervisorEmail" placeholder="supervisor@provider.rw" /></div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label class="field-label">Phone</label>
+              <div class="field-wrap"><i class="ti ti-phone field-icon"></i><input type="tel" id="slaSupervisorPhone" placeholder="+250780000001" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem;display:flex;align-items:center;gap:10px;">
+          <button class="btn-primary" style="height:40px;" onclick="saveSlaContacts()"><i class="ti ti-device-floppy"></i> Save SLA Contacts</button>
+          <span id="slaContactsMsg" style="font-size:13px;display:none;"></span>
+        </div>
       </div>
     </div>
 
@@ -845,6 +893,39 @@ async function loadProviderProfile() {
     if (whEl) whEl.textContent = `${data.work_start_time} – ${data.work_end_time}`;
     const maxEl = document.getElementById('maxApptDisplay');
     if (maxEl) maxEl.textContent = data.max_appointments_per_day;
+  }
+  // Populate SLA contacts form
+  const fields = ['OfficerName','OfficerEmail','OfficerPhone','SupervisorName','SupervisorEmail','SupervisorPhone'];
+  fields.forEach(f => {
+    const el = document.getElementById('sla' + f);
+    const key = 'officer_name officer_email officer_phone supervisor_name supervisor_email supervisor_phone'.split(' ')[fields.indexOf(f)];
+    if (el && data[key]) el.value = data[key];
+  });
+}
+
+async function saveSlaContacts() {
+  const body = {
+    officer_name: document.getElementById('slaOfficerName')?.value.trim() || null,
+    officer_email: document.getElementById('slaOfficerEmail')?.value.trim() || null,
+    officer_phone: document.getElementById('slaOfficerPhone')?.value.trim() || null,
+    supervisor_name: document.getElementById('slaSupervisorName')?.value.trim() || null,
+    supervisor_email: document.getElementById('slaSupervisorEmail')?.value.trim() || null,
+    supervisor_phone: document.getElementById('slaSupervisorPhone')?.value.trim() || null,
+  };
+  // Remove null/empty values
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+
+  const msg = document.getElementById('slaContactsMsg');
+  if (msg) { msg.style.display = 'inline'; msg.style.color = 'var(--gray-500)'; msg.textContent = 'Saving…'; }
+
+  const result = await apiPut('/providers/me/sla-contacts', body);
+  if (result) {
+    window._myProviderProfile = result;
+    if (msg) { msg.style.color = '#059669'; msg.textContent = 'Saved successfully.'; }
+    toast('SLA contacts updated.', 'success');
+    setTimeout(() => { if (msg) msg.style.display = 'none'; }, 4000);
+  } else {
+    if (msg) { msg.style.color = '#DC2626'; msg.textContent = 'Failed to save. Check your entries.'; }
   }
 }
 
@@ -1581,9 +1662,10 @@ function renderInbox(data, filter) {
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
         ${phoneHref?`<a href="tel:${phoneHref}" class="btn-call" style="text-decoration:none;" title="Call ${r.reporter}"><i class="ti ti-phone"></i></a>`:''}
         ${phoneHref?`<a href="sms:${phoneHref}" class="btn-sms" style="text-decoration:none;" title="SMS ${r.reporter}"><i class="ti ti-message"></i></a>`:''}
-        ${(r.status!=='resolved'&&r.status!=='pending-verification')?`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}')"><i class="ti ti-check"></i> Resolve</button>`:''}
+        ${(r.status!=='resolved'&&r.status!=='pending-verification'&&r.status!=='verified')?`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}')"><i class="ti ti-check"></i> Resolve</button>`:''}
         ${r.status==='pending-verification'?`<span style="font-size:11px;color:#7C3AED;font-weight:600;"><i class="ti ti-clock"></i> Awaiting member verification</span>`:''}
         ${(r.status==='submitted'||r.status==='open')&&r.apiId?`<button class="btn-action warning" style="font-size:11.5px;" onclick="markReportInProgress('${r.ref}','${r.apiId}')"><i class="ti ti-loader-2"></i> In Progress</button>`:''}
+        ${(r.status==='resolved'||r.status==='verified'||r.status==='closed')?`<button title="Remove from inbox" onclick="deleteProviderReport('${r.ref}','${r.apiId||''}',this)" style="background:none;border:1px solid #FECACA;border-radius:6px;padding:4px 8px;cursor:pointer;color:#DC2626;" ><i class="ti ti-trash" style="font-size:13px;"></i></button>`:''}
       </div>
     </td>
   </tr>`}).join('');
@@ -1621,6 +1703,24 @@ async function _submitResolve() {
 }
 function closeResolveModal() {
   document.getElementById('resolveModal').style.display = 'none';
+}
+
+async function deleteProviderReport(ref, apiId, el) {
+  if (!confirm(`Remove report ${ref} from your inbox? This permanently deletes it.`)) return;
+  const row = el.closest('tr');
+  // Remove from local cache
+  reports = reports.filter(r => r.ref !== ref && r.apiId !== apiId);
+  localStorage.setItem(PROVIDER_REPORT_KEY, JSON.stringify(reports));
+  // Delete via API
+  const token = localStorage.getItem('temba_token');
+  if (token && apiId) {
+    fetch(`${API_BASE}/reports/${apiId}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
+  if (row) { row.style.transition = 'opacity .25s'; row.style.opacity = '0'; }
+  setTimeout(() => { renderInbox(getProviderReports(), inboxFilter); updateBadges(); }, 300);
+  showTembaToast(`Report ${ref} removed.`, 'success');
 }
 
 async function markReportInProgress(ref, apiId) {
@@ -1688,6 +1788,7 @@ function renderProvSvcList(filter) {
           <button class="btn-action success" onclick="updateSvcStatus('${r.id}','completed')"><i class="ti ti-circle-check"></i> Mark Completed</button>
         `:''}
         ${r.phone?`<a href="tel:${r.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`:''}
+        ${'completed verified cancelled rejected closed_unverified'.split(' ').includes(r.status)?`<button class="btn-action danger" title="Remove permanently" onclick="deleteProviderSvcReq('${r.id}','${r.apiId||''}',this)"><i class="ti ti-trash"></i> Remove</button>`:''}
       </div>
     </div>
   </div>`).join('');
@@ -1728,6 +1829,25 @@ async function updateSvcStatus(id, newStatus, providerNotes) {
   saveSvcRequests(all); renderProvSvcList('all'); renderOverviewCards(); updateBadges();
   _svcNotifs(req);
   toast(`Request ${STATUS_LABEL[newStatus]||newStatus}`, 'success');
+}
+
+async function deleteProviderSvcReq(id, apiId, el) {
+  if (!confirm('Permanently remove this service request from your records? This cannot be undone.')) return;
+  const card = el.closest('.appt-mgmt-card');
+  // Remove from local cache
+  const all = getSvcRequests().filter(r => r.id !== id && r.apiId !== apiId);
+  saveSvcRequests(all);
+  window._apiSvcReqs = (window._apiSvcReqs || []).filter(r => r.id !== apiId && r.id !== id);
+  // Delete via API
+  const token = localStorage.getItem('temba_token');
+  if (token && apiId && !apiId.startsWith('local_')) {
+    fetch(`${API_BASE}/service-requests/${apiId}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
+  if (card) { card.style.transition = 'opacity .25s'; card.style.opacity = '0'; }
+  setTimeout(() => { renderProvSvcList('all'); updateBadges(); }, 300);
+  toast('Service request removed.', 'success');
 }
 
 /* ── Appointments (Provider side) ── */
@@ -2260,6 +2380,7 @@ function toast(msg, type='info') {
   t.textContent = msg; t.style.opacity = '1';
   clearTimeout(t._tm); t._tm = setTimeout(()=>{ t.style.opacity='0'; }, 2800);
 }
+const showTembaToast = toast;
 
 /* ── Dark mode ── */
 function toggleDarkMode() {
