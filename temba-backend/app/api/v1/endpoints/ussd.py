@@ -939,16 +939,16 @@ _T: dict[str, dict[str, str]] = {
     },
     "account_created": {
         "en": (
-            "END Account created successfully!\n"
-            "Dial *384*36640# again,\n"
-            "choose Login and enter your PIN\n"
-            "to use Temba services."
+            "END Account created!\n"
+            "Your location is saved so providers\n"
+            "can reach you faster.\n"
+            "Dial *384*36640# and Login."
         ),
         "rw": (
-            "END Konti yakozwe neza!\n"
-            "Hamagara *384*36640# nanone,\n"
-            "hitamo Injira winjize PIN yawe\n"
-            "gukoresha serivisi za Temba."
+            "END Konti yakozwe!\n"
+            "Aho ubarizwa bwabitswe kugira\n"
+            "amatangazo yoherezwa vuba.\n"
+            "Hamagara *384*36640# uhitemo Injira."
         ),
     },
     "enter_pin": {
@@ -1340,6 +1340,58 @@ def _district_menu(prov_choice: str, lang: str) -> str:
     return header + lines + "\n" + _back(lang)
 
 
+_SIGNUP_PER_PAGE = 7  # items shown per USSD page in registration menus
+
+
+def _paged_selection(
+    parts: list[str], start_idx: int, items: list[str]
+) -> tuple[str | None, int, int]:
+    """Walk parts starting at start_idx consuming '9' (next-page) tokens.
+
+    Returns (selected_name | 'BACK' | None, current_page, next_parts_idx).
+    None means no selection yet — caller should show the appropriate page.
+    """
+    page = 0
+    idx = start_idx
+    while idx < len(parts):
+        val = parts[idx]
+        if val == "9":
+            page += 1
+            idx += 1
+        elif val == "0":
+            return "BACK", page, idx
+        else:
+            try:
+                offset = page * _SIGNUP_PER_PAGE + int(val) - 1
+                if 0 <= offset < len(items):
+                    return items[offset], page, idx + 1
+                # Invalid number on this page — re-show same page
+            except ValueError:
+                pass
+            return None, page, idx
+    return None, page, idx
+
+
+def _sector_menu(district_name: str, lang: str, page: int) -> str:
+    sectors = _sectors_for(district_name)
+    start = page * _SIGNUP_PER_PAGE
+    chunk = sectors[start: start + _SIGNUP_PER_PAGE]
+    hdr = "CON Select your sector:\n" if lang == "en" else "CON Hitamo umurenge wawe:\n"
+    lines = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(chunk))
+    more = ("\n9. More >>" if lang == "en" else "\n9. Undi mwanya >>") if (start + _SIGNUP_PER_PAGE) < len(sectors) else ""
+    return hdr + lines + more + "\n" + _back(lang)
+
+
+def _cell_menu(district_name: str, sector_name: str, lang: str, page: int) -> str:
+    cells = _cells_for(district_name, sector_name)
+    start = page * _SIGNUP_PER_PAGE
+    chunk = cells[start: start + _SIGNUP_PER_PAGE]
+    hdr = "CON Select your cell:\n" if lang == "en" else "CON Hitamo akagari kawe:\n"
+    lines = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(chunk))
+    more = ("\n9. More >>" if lang == "en" else "\n9. Undi mwanya >>") if (start + _SIGNUP_PER_PAGE) < len(cells) else ""
+    return hdr + lines + more + "\n" + _back(lang)
+
+
 async def _fetch_providers(db: AsyncSession) -> list[Provider]:
     result = await db.execute(
         select(Provider)
@@ -1474,20 +1526,24 @@ async def _handle_ussd(
 
 
 # ── Register flow ─────────────────────────────────────────────────────────────
-# parts: [lang, "1", name, prov(1-5), dist(1-N), sector(paged), cell(paged), sms_phone, pin, confirm]
+# Registration parts layout (dynamic length due to pagination):
+#   parts[0] = lang         ("1"=en, "2"=rw)
+#   parts[1] = route        ("1" = register)
+#   parts[2] = full name
+#   parts[3] = province     (1-5)
+#   parts[4] = district     (1-N)
+#   parts[5..] = sector     one or more: "9" tokens (next-page) then a 1-7 selection
+#   next..    = cell        same paged pattern
+#   next+0    = 4-digit PIN
+#   next+1    = confirm PIN
 
 async def _signup_flow(
     parts: list[str], lang: str, phoneNumber: str, db: AsyncSession
 ) -> str:
     """
-    Simplified 5-step registration:
-      parts[2] = full name
-      parts[3] = province (1-5)
-      parts[4] = district (numbered)
-      parts[5] = 4-digit PIN
-      parts[6] = confirm PIN
-    Sector/cell/village can be added later via the web app.
-    SMS phone = the calling number automatically.
+    7-step USSD registration capturing province, district, sector, and cell.
+    Sector and cell menus are paginated (7 items + '9. More') so any-sized
+    district fits within USSD character limits.
     """
 
     # Step 1: full name
@@ -1517,7 +1573,7 @@ async def _signup_flow(
     dist_choice = parts[4]
     if dist_choice == "0":
         return _t("select_province", lang)
-    districts = _DISTRICTS[prov_choice]
+    districts = _DISTRICTS.get(prov_choice, [])
     try:
         dist_idx = int(dist_choice) - 1
         if not (0 <= dist_idx < len(districts)):
@@ -1526,17 +1582,33 @@ async def _signup_flow(
         return _district_menu(prov_choice, lang)
     district_name = districts[dist_idx]
 
-    # Step 4: create 4-digit PIN
-    if len(parts) == 5:
+    # Step 4: sector (paginated — starts at parts[5])
+    sectors = _sectors_for(district_name)
+    sector_name, sec_page, sec_next = _paged_selection(parts, 5, sectors)
+    if sector_name is None:
+        return _sector_menu(district_name, lang, sec_page)
+    if sector_name == "BACK":
+        return _district_menu(prov_choice, lang)
+
+    # Step 5: cell (paginated — starts right after the sector selection)
+    cells = _cells_for(district_name, sector_name)
+    cell_name, cell_page, cell_next = _paged_selection(parts, sec_next, cells)
+    if cell_name is None:
+        return _cell_menu(district_name, sector_name, lang, cell_page)
+    if cell_name == "BACK":
+        return _sector_menu(district_name, lang, sec_page)
+
+    # Step 6: create 4-digit PIN
+    if len(parts) <= cell_next:
         return _t("create_pin", lang)
-    pin = parts[5]
+    pin = parts[cell_next]
     if len(pin) != 4 or not pin.isdigit():
         return _t("pin_invalid", lang)
 
-    # Step 5: confirm PIN
-    if len(parts) == 6:
+    # Step 7: confirm PIN
+    if len(parts) <= cell_next + 1:
         return _t("confirm_pin", lang)
-    confirm = parts[6]
+    confirm = parts[cell_next + 1]
     if pin != confirm:
         return _t("pin_mismatch", lang)
 
@@ -1548,6 +1620,10 @@ async def _signup_flow(
     existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing:
         existing.ussd_pin_hash = hash_password(pin)
+        existing.province = province_name
+        existing.district = district_name
+        existing.sector = sector_name
+        existing.cell = cell_name
         await db.flush()
         return _t("account_created", lang)
 
@@ -1567,11 +1643,15 @@ async def _signup_flow(
         is_verified=True,
         province=province_name,
         district=district_name,
+        sector=sector_name,
+        cell=cell_name,
         ussd_pin_hash=hash_password(pin),
     )
     db.add(new_user)
     await db.flush()
-    log.info("ussd_user_created", phone=phoneNumber, name=name)
+    log.info("ussd_user_created", phone=phoneNumber, name=name,
+             province=province_name, district=district_name,
+             sector=sector_name, cell=cell_name)
     return _t("account_created", lang)
 
 
