@@ -13,7 +13,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
-        value: false
+        value: "false"
       - key: DATABASE_URL
         fromDatabase:
           name: temba-db
@@ -75,31 +75,6 @@ services:
         value: admin@temba.rw
       - key: FIRST_ADMIN_PASSWORD
         sync: false
-
-  # ── Celery Worker ─────────────────────────────────────────────────────────────
-  - type: worker
-    name: temba-worker
-    runtime: python
-    plan: free
-    region: oregon
-    rootDir: temba-backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.worker worker --loglevel=info --concurrency=2
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: temba-db
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          name: temba-redis
-          type: redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          name: temba-redis
-          type: redis
-          property: connectionString
 
   # ── Redis ─────────────────────────────────────────────────────────────────────
   - type: redis
