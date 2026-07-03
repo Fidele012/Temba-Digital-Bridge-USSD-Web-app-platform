@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     AT_USERNAME: str = "sandbox"
     AT_API_KEY: str = ""
     AT_SENDER_ID: str = "TEMBA"
-    AT_USSD_CODE: str = "*384*57980#"
+    AT_USSD_CODE: str = "*384*36640#"
 
     # ── File Storage ───────────────────────────────────────────
     S3_ENDPOINT_URL: str = "http://localhost:9000"

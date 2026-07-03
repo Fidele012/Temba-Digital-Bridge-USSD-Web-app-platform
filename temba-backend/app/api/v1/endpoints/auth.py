@@ -17,6 +17,7 @@ from uuid import uuid4
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from jose import JWTError
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -203,7 +204,7 @@ async def logout(
     return {"message": "Logged out successfully"}
 
 
-@router.post("/forgot-password", response_model=MessageResponse)
+@router.post("/forgot-password")
 async def forgot_password(
     body: PasswordResetRequest,
     background_tasks: BackgroundTasks,

@@ -1,10 +1,17 @@
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import EmailStr, Field, HttpUrl
+from typing import Literal
+from pydantic import BaseModel, EmailStr, Field, HttpUrl
 
 from app.models.provider import ProviderStatus, ProviderStaffRole, ServiceCategory
 from app.schemas.common import ORMModel
+
+
+class EscalationContact(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    email: EmailStr
+    phone: str = Field(pattern=r"^\+?[0-9]{9,15}$")
 
 
 class ServiceAreaCreate(ORMModel):
@@ -25,11 +32,19 @@ class ProviderCreate(ORMModel):
     registration_number: str | None = None
     service_categories: list[str] = Field(min_length=1)
     custom_services: list[str] = Field(default_factory=list)
-    description: str | None = None
+    description: str = Field(min_length=20, max_length=2000)
     website: str | None = None
     phone: str | None = Field(None, pattern=r"^\+?[0-9]{9,15}$")
     email: EmailStr | None = None
     service_areas: list[ServiceAreaCreate] = Field(default_factory=list)
+
+    # SLA commitment (mandatory)
+    sla_response_hours: int = Field(ge=1, le=48)
+    sla_resolution_hours: int = Field(ge=1, le=168)
+
+    # Escalation contacts (mandatory)
+    officer: EscalationContact
+    supervisor: EscalationContact
 
 
 class ProviderUpdate(ORMModel):
@@ -63,6 +78,14 @@ class ProviderPublic(ORMModel):
     website: str | None
     phone: str | None
     email: str | None
+    sla_response_hours: int | None = None
+    sla_resolution_hours: int | None = None
+    officer_name: str | None = None
+    officer_email: str | None = None
+    officer_phone: str | None = None
+    supervisor_name: str | None = None
+    supervisor_email: str | None = None
+    supervisor_phone: str | None = None
     working_days: list[str]
     work_start_time: str | None
     work_end_time: str | None

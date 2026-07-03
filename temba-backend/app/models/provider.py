@@ -52,6 +52,20 @@ class Provider(UUIDMixin, TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # SLA commitment (mandatory during registration)
+    sla_response_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sla_resolution_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Escalation contacts — Level 1: Officer/Coordinator
+    officer_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    officer_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    officer_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Escalation contacts — Level 2: Supervisor
+    supervisor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    supervisor_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    supervisor_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Availability
     working_days: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     work_start_time: Mapped[str | None] = mapped_column(String(5), nullable=True)  # "08:00"

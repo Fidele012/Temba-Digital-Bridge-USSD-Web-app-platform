@@ -63,7 +63,7 @@ from app.models.appointment import (
     MeetingType,
 )
 from app.models.provider import Provider, ProviderStatus
-from app.models.report import Report, ReportCategory, ReportUrgency
+from app.models.report import Report, ReportCategory, ReportStatus, ReportUrgency
 from app.models.service_request import (
     ServiceRequest,
     ServiceRequestType,
@@ -1479,19 +1479,27 @@ async def _handle_ussd(
 async def _signup_flow(
     parts: list[str], lang: str, phoneNumber: str, db: AsyncSession
 ) -> str:
+    """
+    Simplified 5-step registration:
+      parts[2] = full name
+      parts[3] = province (1-5)
+      parts[4] = district (numbered)
+      parts[5] = 4-digit PIN
+      parts[6] = confirm PIN
+    Sector/cell/village can be added later via the web app.
+    SMS phone = the calling number automatically.
+    """
 
-    # parts[2] = full name
+    # Step 1: full name
     if len(parts) == 2:
         return _t("enter_name", lang)
-
     name = parts[2].strip()
     if not name:
         return _t("enter_name", lang)
 
-    # parts[3] = province (1-5)
+    # Step 2: province (1-5)
     if len(parts) == 3:
         return _t("select_province", lang)
-
     prov_choice = parts[3]
     if prov_choice == "0":
         return _t("auth_menu", lang)
@@ -1501,13 +1509,11 @@ async def _signup_flow(
             return _t("select_province", lang)
     except ValueError:
         return _t("select_province", lang)
-
     province_name = _PROVINCES_LIST[prov_idx]
 
-    # parts[4] = district (numbered)
+    # Step 3: district
     if len(parts) == 4:
         return _district_menu(prov_choice, lang)
-
     dist_choice = parts[4]
     if dist_choice == "0":
         return _t("select_province", lang)
@@ -1518,73 +1524,24 @@ async def _signup_flow(
             return _district_menu(prov_choice, lang)
     except ValueError:
         return _district_menu(prov_choice, lang)
-
     district_name = districts[dist_idx]
-    sectors = _sectors_for(district_name)
 
-    # Sector: paginated numbered selection starting at parts[5]
-    sector_result, sect_page, sector_next_idx = _resolve_paged(parts, 5, sectors)
-    if sector_result is None:
-        return _paged_menu(
-            "Select your sector:", "Hitamo umurenge:", sectors, sect_page, lang
-        )
-    if sector_result == "":
-        return _district_menu(prov_choice, lang)
-
-    sector_name = sector_result
-    cells = _cells_for(district_name, sector_name)
-
-    # Cell: paginated numbered selection starting at parts[sector_next_idx]
-    cell_result, cell_page, cell_next_idx = _resolve_paged(parts, sector_next_idx, cells)
-    if cell_result is None:
-        return _paged_menu(
-            "Select your cell:", "Hitamo akagari:", cells, cell_page, lang
-        )
-    if cell_result == "":
-        return _paged_menu(
-            "Select your sector:", "Hitamo umurenge:", sectors, sect_page, lang
-        )
-
-    cell_name = cell_result
-    villages = _villages_for(district_name, sector_name, cell_name)
-
-    # Village: paginated numbered selection starting at parts[cell_next_idx]
-    village_result, village_page, village_next_idx = _resolve_paged(parts, cell_next_idx, villages)
-    if village_result is None:
-        return _paged_menu(
-            "Select your village:", "Hitamo umudugudu:", villages, village_page, lang
-        )
-    if village_result == "":
-        return _paged_menu(
-            "Select your cell:", "Hitamo akagari:", cells, cell_page, lang
-        )
-
-    village_name = village_result
-
-    # SMS phone
-    if len(parts) <= village_next_idx:
-        return _t("enter_sms_phone", lang)
-    sms_phone_raw = parts[village_next_idx]
-    sms_phone = phoneNumber if sms_phone_raw == "0" else sms_phone_raw
-
-    # Create PIN
-    pin_idx = village_next_idx + 1
-    if len(parts) <= pin_idx:
+    # Step 4: create 4-digit PIN
+    if len(parts) == 5:
         return _t("create_pin", lang)
-    pin = parts[pin_idx]
+    pin = parts[5]
     if len(pin) != 4 or not pin.isdigit():
         return _t("pin_invalid", lang)
 
-    # Confirm PIN
-    confirm_idx = village_next_idx + 2
-    if len(parts) <= confirm_idx:
+    # Step 5: confirm PIN
+    if len(parts) == 6:
         return _t("confirm_pin", lang)
-    confirm = parts[confirm_idx]
+    confirm = parts[6]
     if pin != confirm:
         return _t("pin_mismatch", lang)
 
     # ── Create the account ────────────────────────────────────────────────────
-    safe_phone = re.sub(r"[\s\-]", "", sms_phone)
+    safe_phone = re.sub(r"[\s\-]", "", phoneNumber)
     email_base = safe_phone.lstrip("+")
     email = f"{email_base}@ussd.temba.rw"
 
@@ -1594,11 +1551,11 @@ async def _signup_flow(
         await db.flush()
         return _t("account_created", lang)
 
-    phone_variants = _phone_variants(sms_phone)
+    phone_variants = _phone_variants(phoneNumber)
     phone_conflict = (await db.execute(
         select(User).where(or_(*[User.phone == v for v in phone_variants]))
     )).scalar_one_or_none()
-    stored_phone = None if phone_conflict else sms_phone
+    stored_phone = None if phone_conflict else phoneNumber
 
     new_user = User(
         email=email,
@@ -1610,14 +1567,11 @@ async def _signup_flow(
         is_verified=True,
         province=province_name,
         district=district_name,
-        sector=sector_name,
-        cell=cell_name,
-        village=village_name,
         ussd_pin_hash=hash_password(pin),
     )
     db.add(new_user)
     await db.flush()
-    log.info("ussd_user_created", phone=sms_phone, name=name)
+    log.info("ussd_user_created", phone=phoneNumber, name=name)
     return _t("account_created", lang)
 
 
@@ -1706,13 +1660,18 @@ async def _service_flow(
         if confirm != "1":
             return _t("invalid", lang)
 
+        from app.core.sla import classify_priority, sla_deadline_for
+        from app.models.report import PriorityClass
+
         _loc = ", ".join(filter(None, [user.sector, user.district, user.province])) or "Rwanda"
         ref = _gen_ref("RPT")
+        priority = classify_priority(_CAT_MAP[cat].value, _URG_MAP[urg].value)
         report = Report(
             user_id=user.id,
             provider_id=provider.id,
             category=_CAT_MAP[cat],
             urgency=_URG_MAP[urg],
+            priority_class=PriorityClass(priority),
             reference_number=ref,
             title=f"USSD: {_CAT_EN[cat]}",
             description=(
@@ -1727,6 +1686,7 @@ async def _service_flow(
         )
         db.add(report)
         await db.flush()
+        report.sla_deadline = sla_deadline_for(_CAT_MAP[cat].value, report.created_at, priority_class=priority)
         log.info("ussd_report_created", report_id=str(report.id), ref=ref, phone=phoneNumber)
         try:
             await notify_user(
@@ -1753,23 +1713,127 @@ async def _service_flow(
         return _t("report_submitted", lang, ref=ref)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # 2 - TRACK MY REPORTS
+    # 2 - TRACK MY REPORTS  (with verify + rate for resolution_submitted)
+    # sub_parts: [main] → show list
+    # sub_parts: [main, report_idx] → show verify prompt for that report
+    # sub_parts: [main, report_idx, verdict] → process verdict
+    # sub_parts: [main, report_idx, verdict, rating] → save rating (1-5)
     # ══════════════════════════════════════════════════════════════════════════
     if main == "2":
         rows = list((await db.execute(
             select(Report)
             .where(Report.user_id == user.id)
             .order_by(Report.created_at.desc())
-            .limit(3)
+            .limit(5)
         )).scalars().all())
         if not rows:
             return _t("no_reports", lang)
-        smap = _STATUS_EN if lang == "en" else _STATUS_RW
-        lines = "\n".join(
-            f"#{_short_id(r.id)} {r.category.value}: {smap.get(r.status.value, r.status.value)}"
-            for r in rows
-        )
-        return _t("track_header", lang) + lines
+
+        # Just listing — no sub-selection yet
+        if sub_depth == 1:
+            smap = _STATUS_EN if lang == "en" else _STATUS_RW
+            pending = [r for r in rows if r.status == ReportStatus.RESOLUTION_SUBMITTED]
+            lines = []
+            for i, r in enumerate(rows, 1):
+                st = smap.get(r.status.value, r.status.value)
+                marker = " [VERIFY]" if r.status == ReportStatus.RESOLUTION_SUBMITTED else ""
+                lines.append(f"{i}. {r.category.value}: {st}{marker}")
+            hdr = "CON Your reports:\n" if lang == "en" else "CON Raporo zawe:\n"
+            if pending:
+                hdr += ("(Select a [VERIFY] report to confirm resolution)\n" if lang == "en"
+                        else "(Hitamo raporo [VERIFY] kwemeza igisubizo)\n")
+            return hdr + "\n".join(lines) + "\n0. Back"
+
+        # User selected a report
+        try:
+            idx = int(sub_parts[1]) - 1
+            if not (0 <= idx < len(rows)):
+                return _t("main_menu", lang)
+        except ValueError:
+            if sub_parts[1] == "0":
+                return _t("main_menu", lang)
+            return _t("invalid", lang)
+
+        report = rows[idx]
+
+        # Report not in resolution_submitted or recently verified → just show status
+        if report.status not in (ReportStatus.RESOLUTION_SUBMITTED, ReportStatus.VERIFIED):
+            smap = _STATUS_EN if lang == "en" else _STATUS_RW
+            ref = report.reference_number or _short_id(report.id)
+            st = smap.get(report.status.value, report.status.value)
+            return f"END {ref}\n{report.category.value}: {st}"
+
+        # Show verify prompt
+        if sub_depth == 2:
+            ref = report.reference_number or _short_id(report.id)
+            if lang == "en":
+                return (f"CON Report: {ref}\nWas the issue resolved?\n"
+                        "1. Yes, resolved\n2. Partially\n3. Not resolved\n0. Back")
+            else:
+                return (f"CON Raporo: {ref}\nIkibazo cyakemutse?\n"
+                        "1. Yego, cyakemutse\n2. Igice\n3. Ntabwo cyakemutse\n0. Subira")
+
+        verdict = sub_parts[2]
+        if verdict == "0":
+            return _t("main_menu", lang)
+
+        from datetime import datetime as _dt, timezone as _tz
+        now = _dt.now(_tz.utc)
+
+        if verdict == "1":
+            # Verified — update status (skip if already verified from previous USSD step)
+            if report.status != ReportStatus.VERIFIED:
+                report.status = ReportStatus.VERIFIED
+                report.verified_at = now
+                await db.flush()
+
+            # Show rating prompt
+            if sub_depth == 3:
+                if lang == "en":
+                    return ("CON Rate the resolution (1-5):\n"
+                            "1. Poor\n2. Fair\n3. Good\n4. Very Good\n5. Excellent\n0. Skip")
+                else:
+                    return ("CON Shyira amanota (1-5):\n"
+                            "1. Nabi\n2. Bisanzwe\n3. Byiza\n4. Byiza cyane\n5. Byiza rwose\n0. Kureka")
+
+            # Save rating
+            rating_val = sub_parts[3] if sub_depth > 3 else "0"
+            if rating_val in ("1", "2", "3", "4", "5"):
+                from app.models.rating import Rating as _Rating
+                r = _Rating(report_id=report.id, provider_id=report.provider_id, score=int(rating_val))
+                db.add(r)
+                await db.flush()
+                star = "★" * int(rating_val)
+                if lang == "en":
+                    return f"END Thank you for your {star} rating!\nYour feedback helps improve water services."
+                else:
+                    return f"END Murakoze ku manota yanyu {star}!\nIbitekerezo byanyu bifasha kunoza serivisi z'amazi."
+
+            # Skipped rating
+            if lang == "en":
+                return "END Issue verified. Thank you!\nTrack at temba.rw"
+            else:
+                return "END Ikibazo cyemejwe. Murakoze!\nKurikirana kuri temba.rw"
+
+        elif verdict == "2":
+            report.reopen_count = (report.reopen_count or 0) + 1
+            report.status = ReportStatus.MANAGEMENT_REVIEW if report.reopen_count >= 2 else ReportStatus.FOLLOW_UP_REQUIRED
+            await db.flush()
+            if lang == "en":
+                return f"END Marked as partially resolved.\nStatus: {report.status.value.replace('_', ' ').title()}"
+            else:
+                return f"END Byashyizwe nk'igice cyakemutse.\nAho bigeze: {report.status.value}"
+
+        elif verdict == "3":
+            report.reopen_count = (report.reopen_count or 0) + 1
+            report.status = ReportStatus.MANAGEMENT_REVIEW if report.reopen_count >= 2 else ReportStatus.IN_PROGRESS
+            await db.flush()
+            if lang == "en":
+                return f"END Marked as not resolved. Reopened.\nStatus: {report.status.value.replace('_', ' ').title()}"
+            else:
+                return f"END Byashyizwe nk'ibitakemutse. Byafunguwe.\nAho bigeze: {report.status.value}"
+
+        return _t("invalid", lang)
 
     # ══════════════════════════════════════════════════════════════════════════
     # 3 - BOOK APPOINTMENT

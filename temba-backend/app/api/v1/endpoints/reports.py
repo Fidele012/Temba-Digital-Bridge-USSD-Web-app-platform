@@ -7,23 +7,27 @@ PUT    /reports/{id}         → update status/notes (provider/admin)
 DELETE /reports/{id}         → soft-close (admin)
 POST   /reports/{id}/media   → attach files
 """
-from datetime import datetime, timezone
+import random
+import string
+from datetime import date, datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user, require_admin, require_staff, write_audit
 from app.core.provider_utils import get_provider_for_user
-from app.core.sla import sla_deadline_for
+from app.core.sla import classify_priority, sla_deadline_for
 from app.db.session import get_db
 from app.models.provider import Provider
-from app.models.report import Report, ReportMedia, ReportStatus
+from app.models.report import PriorityClass, Report, ReportMedia, ReportStatus
 from app.models.user import User, UserRole
 from app.schemas.common import PaginatedResponse, PaginationParams
+from app.models.rating import Rating
+from app.schemas.rating import RatingCreate, RatingPublic
 from app.schemas.report import ReportCreate, ReportPublic, ReportUpdate, VerificationVerdict
 from app.services.file_service import upload_report_media
 from app.services.notification_service import notify_user
@@ -57,13 +61,18 @@ async def create_report(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Report:
+    suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    ref = f"RPT-{date.today().strftime('%Y%m%d')}-{suffix}"
+    priority = classify_priority(body.category.value, body.urgency.value)
     report = Report(
         user_id=current_user.id,
+        reference_number=ref,
+        priority_class=PriorityClass(priority),
         **body.model_dump(),
     )
     db.add(report)
     await db.flush()
-    report.sla_deadline = sla_deadline_for(body.category.value, report.created_at)
+    report.sla_deadline = sla_deadline_for(body.category.value, report.created_at, priority_class=priority)
     await write_audit(db, request, "report.create", "report", str(report.id), actor=current_user)
     await db.refresh(report, ["media"])
     return report
@@ -91,8 +100,13 @@ async def list_reports(
         q = q.where(Report.status == status_filter)
 
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
+    priority_order = case(
+        (Report.priority_class == PriorityClass.P1, 0),
+        (Report.priority_class == PriorityClass.P2, 1),
+        else_=2,
+    )
     result = await db.execute(
-        _with_relations(q).order_by(Report.created_at.desc()).offset(params.offset).limit(params.size)
+        _with_relations(q).order_by(priority_order, Report.created_at.desc()).offset(params.offset).limit(params.size)
     )
     return {
         "items": result.scalars().all(),
@@ -238,3 +252,32 @@ async def attach_media(
 
     await db.refresh(report, ["media"])
     return report
+
+
+@router.post("/{report_id}/rate", response_model=RatingPublic, status_code=status.HTTP_201_CREATED)
+async def rate_report(
+    report_id: UUID,
+    body: RatingCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Rating:
+    report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    if report.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the reporter can rate")
+    if report.status != ReportStatus.VERIFIED:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Can only rate verified reports")
+    existing = (await db.execute(select(Rating).where(Rating.report_id == report_id))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already rated")
+
+    rating = Rating(
+        report_id=report_id,
+        provider_id=report.provider_id,
+        score=body.score,
+        comment=body.comment,
+    )
+    db.add(rating)
+    await db.flush()
+    return rating

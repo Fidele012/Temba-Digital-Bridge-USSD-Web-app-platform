@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from app.models.report import ReportCategory, ReportStatus, ReportUrgency
+from app.models.report import PriorityClass, ReportCategory, ReportStatus, ReportUrgency
 from app.schemas.common import ORMModel
 
 
@@ -49,6 +49,8 @@ class ReportPublic(ORMModel):
     id: UUID
     user_id: UUID
     provider_id: UUID | None
+    reference_number: str | None = None
+    priority_class: PriorityClass | None = None
     category: ReportCategory
     urgency: ReportUrgency
     status: ReportStatus

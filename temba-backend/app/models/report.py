@@ -9,6 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base, TimestampMixin, UUIDMixin
 
 
+class PriorityClass(str, enum.Enum):
+    P1 = "P1"
+    P2 = "P2"
+    P3 = "P3"
+
+
 class ReportCategory(str, enum.Enum):
     CONTAMINATION = "contamination"
     PIPE_BURST = "pipe_burst"
@@ -55,6 +61,7 @@ class Report(UUIDMixin, TimestampMixin, Base):
     category: Mapped[ReportCategory] = mapped_column(Enum(ReportCategory), nullable=False)
     urgency: Mapped[ReportUrgency] = mapped_column(Enum(ReportUrgency), nullable=False, default=ReportUrgency.MEDIUM)
     status: Mapped[ReportStatus] = mapped_column(Enum(ReportStatus), nullable=False, default=ReportStatus.OPEN)
+    priority_class: Mapped[PriorityClass | None] = mapped_column(Enum(PriorityClass), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     reference_number: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)

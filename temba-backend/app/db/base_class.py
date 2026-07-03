@@ -3,7 +3,7 @@ Shared SQLAlchemy base and mixins.
 Models import from here — no model imports here, so no circular dependencies.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -18,13 +18,15 @@ class TimestampMixin:
     """Adds created_at / updated_at to any model."""
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
-        onupdate=func.now(),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 

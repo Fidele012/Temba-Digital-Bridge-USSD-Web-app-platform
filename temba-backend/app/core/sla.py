@@ -1,4 +1,4 @@
-"""SLA deadline configuration and helpers for reports, appointments, and service requests."""
+"""SLA deadline configuration, priority classification, and helpers."""
 from datetime import datetime, timedelta, timezone
 
 _REPORT_SLA_H: dict[str, int] = {
@@ -32,10 +32,41 @@ _SERVICE_REQUEST_SLA_H: dict[str, int] = {
 
 _DEFAULT_SLA_H = 120
 
+_PRIORITY_SLA_H = {"P1": 4, "P2": 24, "P3": 72}
 
-def sla_deadline_for(category: str, created_at: datetime, item_type: str = "report") -> datetime:
+_P1_CATEGORIES = {"contamination"}
+_P1_CAT_URG = {
+    ("pipe_burst", "high"), ("pipe_burst", "critical"),
+    ("no_supply", "critical"),
+}
+_P2_CAT_URG = {
+    ("pipe_burst", "medium"),
+    ("no_supply", "high"), ("no_supply", "medium"),
+    ("low_pressure", "high"), ("low_pressure", "critical"),
+    ("water_quality", "high"),
+}
+
+
+def classify_priority(category: str, urgency: str) -> str:
+    if category in _P1_CATEGORIES:
+        return "P1"
+    if (category, urgency) in _P1_CAT_URG:
+        return "P1"
+    if (category, urgency) in _P2_CAT_URG:
+        return "P2"
+    return "P3"
+
+
+def sla_deadline_for(
+    category: str,
+    created_at: datetime,
+    item_type: str = "report",
+    priority_class: str | None = None,
+) -> datetime:
     """Return the SLA deadline for a given category and creation timestamp."""
-    if item_type == "appointment":
+    if priority_class and item_type == "report":
+        hours = _PRIORITY_SLA_H.get(priority_class, _DEFAULT_SLA_H)
+    elif item_type == "appointment":
         hours = _APPOINTMENT_SLA_H.get(category, _DEFAULT_SLA_H)
     elif item_type == "service_request":
         hours = _SERVICE_REQUEST_SLA_H.get(category, _DEFAULT_SLA_H)

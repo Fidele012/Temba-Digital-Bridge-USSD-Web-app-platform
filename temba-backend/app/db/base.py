@@ -14,3 +14,4 @@ from app.models.appointment import Appointment  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.announcement import Announcement  # noqa: F401
+from app.models.rating import Rating  # noqa: F401

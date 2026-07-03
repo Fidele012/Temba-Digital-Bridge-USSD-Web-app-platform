@@ -14,7 +14,7 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,7 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.provider import Provider, ProviderServiceArea, ProviderStaff, ProviderStatus
 from app.models.report import Report, ReportStatus
 from app.models.service_request import ServiceRequest, ServiceRequestStatus
+from app.models.rating import Rating
 from app.models.user import User, UserRole
 from app.schemas.common import MessageResponse, PaginatedResponse, PaginationParams
 from app.schemas.provider import (
@@ -38,7 +39,7 @@ from app.schemas.provider import (
     ProviderStatusUpdate,
     ProviderUpdate,
 )
-from app.services.notification_service import notify_user
+from app.services.notification_service import notify_user, send_email_background
 
 
 class ProviderStats(BaseModel):
@@ -67,9 +68,10 @@ async def register_provider(
     body: ProviderCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Provider:
-    # Only users with provider role may create a provider profile
+
     if current_user.role != UserRole.PROVIDER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -89,7 +91,15 @@ async def register_provider(
         website=body.website,
         phone=body.phone,
         email=body.email,
-        status=ProviderStatus.APPROVED,
+        status=ProviderStatus.PENDING,
+        sla_response_hours=body.sla_response_hours,
+        sla_resolution_hours=body.sla_resolution_hours,
+        officer_name=body.officer.name,
+        officer_email=body.officer.email,
+        officer_phone=body.officer.phone,
+        supervisor_name=body.supervisor.name,
+        supervisor_email=body.supervisor.email,
+        supervisor_phone=body.supervisor.phone,
     )
     db.add(provider)
     await db.flush()
@@ -99,6 +109,38 @@ async def register_provider(
 
     await write_audit(db, request, "provider.register", "provider", str(provider.id), actor=current_user)
     await db.refresh(provider, ["service_areas"])
+
+    background_tasks.add_task(
+        send_email_background,
+        to="tembadigitalbridge@gmail.com",
+        subject=f"New Provider Registration — {body.organization_name} (Review Required)",
+        template="provider_verification",
+        context={
+            "org_name": body.organization_name,
+            "reg_number": body.registration_number or "Not provided",
+            "description": body.description,
+            "website": body.website or "Not provided",
+            "phone": body.phone or "Not provided",
+            "email": body.email or current_user.email,
+            "sla_response": f"{body.sla_response_hours} hours",
+            "sla_resolution": f"{body.sla_resolution_hours} hours",
+            "officer_name": body.officer.name,
+            "officer_email": body.officer.email,
+            "officer_phone": body.officer.phone,
+            "supervisor_name": body.supervisor.name,
+            "supervisor_email": body.supervisor.email,
+            "supervisor_phone": body.supervisor.phone,
+            "service_areas": ", ".join(
+                f"{a.province}{' / ' + a.district if a.district else ''}"
+                for a in body.service_areas
+            ) or "Not specified",
+            "categories": ", ".join(body.service_categories),
+            "registered_by": current_user.full_name,
+            "registered_email": current_user.email,
+        },
+    )
+    log.info("provider_registered_pending", provider_id=str(provider.id), org=body.organization_name)
+
     return provider
 
 
@@ -310,6 +352,25 @@ async def remove_staff(
 
     await db.delete(staff)
     await write_audit(db, request, "provider.staff.remove", "provider_staff", str(staff_id), actor=current_user)
+
+
+@router.get("/{provider_id}/ratings")
+async def get_provider_ratings(
+    provider_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    result = await db.execute(
+        select(
+            func.avg(Rating.score).label("average_score"),
+            func.count(Rating.id).label("total_ratings"),
+        ).where(Rating.provider_id == provider_id)
+    )
+    row = result.one()
+    return {
+        "provider_id": str(provider_id),
+        "average_score": round(float(row.average_score or 0), 1),
+        "total_ratings": row.total_ratings,
+    }
 
 
 @router.get("", response_model=PaginatedResponse[ProviderPublic])

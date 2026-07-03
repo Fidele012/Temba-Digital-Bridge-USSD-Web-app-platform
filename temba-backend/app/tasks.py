@@ -7,10 +7,8 @@ from app.worker import celery_app
 
 # Hours beyond the SLA deadline required to escalate each level
 _ESCALATION_HOURS = {
-    1: 0,   # Officer: notify as soon as overdue
+    1: 0,   # Officer/Coordinator: notify as soon as overdue
     2: 24,  # Supervisor: +24 h
-    3: 48,  # Regional Manager: +48 h
-    4: 72,  # Executive: +72 h
 }
 
 
@@ -175,40 +173,45 @@ def check_sla_deadlines() -> dict:
 
     def _escalate(session: Session, provider: Provider, current_level: int,
                   hours_over: float, title: str, body: str,
-                  ref_id: str, ref_type: str) -> int:
-        """Send escalation notifications for all levels that should now be active.
+                  ref_id: str, ref_type: str,
+                  report_context: dict | None = None) -> int:
+        """Send escalation notifications and emails to Officer/Supervisor contacts.
         Returns the highest level notified."""
         highest = current_level
         for level, threshold in _ESCALATION_HOURS.items():
             if level <= current_level:
-                continue  # already notified
+                continue
             if hours_over < threshold:
-                continue  # not yet time
+                continue
 
-            if level == 1:
-                # Officer = primary provider account
+            if level == 1 and provider.officer_email:
                 _notif(session, provider.user_id, title, body, ref_id, ref_type)
+                if report_context:
+                    send_email_background(
+                        to=provider.officer_email,
+                        subject=f"Overdue Report Alert — {report_context.get('reference', ref_id)}",
+                        template="sla_escalation",
+                        context={**report_context, "level": 1,
+                                 "recipient_name": provider.officer_name or "Officer"},
+                    )
                 highest = 1
                 stats["escalations"] += 1
-            else:
-                # Look up staff at this level
-                role_map = {2: ProviderStaffRole.SUPERVISOR,
-                            3: ProviderStaffRole.REGIONAL_MANAGER,
-                            4: ProviderStaffRole.EXECUTIVE}
-                role = role_map.get(level)
-                if not role:
-                    continue
-                staff_rows = session.execute(
-                    select(ProviderStaff).where(
-                        ProviderStaff.provider_id == provider.id,
-                        ProviderStaff.staff_role == role,
+
+            elif level == 2 and provider.supervisor_email:
+                _notif(session, provider.user_id, title,
+                       f"ESCALATED TO SUPERVISOR: {body}", ref_id, ref_type)
+                if report_context:
+                    send_email_background(
+                        to=provider.supervisor_email,
+                        subject=f"ESCALATION Level 2 — {report_context.get('reference', ref_id)}",
+                        template="sla_escalation",
+                        context={**report_context, "level": 2,
+                                 "recipient_name": provider.supervisor_name or "Supervisor",
+                                 "officer_name": provider.officer_name or "Officer",
+                                 "officer_notified_ago": f"{int(hours_over)}h"},
                     )
-                ).scalars().all()
-                for s in staff_rows:
-                    _notif(session, s.user_id, title, body, ref_id, ref_type)
-                    stats["escalations"] += 1
-                if staff_rows:
-                    highest = level
+                highest = 2
+                stats["escalations"] += 1
 
         return highest
 
@@ -234,12 +237,27 @@ def check_sla_deadlines() -> dict:
             if not prov:
                 continue
 
+            # Build context for escalation email template
+            from app.models.user import User
+            reporter = session.get(User, report.user_id) if report.user_id else None
+            loc_parts = [p for p in [report.sector, report.district, report.province] if p]
+            rpt_ctx = {
+                "reference": report.reference_number or str(report.id)[:8],
+                "category": report.category.value.replace("_", " ").title(),
+                "urgency": report.urgency.value.title(),
+                "location": ", ".join(loc_parts) if loc_parts else "Not specified",
+                "submitted_at": report.created_at.strftime("%Y-%m-%d %H:%M") if report.created_at else "Unknown",
+                "overdue_hours": str(int(hours_over)),
+                "community_name": reporter.full_name if reporter else "Community Member",
+                "community_phone": reporter.phone or "N/A" if reporter else "N/A",
+            }
             new_level = _escalate(
                 session, prov, report.escalation_level, hours_over,
                 title=f"SLA overdue — Report: {report.title}",
                 body=(f"Report '{report.title}' has been overdue for "
                       f"{int(hours_over)}h. Immediate action required."),
                 ref_id=str(report.id), ref_type="report",
+                report_context=rpt_ctx,
             )
             report.escalation_level = new_level
 
