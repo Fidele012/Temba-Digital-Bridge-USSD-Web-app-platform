@@ -11,9 +11,9 @@
 
 <nav class="navbar" id="mainNav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-brand" style="cursor:pointer;">
-      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:38px;width:auto;display:block;">
-      <span style="font-size:15px;font-weight:800;color:var(--navy,#0A2540);white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
+    <a href="index.html" class="nav-brand" style="display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer;position:absolute;left:1rem;">
+      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:44px;width:auto;display:block;flex-shrink:0;">
+      <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
     </a>
     <div class="nav-actions">
       <button data-lang-btn="en" onclick="setLang('en');rerenderProviderDashboard()" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 6px;">EN</button>
@@ -34,12 +34,13 @@
 <div class="dash-layout">
 
   <aside class="dash-sidebar">
-    <div style="padding:1.25rem 1.5rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#E65100,#FF8F00);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0;box-shadow:0 3px 10px rgba(230,81,0,0.45);"><i class="ti ti-building"></i></div>
+    <!-- Provider badge -->
+    <div style="padding:0.5rem 1rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#E65100,#FF8F00);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;flex-shrink:0;box-shadow:0 4px 14px rgba(230,81,0,0.45);"><i class="ti ti-building"></i></div>
         <div>
-          <div style="font-size:11px;font-weight:800;color:rgba(255,204,128,0.95);letter-spacing:0.8px;line-height:1.2;" data-i18n="prov_label">WATER PROVIDER</div>
-          <div style="font-size:10px;font-weight:500;color:rgba(255,255,255,0.35);letter-spacing:0.2px;" data-i18n="service_portal">Service Portal</div>
+          <div style="font-size:14px;font-weight:800;color:rgba(255,204,128,0.95);letter-spacing:0.6px;line-height:1.3;" data-i18n="prov_label">WATER PROVIDER</div>
+          <div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,0.4);letter-spacing:0.2px;" data-i18n="service_portal">Service Portal</div>
         </div>
       </div>
     </div>
@@ -86,6 +87,7 @@
         <div class="stat-card"><div class="stat-icon purple"><i class="ti ti-tool"></i></div><div><div class="stat-num" id="svcReqCount">0</div><div class="stat-lbl" data-i18n="dash_service_requests">Service Requests</div></div></div>
         <div class="stat-card"><div class="stat-icon green"><i class="ti ti-calendar"></i></div><div><div class="stat-num" id="apptCount">0</div><div class="stat-lbl" data-i18n="dash_appointments">Appointments</div></div></div>
         <div class="stat-card"><div class="stat-icon orange"><i class="ti ti-clock"></i></div><div><div class="stat-num" id="pendingCount">0</div><div class="stat-lbl" data-i18n="prov_stat_pending">Pending Actions</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:#FFF8E1;color:#F59E0B;"><i class="ti ti-star-filled"></i></div><div><div class="stat-num" id="ratingScore">—</div><div class="stat-lbl">Community Rating</div></div></div>
       </div>
 
       <div class="two-col" style="gap:1.25rem;">
@@ -140,7 +142,7 @@
       <div class="card" style="padding:0;overflow:hidden;">
         <div style="overflow-x:auto;">
           <table class="data-table" id="inboxTable">
-            <thead><tr><th data-i18n="col_ref">Ref</th><th data-i18n="col_issue">Issue</th><th data-i18n="col_urgency">Urgency</th><th data-i18n="col_location">Location</th><th data-i18n="col_reporter">Reporter</th><th data-i18n="col_reported">Reported</th><th data-i18n="col_status">Status</th><th data-i18n="col_actions">Actions</th></tr></thead>
+            <thead><tr><th data-i18n="col_ref">Ref</th><th data-i18n="col_issue">Issue</th><th>Priority</th><th data-i18n="col_urgency">Urgency</th><th data-i18n="col_location">Location</th><th data-i18n="col_reporter">Reporter</th><th data-i18n="col_reported">Reported</th><th data-i18n="col_status">Status</th><th data-i18n="col_actions">Actions</th></tr></thead>
             <tbody id="inboxBody"></tbody>
           </table>
         </div>
@@ -831,7 +833,8 @@ function _normProvReport(r) {
   const isUssd = typeof rawIssue === 'string' && rawIssue.startsWith('USSD:');
   const issue = isUssd ? rawIssue.replace(/^USSD:\s*/i, '') : rawIssue;
   const ref = r.reference_number || ('#'+String(r.id).slice(0,8).toUpperCase());
-  return { ref, issue, channel:isUssd?'ussd':'web', urgency:um[r.urgency]||'moderate', loc:[r.sector,r.district,r.province].filter(Boolean).join(', ')||'Rwanda', reporter:r.user_name||'Community Member', phone:r.user_phone||'', status:sm[r.status]||'submitted', time:r.created_at, fromApi:true, apiId:r.id };
+  const pc = r.priority_class || 'P3';
+  return { ref, issue, channel:isUssd?'ussd':'web', urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.sector,r.district,r.province].filter(Boolean).join(', ')||'Rwanda', reporter:r.user_name||'Community Member', phone:r.user_phone||'', status:sm[r.status]||'submitted', time:r.created_at, fromApi:true, apiId:r.id };
 }
 function _normProvAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
@@ -1058,7 +1061,10 @@ function openReportDetail(rJson) {
 
   const urgColor = r.urgency==='urgent' ? 'var(--red)' : r.urgency==='moderate' ? 'var(--orange)' : 'var(--blue)';
   const statusColor = r.status==='resolved' ? 'var(--green)' : r.status==='in-progress'||r.status==='in_progress' ? 'var(--orange)' : 'var(--blue)';
+  const pColor = r.priority==='P1'?'#C62828':r.priority==='P2'?'#E65100':'#1565C0';
+  const pLabel = r.priority==='P1'?'P1 CRITICAL':r.priority==='P2'?'P2 URGENT':'P3 STANDARD';
   document.getElementById('rd-badges').innerHTML = `
+    <span style="background:${pColor};color:#fff;font-size:11px;font-weight:800;padding:4px 12px;border-radius:4px;letter-spacing:.5px;">${pLabel}</span>
     <span style="background:${urgColor}22;color:${urgColor};font-size:12.5px;font-weight:700;padding:5px 14px;border-radius:20px;text-transform:capitalize;">${r.urgency} priority</span>
     <span style="background:${statusColor}22;color:${statusColor};font-size:12.5px;font-weight:700;padding:5px 14px;border-radius:20px;text-transform:capitalize;">${(r.status||'submitted').replace(/_/g,' ')}</span>`;
 
@@ -1118,6 +1124,21 @@ async function loadApiData() {
     renderBreakdown();
     renderCommunity();
     renderActivity();
+  }
+  // Fetch aggregate community rating
+  if (window._myProviderProfile && window._myProviderProfile.id) {
+    const ratingData = await apiGet('/providers/' + window._myProviderProfile.id + '/ratings');
+    if (ratingData) {
+      const el = document.getElementById('ratingScore');
+      if (el) {
+        if (ratingData.total_ratings > 0) {
+          el.innerHTML = ratingData.average_score + '/5 <span style="font-size:11px;color:var(--gray-400);font-weight:400;">(' + ratingData.total_ratings + ')</span>';
+        } else {
+          el.textContent = 'No ratings';
+          el.style.fontSize = '14px';
+        }
+      }
+    }
   }
 }
 
@@ -1378,6 +1399,7 @@ function renderInbox(data, filter) {
   <tr style="cursor:pointer;" onclick="openReportDetail(JSON.parse(this.dataset.r))" data-r="${rJson}">
     <td style="font-weight:700;color:var(--blue);" onclick="event.stopPropagation();openReportDetail(JSON.parse(this.closest('tr').dataset.r))">${r.ref}</td>
     <td style="font-weight:600;">${r.issue}${r.channel==='ussd'?'<span style="display:inline-block;background:#7C3AED;color:#fff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:6px;vertical-align:middle;letter-spacing:.4px;">USSD</span>':''}</td>
+    <td><span style="display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:.5px;color:#fff;background:${r.priority==='P1'?'#C62828':r.priority==='P2'?'#E65100':'#1565C0'};">${r.priority==='P1'?'P1 CRITICAL':r.priority==='P2'?'P2 URGENT':'P3 STD'}</span></td>
     <td><span class="badge ${STATUS_BADGE[r.urgency]||'badge-active'}">${r.urgency}</span></td>
     <td style="font-size:13px;">${r.loc}</td>
     <td style="font-size:13px;">${r.reporter}${r.phone?`<br><span style="font-size:11.5px;color:var(--gray-400);">${r.phone}</span>`:''}</td>

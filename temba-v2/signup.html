@@ -453,13 +453,52 @@
           <div class="field-hint" data-i18n="hint_org_email">Required — used for account activation and official communications.</div>
         </div>
 
+        <!-- SLA Commitment -->
+        <div class="step-section" style="margin-top:1.5rem;"><i class="ti ti-clock-hour-4" aria-hidden="true"></i> SLA Commitment</div>
+        <p class="field-hint" style="margin:-0.5rem 0 1rem;">You are committing to these response times. Failure to meet them triggers automatic escalation to your supervisor.</p>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Max Response Time <span class="req">*</span></label>
+            <div class="field-wrap sel-wrap">
+              <i class="ti ti-clock field-icon" aria-hidden="true"></i>
+              <select id="pSlaResponse">
+                <option value="" disabled selected>Select...</option>
+                <option value="1">1 hour</option>
+                <option value="2">2 hours</option>
+                <option value="4">4 hours</option>
+                <option value="8">8 hours</option>
+                <option value="24">24 hours</option>
+              </select>
+              <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+            </div>
+            <div class="field-hint">How quickly will you acknowledge a new report?</div>
+          </div>
+          <div class="field">
+            <label class="field-label">Max Resolution Time <span class="req">*</span></label>
+            <div class="field-wrap sel-wrap">
+              <i class="ti ti-clock-check field-icon" aria-hidden="true"></i>
+              <select id="pSlaResolution">
+                <option value="" disabled selected>Select...</option>
+                <option value="4">4 hours</option>
+                <option value="12">12 hours</option>
+                <option value="24">24 hours</option>
+                <option value="48">48 hours</option>
+                <option value="72">72 hours</option>
+              </select>
+              <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+            </div>
+            <div class="field-hint">How quickly will you resolve a standard issue?</div>
+          </div>
+        </div>
+
         <button class="btn-primary" onclick="pGoTo(2)"><span data-i18n="btn_continue">Continue</span> <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
       </div>
 
       <!-- Provider Step 2 -->
       <div class="form-step" id="pStep2">
-        <div class="step-section"><i class="ti ti-user-cog" aria-hidden="true"></i> <span data-i18n="sec_admin_contact">Admin Contact Person</span></div>
-        <p class="field-hint" style="margin:-0.5rem 0 1rem;" data-i18n="hint_admin">This person will manage the organisation account on Temba.</p>
+        <div class="step-section"><i class="ti ti-user-cog" aria-hidden="true"></i> Level 1 — Officer / Coordinator</div>
+        <p class="field-hint" style="margin:-0.5rem 0 1rem;">This person handles day-to-day reports. They will be emailed immediately when an SLA deadline is missed.</p>
 
         <div class="field-row">
           <div class="field">
@@ -508,6 +547,37 @@
           <div class="field-hint" data-i18n="hint_admin_email">Required — sign-in and account recovery will use this address.</div>
         </div>
 
+        <!-- Supervisor (Level 2) -->
+        <div class="step-section" style="margin-top:1.5rem;"><i class="ti ti-shield-check" aria-hidden="true"></i> Level 2 — Supervisor</div>
+        <p class="field-hint" style="margin:-0.5rem 0 1rem;">The supervisor is emailed when the officer fails to respond within 24 hours of the SLA breach.</p>
+
+        <div class="field">
+          <label class="field-label">Supervisor Full Name <span class="req">*</span></label>
+          <div class="field-wrap">
+            <i class="ti ti-user-shield field-icon" aria-hidden="true"></i>
+            <input type="text" id="pSupName" placeholder="e.g. Marie Claire Mukamana" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Supervisor Email <span class="req">*</span></label>
+            <div class="field-wrap">
+              <i class="ti ti-mail field-icon" aria-hidden="true"></i>
+              <input type="email" id="pSupEmail" placeholder="e.g. supervisor@company.rw" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Supervisor Phone <span class="req">*</span></label>
+            <div class="phone-wrap">
+              <select id="pSupPhoneCode" class="phone-code-sel" aria-label="Country code">
+                <option value="+250">+250</option>
+              </select>
+              <input type="tel" class="phone-num-input" id="pSupPhone" placeholder="e.g. 788 111 000" />
+            </div>
+          </div>
+        </div>
+
         <div class="btn-row">
           <button class="btn-secondary" onclick="pGoTo(1)"><i class="ti ti-arrow-left" aria-hidden="true"></i> <span data-i18n="btn_back">Back</span></button>
           <button class="btn-primary" style="flex:1; margin-top:0;" onclick="pGoTo(3)"><span data-i18n="btn_continue">Continue</span> <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
@@ -551,9 +621,9 @@
           </div>
         </div>
 
-        <div class="info-box" style="background:var(--green-light);border-color:#A5D6A7;">
-          <i class="ti ti-circle-check" style="color:var(--green);"></i>
-          <span style="color:#1B5E20;" data-i18n="prov_activation">Your provider account will be <strong>activated immediately</strong> upon completing registration. No waiting period required.</span>
+        <div class="info-box" style="background:#FFF8E1;border-color:#FFE082;">
+          <i class="ti ti-clock-pause" style="color:#E65100;"></i>
+          <span style="color:#E65100;">Your application will be <strong>reviewed by the Temba team</strong> before activation. You will receive an email once approved. This ensures only verified water service providers can receive community reports.</span>
         </div>
 
         <label class="terms-label"><input type="checkbox" id="pTerms" /> <span data-i18n="lbl_terms_agree">I agree to the</span> <a href="#" data-i18n="terms_of_use_link">Terms of Use</a> <span data-i18n="terms_and">and</span> <a href="#" data-i18n="terms_privacy_link">Privacy Policy</a></label>

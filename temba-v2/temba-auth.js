@@ -396,6 +396,15 @@ async function handleSubmit(type) {
         const serviceAreas = isNational
           ? ['Kigali City','Northern Province','Southern Province','Eastern Province','Western Province'].map(p => ({ province: p }))
           : [{ province: 'Kigali City' }];
+        const descEl = document.getElementById('pDescription');
+        const slaResp = document.getElementById('pSlaResponse')?.value;
+        const slaRes  = document.getElementById('pSlaResolution')?.value;
+        const supName  = document.getElementById('pSupName')?.value || '';
+        const supEmail = document.getElementById('pSupEmail')?.value || '';
+        const supPhoneCode = document.getElementById('pSupPhoneCode')?.value || '+250';
+        const supPhoneNum  = document.getElementById('pSupPhone')?.value || '';
+        const supPhone = supPhoneNum ? supPhoneCode + supPhoneNum.replace(/\s+/g, '') : '';
+
         await fetch(`${_API}/providers/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -403,10 +412,23 @@ async function handleSubmit(type) {
             organization_name: orgName,
             registration_number: licence,
             service_categories: cats.length ? cats : ['water_supply'],
-            description: `${orgName} — water service provider.`,
+            description: descEl?.value || `${orgName} — water service provider registered on Temba Digital Bridge.`,
             phone: orgPhone,
             email: orgEmail,
+            website: document.getElementById('pWebsite')?.value || null,
             service_areas: serviceAreas,
+            sla_response_hours: parseInt(slaResp) || 4,
+            sla_resolution_hours: parseInt(slaRes) || 24,
+            officer: {
+              name: name,
+              email: email,
+              phone: phone,
+            },
+            supervisor: {
+              name: supName,
+              email: supEmail,
+              phone: supPhone,
+            },
           })
         });
       }

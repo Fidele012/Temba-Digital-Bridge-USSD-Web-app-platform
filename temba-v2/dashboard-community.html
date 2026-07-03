@@ -12,9 +12,9 @@
 <!-- NAVBAR -->
 <nav class="navbar" id="mainNav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-brand" style="cursor:pointer;">
-      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:38px;width:auto;display:block;">
-      <span style="font-size:15px;font-weight:800;color:var(--navy,#0A2540);white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
+    <a href="index.html" class="nav-brand" style="display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer;position:absolute;left:1rem;">
+      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:44px;width:auto;display:block;flex-shrink:0;">
+      <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
     </a>
     <div class="nav-actions">
       <div style="display:flex;align-items:center;gap:4px;font-size:13px;">
@@ -37,12 +37,13 @@
 
   <!-- SIDEBAR -->
   <aside class="dash-sidebar">
-    <div style="padding:1.25rem 1.5rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#00695C,#26A69A);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,105,92,0.45);"><i class="ti ti-users"></i></div>
+    <!-- Community badge -->
+    <div style="padding:0.5rem 1rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#00695C,#26A69A);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;flex-shrink:0;box-shadow:0 4px 14px rgba(0,105,92,0.45);"><i class="ti ti-users"></i></div>
         <div>
-          <div style="font-size:11px;font-weight:800;color:rgba(178,223,219,0.95);letter-spacing:0.8px;line-height:1.2;" data-i18n="sidebar_community_label">COMMUNITY</div>
-          <div style="font-size:10px;font-weight:500;color:rgba(255,255,255,0.35);letter-spacing:0.2px;" data-i18n="sidebar_member_portal">Member Portal</div>
+          <div style="font-size:14px;font-weight:800;color:rgba(178,223,219,0.95);letter-spacing:0.6px;line-height:1.3;" data-i18n="sidebar_community_label">COMMUNITY</div>
+          <div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,0.4);letter-spacing:0.2px;" data-i18n="sidebar_member_portal">Member Portal</div>
         </div>
       </div>
     </div>
@@ -924,7 +925,9 @@ function _populateProviderSelects() {
 function _normReport(r) {
   const cm = { CONTAMINATION:'Contamination', contamination:'Contamination', PIPE_BURST:'Pipe Burst', pipe_burst:'Pipe Burst', NO_SUPPLY:'No Water Supply', no_supply:'No Water Supply', LOW_PRESSURE:'Low Pressure', low_pressure:'Low Pressure', OTHER:'Water Issue', other:'Water Issue' };
   const um = { HIGH:'urgent', MEDIUM:'moderate', LOW:'low', high:'urgent', medium:'moderate', low:'low' };
-  return { ref:'#'+String(r.id).slice(0,8).toUpperCase(), issue:cm[r.category]||r.category, urgency:um[r.urgency]||'moderate', loc:[r.district,r.province].filter(Boolean).join(' - ')||'Rwanda', provider:r.provider_name||(r.provider&&r.provider.organization_name)||'WASAC', status:(r.status||'submitted').toLowerCase().replace(/_/g,'-'), time:r.created_at, fromApi:true, apiId:r.id };
+  const pc = r.priority_class || 'P3';
+  const refNum = r.reference_number || ('#'+String(r.id).slice(0,8).toUpperCase());
+  return { ref:refNum, issue:cm[r.category]||r.category, urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.district,r.province].filter(Boolean).join(' - ')||'Rwanda', provider:r.provider_name||(r.provider&&r.provider.organization_name)||'WASAC', status:(r.status||'submitted').toLowerCase().replace(/_/g,'-'), time:r.created_at, fromApi:true, apiId:r.id };
 }
 function _normAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
@@ -1224,6 +1227,7 @@ function renderReportsList(all, filter) {
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
             <span style="font-size:15px;font-weight:700;color:var(--navy);">${r.issue}</span>
+            <span style="display:inline-block;font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;color:#fff;background:${r.priority==='P1'?'#C62828':r.priority==='P2'?'#E65100':'#1565C0'};">${r.priority||'P3'}</span>
             <span class="badge badge-${r.urgency||'active'}" style="font-size:10.5px;">${r.urgency}</span>
             ${_slaBadge(r.issue, r.time, r.status)}
           </div>
@@ -2236,6 +2240,15 @@ function submitRating() {
     createdAt:    new Date().toISOString(),
   });
   localStorage.setItem(_RATING_KEY, JSON.stringify(ratings));
+  /* Save to backend API (anonymous — no user_id stored) */
+  const token = localStorage.getItem('temba_token');
+  if (token && _pendingRatingItem?.id && !_pendingRatingItem.id.startsWith('local_') && _pendingRatingItem.type === 'report') {
+    fetch(`${API_BASE}/reports/${_pendingRatingItem.id}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ score: _selectedStar, comment: comment || null }),
+    }).catch(() => {});
+  }
   /* Notify provider of the rating */
   if (_pendingRatingItem?.providerName) {
     _pushProvNotif(_pendingRatingItem.providerName, {

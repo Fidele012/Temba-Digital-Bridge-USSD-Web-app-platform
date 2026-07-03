@@ -1,200 +1,835 @@
 /**
- * Temba Digital Bridge — AI Assistant Widget
- * Rule-based chatbot with professional escalation for water & sanitation queries
- * Self-contained: injects HTML/CSS into any page automatically
+ * Temba Digital Bridge — Smart Assistant Widget v2
+ * • Fetches live provider data from the API
+ * • Routes users to the right provider based on their service need
+ * • Guides navigation of every platform feature
+ * • Multi-turn conversation state for guided flows
  */
 
 (function () {
   'use strict';
 
-  // ─── Knowledge Base ─────────────────────────────────────────────────────────
+  // ─── Config ──────────────────────────────────────────────────────────────────
+  const API = (window.API_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '');
+
+  // ─── Service category labels ─────────────────────────────────────────────────
+  const SERVICE_LABELS = {
+    water_supply:    { label: 'Water Supply',       icon: '💧' },
+    meter_services:  { label: 'Meter Services',     icon: '📊' },
+    water_quality:   { label: 'Water Quality',      icon: '🧪' },
+    truck_delivery:  { label: 'Water Truck',        icon: '🚛' },
+    water_storage:   { label: 'Water Storage',      icon: '🪣' },
+    sanitation:      { label: 'Sanitation',         icon: '🧹' },
+    infrastructure:  { label: 'Infrastructure',     icon: '🔧' },
+    pipe_repair:     { label: 'Pipe Repair',        icon: '🔩' },
+    water_connection:{ label: 'New Connection',     icon: '🏠' },
+    inspection:      { label: 'Inspection',         icon: '🔍' },
+  };
+
+  // ─── User-intent → service_category mapping ──────────────────────────────────
+  const INTENT_TO_SERVICE = {
+    // Contamination / quality
+    contamination:   ['water_quality', 'sanitation'],
+    'bad smell':     ['water_quality'],
+    'dirty water':   ['water_quality'],
+    'brown water':   ['water_quality'],
+    'taste':         ['water_quality'],
+    'test water':    ['water_quality'],
+    'water quality': ['water_quality', 'water_supply'],
+    // Supply / outage
+    'no water':      ['water_supply', 'truck_delivery'],
+    'no supply':     ['water_supply', 'truck_delivery'],
+    'dry tap':       ['water_supply', 'truck_delivery'],
+    outage:          ['water_supply'],
+    shortage:        ['water_supply', 'truck_delivery'],
+    drought:         ['truck_delivery', 'water_storage'],
+    // Trucks / emergency delivery
+    truck:           ['truck_delivery'],
+    'water truck':   ['truck_delivery'],
+    'emergency water':['truck_delivery'],
+    'bulk water':    ['truck_delivery', 'water_storage'],
+    'fill tank':     ['truck_delivery', 'water_storage'],
+    // Storage
+    storage:         ['water_storage'],
+    tank:            ['water_storage', 'truck_delivery'],
+    // Meters
+    meter:           ['meter_services'],
+    'meter reading': ['meter_services'],
+    'meter repair':  ['meter_services'],
+    'meter install': ['meter_services'],
+    'billing':       ['meter_services'],
+    // Infrastructure / pipes
+    'pipe burst':    ['infrastructure', 'pipe_repair'],
+    'burst pipe':    ['infrastructure', 'pipe_repair'],
+    'broken pipe':   ['infrastructure', 'pipe_repair'],
+    'pipe leak':     ['infrastructure', 'pipe_repair'],
+    leak:            ['infrastructure', 'pipe_repair'],
+    'low pressure':  ['infrastructure', 'water_supply'],
+    // Sanitation
+    sanitation:      ['sanitation'],
+    sewage:          ['sanitation'],
+    drainage:        ['sanitation'],
+    toilet:          ['sanitation'],
+    // Connection
+    connection:      ['water_connection', 'water_supply'],
+    'new connection':['water_connection', 'water_supply'],
+    'connect home':  ['water_connection'],
+    // Inspection
+    inspection:      ['inspection', 'infrastructure'],
+    survey:          ['inspection'],
+  };
+
+  // ─── Live provider store ─────────────────────────────────────────────────────
+  let PROVIDERS = [];         // populated on init from API
+  let providersLoaded = false;
+
+  async function loadProviders() {
+    try {
+      const res = await fetch(`${API}/api/v1/providers?limit=50`);
+      if (!res.ok) return;
+      const data = await res.json();
+      PROVIDERS = (data.items || []).filter(p => p.status === 'approved' || !p.status);
+      providersLoaded = true;
+    } catch (_) {
+      // API not reachable — chatbot still works with knowledge base
+    }
+  }
+
+  function matchProviders(serviceCategories) {
+    if (!PROVIDERS.length) return [];
+    return PROVIDERS.filter(p => {
+      const provCats = Array.isArray(p.service_categories)
+        ? p.service_categories
+        : (typeof p.service_categories === 'string'
+            ? JSON.parse(p.service_categories)
+            : []);
+      return serviceCategories.some(cat => provCats.includes(cat));
+    });
+  }
+
+  function getMatchingServicesFor(provider) {
+    const cats = Array.isArray(provider.service_categories)
+      ? provider.service_categories
+      : (typeof provider.service_categories === 'string'
+          ? JSON.parse(provider.service_categories)
+          : []);
+    return cats.map(c => SERVICE_LABELS[c] || { label: c, icon: '🔹' });
+  }
+
+  function renderProviderCards(providers, userNeed) {
+    if (!providers.length) return '';
+    const cards = providers.map(p => {
+      const services = getMatchingServicesFor(p);
+      const badgesHtml = services.slice(0, 4).map(s =>
+        `<span class="tchat-badge">${s.icon} ${s.label}</span>`
+      ).join('');
+      const phoneLink = p.phone
+        ? `<a href="tel:${p.phone}" class="tchat-prov-action tchat-prov-call">📞 Call</a>`
+        : '';
+      const emailLink = p.email
+        ? `<a href="mailto:${p.email}" class="tchat-prov-action tchat-prov-email">✉️ Email</a>`
+        : '';
+      return `
+        <div class="tchat-provider-card">
+          <div class="tchat-prov-name">${p.organization_name}</div>
+          ${p.description ? `<div class="tchat-prov-desc">${p.description}</div>` : ''}
+          <div class="tchat-badge-row">${badgesHtml}</div>
+          <div class="tchat-prov-actions">
+            ${phoneLink}
+            ${emailLink}
+            <button class="tchat-prov-action tchat-prov-book"
+              onclick="tembaChat._bookWith('${p.id}','${p.organization_name.replace(/'/g,"\\'")}')">
+              📅 Book Appointment
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+    return `<div class="tchat-provider-list">${cards}</div>`;
+  }
+
+  // ─── Conversation state ───────────────────────────────────────────────────────
+  let conversationState = null; // null | { flow, step, data }
+
+  function setFlow(flow, step, data) {
+    conversationState = { flow, step, data: data || {} };
+  }
+  function clearFlow() { conversationState = null; }
+
+  // ─── Knowledge base ──────────────────────────────────────────────────────────
   const KB = [
+    // GREETINGS
     {
       id: 'greeting',
       keywords: ['hello','hi','hey','good morning','good afternoon','good evening',
-                 'muraho','mwaramutse','amakuru','help','start','assist','what can you do'],
-      response: `Hello! I'm **Temba Assistant** — your digital guide for water and sanitation services in Rwanda.\n\nI can help you with:\n\n• **Reporting** water or sanitation issues\n• **Tracking** your submitted reports\n• **Booking** appointments with service providers\n• **Requesting** water services (connections, tanks, trucks)\n• **Water safety** information\n• **Navigating** the Temba platform\n\nWhat would you like help with today?`,
-      professional: false,
-      quickReplies: ['How do I report an issue?','Book an appointment','Check report status','Water safety info']
+                 'muraho','mwaramutse','amakuru','bite','yego','oya','bonjour',
+                 'help','start','assist','what can you do','i need help'],
+      response: () => `Hello! I'm **Temba Assistant** 👋
+
+I can help you with:
+
+💧 **Find the right water provider** for your specific need
+🗺️ **Navigate the platform** — reporting, tracking, bookings
+📞 **Get provider contacts** for WASAC, IRIBA, Pro Water
+🚨 **Water emergencies** — contamination, burst pipes, outages
+❓ **Platform how-to** — accounts, appointments, USSD access
+
+What can I help you with today?`,
+      quickReplies: ['I need water service','How do I report an issue?','Find a provider near me','Use Temba without internet'],
     },
+
+    // KINYARWANDA
+    {
+      id: 'kinyarwanda',
+      keywords: ['kinyarwanda','ikinyarwanda','ndashaka','nshaka','amazi','ikibazo',
+                 'muraho','mwaramutse','amakuru','bite','impungenge'],
+      response: () => `Muraho! 🇷🇼
+
+Nshobora kukufasha mu magambo make y'Ikinyarwanda.
+
+🇷🇼 **Kinyarwanda:**\n• Raporo y'ikibazo cy'amazi → tandika ikibazo\n• Gukurikirana raporo → shyiraho kode yawe\n• Gutuza umunsi wo guterana → reba abatuzi
+
+🇬🇧 **For full guidance**, please continue in **English** — I cover all platform features in detail.
+
+Ibikubiye muri Temba kandi birahari muri **USSD** (*384*36640#) mu Kinyarwanda.`,
+      quickReplies: ['How do I report? (English)','Find a provider','Use USSD in Kinyarwanda'],
+    },
+
+    // FIND PROVIDER (main intent)
+    {
+      id: 'find_provider',
+      keywords: ['find provider','which provider','who provides','right provider','best provider',
+                 'provider for','looking for provider','need a provider','recommend provider',
+                 'suggest provider','who can help','which company','what company'],
+      response: () => {
+        if (!providersLoaded || !PROVIDERS.length) {
+          return `I'm loading provider information...\n\nOur registered providers cover:\n• **Water supply & outages** — WASAC, IRIBA Water Group\n• **Water truck delivery** — Pro Water Rwanda\n• **Water quality testing** — IRIBA Water Group\n• **Sanitation & infrastructure** — WASAC\n• **Meter services** — IRIBA Water Group\n\nTell me what kind of service you need and I'll point you to the right one.`;
+        }
+        const list = PROVIDERS.map(p => {
+          const services = getMatchingServicesFor(p);
+          return `🏢 **${p.organization_name}** — ${services.map(s => s.icon + ' ' + s.label).join(', ')}`;
+        }).join('\n');
+        return `Here are all **registered providers** on Temba:\n\n${list}\n\nTell me what **service you need** (e.g. "water truck", "meter repair", "contamination") and I'll match you to the right provider.`;
+      },
+      quickReplies: ['Water truck delivery','Water quality issue','No water / outage','Meter problem','Burst pipe'],
+    },
+
+    // REPORTING
     {
       id: 'report_how',
-      keywords: ['report','submit','file','send','raise','create report','new report','make report','how report'],
-      response: `**How to Report a Water Issue:**\n\n**Step 1:** Click **"Report Issue"** in the navigation menu\n**Step 2:** Select the issue category (broken pipe, no water, contamination…)\n**Step 3:** Choose your location — Province → District → Sector → Cell → Village\n**Step 4:** Select your water service provider\n**Step 5:** Write a description and attach photos if available\n**Step 6:** Click Submit — you'll get a reference number (e.g. #TDB-1234)\n\n**No internet?** Dial **\*XXX#** on any phone to report via USSD in English or Kinyarwanda.\n\nYour report goes directly to the provider who will review and respond.`,
-      professional: false,
-      quickReplies: ['What types of issues can I report?','How do I track my report?','Report via USSD']
+      keywords: ['report','submit report','file report','raise issue','create report','new report',
+                 'how report','make report','log issue','report issue','report problem'],
+      response: () => `**How to Report a Water Issue:**
+
+**Step 1** — Sign in to your community account
+**Step 2** — Click **"Report Issue"** in your dashboard sidebar
+**Step 3** — Choose the issue category:
+  → Contamination · Pipe Burst · No Supply · Low Pressure · Meter · Billing · Other
+**Step 4** — Set **urgency level** (Low / Medium / High / Critical)
+**Step 5** — Select the **water provider** responsible for your area
+**Step 6** — Add description and optional photos
+**Step 7** — Submit — you'll instantly get a **reference code** (e.g. RPT-20260703-X4K2)
+
+📱 **No internet?** Dial **\*384\*36640#** → "1. Report Water Issue"
+
+Your report is visible to the provider immediately and you get SMS updates at every status change.`,
+      quickReplies: ['What issue categories exist?','Report via USSD','Track my report','Contamination emergency'],
     },
+
     {
-      id: 'report_track',
-      keywords: ['track','status','check','update','progress','follow up','my report',
-                 'reference','ref number','tdb','what happened','no update','pending'],
-      response: `**Tracking Your Reports:**\n\n1. Open your **Dashboard** and click **"My Reports"** in the sidebar\n2. Your reports show colour-coded status badges:\n   • 🔵 **Submitted** — received, awaiting review\n   • 🟠 **In Progress** — provider is working on it\n   • 🟢 **Resolved** — issue has been fixed\n3. Click any report card to view full details and provider notes\n4. You'll also receive **SMS alerts** whenever your report status changes\n\n**Via USSD:** Dial **\*XXX#** → select "Check Status" → enter your reference number`,
-      professional: false,
-      quickReplies: ['My report has no update','How long does resolution take?','Contact my provider']
+      id: 'report_categories',
+      keywords: ['categories','types of issue','what issues','what can report','broken pipe','pipe burst',
+                 'no water','dry tap','shortage','low pressure','contamination','sewage','pump','meter'],
+      response: () => `**Issue Categories on Temba:**
+
+🔴 **Critical (P1 — 4h SLA)**
+• Contamination — discoloured, smelly, or chemically unsafe water
+• Burst/broken main pipe with flooding
+
+🟠 **Urgent (P2 — 24h SLA)**
+• Pipe burst (no flooding)
+• Complete water outage / no supply
+• Low pressure affecting many households
+
+🔵 **Standard (P3 — 72h SLA)**
+• Persistent low pressure
+• Billing / meter disputes
+• Drainage issues
+• General infrastructure damage
+
+Every report gets an **automatic priority classification** (P1/P2/P3). Providers see P1 reports at the top of their dashboard.`,
+      quickReplies: ['How do I report?','Contamination is an emergency','What is the SLA?'],
     },
+
+    // TRACKING
     {
-      id: 'report_types',
-      keywords: ['categories','types of issue','what issues','what can report','broken pipe','leak',
-                 'no water','dry tap','shortage','low pressure','flooding','sewage','sanitation','pump'],
-      response: `**Issues You Can Report on Temba:**\n\n🔴 **Urgent**\n• Broken or burst pipes\n• Water contamination (bad smell/colour/taste)\n• Complete water outage\n• Sewage overflow or flooding\n\n🟠 **Moderate**\n• Low water pressure\n• Intermittent or dry taps\n• Damaged public taps or pumps\n• Broken water meters\n\n🔵 **Standard**\n• Poor water quality (general)\n• Infrastructure damage (non-emergency)\n• Drainage problems\n• Meter reading disputes\n\nEvery report helps providers identify patterns and prioritise repairs in your area.`,
-      professional: false,
-      quickReplies: ['How do I report contamination?','Submit a report now','What is considered urgent?']
+      id: 'track_report',
+      keywords: ['track','status','check status','my report','update','progress','follow up',
+                 'reference number','ref code','rpt-','what happened','no update','pending',
+                 'where is my','how long'],
+      response: () => `**Tracking Your Report:**
+
+**Option 1 — Dashboard (logged in):**
+1. Sign in → Dashboard → **"My Reports"** in sidebar
+2. Reports show colour-coded badges:
+   • 🔵 Submitted → 🟠 Acknowledged → 🔄 In Progress → 🟢 Resolution Submitted → ✅ Verified
+3. Click any report card for full provider notes and timeline
+
+**Option 2 — Public tracker (no login):**
+Go to the **homepage** → enter your reference code in the **"Track Your Issue"** field
+→ see real-time status, provider notes, and expected resolution date
+
+**Option 3 — USSD:**
+Dial **\*384\*36640#** → "2. Track My Reports" → see your 3 most recent reports
+
+**Getting SMS updates?** Make sure your phone number is correct in your profile settings.`,
+      quickReplies: ['I have not received an update','Verify my resolution','What does each status mean?'],
     },
+
     {
-      id: 'contamination',
-      keywords: ['contaminated','contamination','chemical','bad smell','smell bad','color','colour',
-                 'brown water','black water','yellow water','smell sewage','unsafe water','polluted',
-                 'dirty water','oily','strange taste','weird taste'],
-      response: `⚠️ **Suspected Water Contamination — Act Immediately:**\n\n**Right now:**\n1. **Stop drinking** the water\n2. Use bottled or stored clean water for drinking and cooking\n3. **Submit an URGENT report** on Temba — select "Contamination" category\n4. Warn your neighbours\n\n**If anyone is already ill from the water**, go to the nearest health centre immediately.\n\nWater contamination is a **public health matter** that requires urgent professional investigation. I'll help you connect with the right specialist.`,
-      professional: true,
-      professionalMsg: 'Water contamination can affect an entire community and requires urgent assessment by a certified water quality specialist and possibly public health authorities.',
-      quickReplies: ['Submit urgent report','Contact WASAC','Find nearest health centre']
+      id: 'status_meaning',
+      keywords: ['what does status mean','status meaning','acknowledged','in progress','resolution submitted',
+                 'verified','what is open','what is closed','follow up','management review'],
+      response: () => `**Report Status Guide:**
+
+🔵 **Submitted** — Your report was received and is in the provider's queue
+🟡 **Acknowledged** — Provider has seen your report and assigned it
+🔄 **In Progress** — Provider team is actively working on the issue
+📋 **Resolution Submitted** — Provider says the issue is fixed — **you need to verify**
+✅ **Verified** — You confirmed the fix. The case is officially closed.
+⚠️ **Follow Up** — You disputed the resolution. Case re-opened.
+🔒 **Auto Closed** — No verification response in 7 days (assumed resolved)
+
+**Important:** When status becomes "Resolution Submitted", you receive an SMS asking you to confirm the fix. Please respond — it holds the provider accountable.`,
+      quickReplies: ['How to verify a resolution','My issue is not fixed','Track my report'],
     },
-    {
-      id: 'health_medical',
-      keywords: ['sick','ill','disease','hospital','doctor','health','diarrhea','diarrhoea',
-                 'vomiting','stomach ache','stomach pain','fever','rash','allergic',
-                 'poisoned','poisoning','medical','unwell','hurting'],
-      response: `🏥 **Health Issues Possibly Linked to Water:**\n\nIf you or someone is experiencing health symptoms that may be related to water quality:\n\n1. **Seek immediate medical care** at your nearest health centre or hospital\n2. **Stop drinking** tap water until the source is confirmed safe\n3. **Report suspected contamination** on Temba so providers can investigate\n4. Keep a record of symptoms and when they started\n\n**Rwanda Emergency:** Call **912**\n**Nearest health centre:** Visit your local Umudugudu leader for directions\n\nThis is a medical situation — please prioritise getting professional healthcare.`,
-      professional: true,
-      professionalMsg: 'Health symptoms potentially caused by water require both medical attention and a water quality investigation by certified professionals.',
-      quickReplies: ['Emergency: Call 912','Report contamination now','Submit urgent report']
-    },
+
+    // APPOINTMENTS
     {
       id: 'appointment_book',
-      keywords: ['appointment','book','schedule','meeting','consultation','visit','meet provider',
-                 'talk to provider','discuss','call back','callback','see provider'],
-      response: `**Booking an Appointment with a Provider:**\n\n1. Go to your **Dashboard** → click **"Appointments"** in the sidebar\n2. Click **"Book Appointment"**\n3. Select your **water service provider** (filtered by your service area)\n4. Choose the **reason** (new connection, billing, meter, general inquiry…)\n5. Pick your **preferred date and available time slot**\n6. Add notes and click Submit\n\n**After booking:**\n• The provider reviews and approves within 1–2 business days\n• You'll receive an SMS/email confirmation or a proposed alternative time\n• You can **reschedule or cancel** at any time from your dashboard\n\nAppointments are free — you pay nothing to book.`,
-      professional: false,
-      quickReplies: ['Can I reschedule an appointment?','Can I cancel?','View my appointments']
+      keywords: ['appointment','book appointment','schedule','meeting','consultation','visit provider',
+                 'talk to provider','see provider','callback','call back','book meeting'],
+      response: () => `**Booking an Appointment:**
+
+1. Sign in → Dashboard → **"Appointments"** in sidebar
+2. Click **"Book Appointment"**
+3. Select a **water service provider** (those registered on Temba)
+4. Choose appointment **reason**:
+   → New connection · Meter reading · Pipe repair · Billing · Inspection · Consultation
+5. Pick your **preferred date & time slot** from the provider's available hours
+6. Add notes and submit
+
+✅ The provider approves within 1–2 business days
+📩 You get an SMS/email confirmation (or a proposed alternative time)
+🔄 You can reschedule or cancel any time from your dashboard
+
+Appointments are **free to book** — no charge for scheduling.`,
+      quickReplies: ['Reschedule an appointment','Cancel an appointment','Which providers accept appointments?'],
     },
+
     {
       id: 'appointment_reschedule',
-      keywords: ['reschedule','change time','change date','postpone','move appointment',
-                 'different time','not available','change appointment','update appointment'],
-      response: `**Rescheduling an Appointment:**\n\n1. Open **Dashboard** → **Appointments**\n2. Find the appointment you want to change\n3. Click **"Reschedule"** on that appointment\n4. Choose a new preferred date and time\n5. Add a note explaining the change (optional)\n6. Submit — the provider will be notified and confirm\n\n**Notes:**\n• You can reschedule any **Pending** or **Approved** appointment\n• Appointments with status **"Completed"** or **"Rejected"** cannot be changed\n• The provider may propose yet another alternative time if your choice is unavailable`,
-      professional: false,
-      quickReplies: ['How to cancel instead?','View my appointments','Book a new appointment']
+      keywords: ['reschedule','change appointment','different time','postpone','move appointment',
+                 'not available','update appointment'],
+      response: () => `**Rescheduling an Appointment:**
+
+1. Dashboard → **Appointments**
+2. Find the appointment → click **"Reschedule"**
+3. Select a new preferred date and time
+4. Add a short note (optional) and submit
+
+The provider will receive the request and confirm or propose a further alternative.
+
+**You can reschedule:** Pending or Approved appointments
+**You cannot reschedule:** Completed or Rejected appointments`,
+      quickReplies: ['Cancel instead','Book new appointment','View my appointments'],
     },
+
     {
       id: 'appointment_cancel',
-      keywords: ['cancel appointment','cancel booking','delete appointment','remove appointment',
-                 'no longer need','cancel meeting','withdraw appointment'],
-      response: `**Cancelling an Appointment:**\n\n1. Go to **Dashboard** → **Appointments**\n2. Find the appointment you want to cancel\n3. Click **"Cancel"** and select a reason\n4. Confirm the cancellation\n\nThe provider will be automatically notified.\n\n**Important:**\n• Please cancel **at least 24 hours in advance** where possible — this helps providers manage their schedules\n• You can book a new appointment at any time after cancellation\n• Frequent cancellations may affect your ability to book priority slots`,
-      professional: false,
-      quickReplies: ['Book a new appointment','Reschedule instead','View my appointments']
+      keywords: ['cancel appointment','cancel booking','remove appointment','no longer need','withdraw'],
+      response: () => `**Cancelling an Appointment:**
+
+1. Dashboard → **Appointments**
+2. Find the appointment → click **"Cancel"**
+3. Select a cancellation reason and confirm
+
+The provider is automatically notified.
+
+💡 **Tip:** Cancel at least **24 hours in advance** where possible — this helps providers manage their schedules for other community members.`,
+      quickReplies: ['Book a new appointment','Reschedule instead','View my appointments'],
     },
+
+    // SERVICE REQUESTS
     {
       id: 'service_request',
-      keywords: ['service request','request service','request water','apply for water',
-                 'water connection','pipe installation','new connection','connect water',
-                 'water tank','tank delivery','water truck','truck delivery','emergency water',
-                 'meter install','meter repair','inspection','technical visit','borehole'],
-      response: `**Requesting Water Services on Temba:**\n\nYou can request any of these services from registered providers:\n\n💧 **New Water Connection** — pipe installation to your home/property\n🚰 **Tank Delivery** — water storage tank supplied and installed\n🚛 **Water Truck** — emergency bulk water delivery to your location\n📊 **Meter Support** — installation, repair, or incorrect readings\n🔧 **Technical Inspection** — infrastructure assessment visit\n\n**How to request:**\n1. Go to **Dashboard** → **Service Requests**\n2. Click **"New Request"**\n3. Choose the service type and provider\n4. Enter your exact location and requirements\n5. Submit — provider reviews and responds within 2–5 business days`,
-      professional: false,
-      quickReplies: ['Request water connection','Request water truck','Check request status']
+      keywords: ['service request','request service','apply for service','request water',
+                 'water connection','new connection','connect water','pipe installation',
+                 'water tank','tank delivery','water truck','truck delivery',
+                 'meter install','technical visit','borehole','new pipe'],
+      response: () => `**Requesting a Water Service:**
+
+Available services from Temba providers:
+
+💧 **New Water Connection** — pipe installation to your home or property
+🚛 **Water Truck Delivery** — emergency bulk water to your location
+🪣 **Water Storage Tank** — tank supply and installation
+📊 **Meter Support** — installation, repair, or dispute resolution
+🔍 **Technical Inspection** — infrastructure assessment visit
+🔧 **Pipe Repair** — planned repair of leaks or damage
+
+**How to submit:**
+1. Dashboard → **"Service Requests"** → **"New Request"**
+2. Choose the service type
+3. Select the provider offering that service
+4. Enter your location and requirements
+5. Submit — provider responds within 2–5 business days
+
+Want me to find the **right provider for a specific service?** Tell me what you need!`,
+      quickReplies: ['Water truck delivery','New water connection','Meter support','Technical inspection'],
     },
-    {
-      id: 'water_connection',
-      keywords: ['new connection','connect my house','water to home','pipe to house',
-                 'household connection','water line','extend pipeline','home water','apply connection'],
-      response: `**Applying for a New Home Water Connection:**\n\n**What you need ready:**\n• Full name and phone number\n• Exact property location (Province to Village)\n• Type of property (residential, commercial, rental…)\n• Any land/property documents if available\n\n**The process:**\n1. Submit a **Connection Request** in Dashboard → Service Requests\n2. Provider reviews feasibility for your area\n3. A site inspection is scheduled (provider will call you)\n4. You receive a cost quote\n5. Connection is installed after approval\n\n**Typical timeline:** 2–4 weeks after approval\n**Cost:** Varies by provider and distance to the nearest main pipe — the provider will quote after inspection.`,
-      professional: false,
-      quickReplies: ['Which provider for connections?','Submit connection request now','How long does it take?']
-    },
-    {
-      id: 'water_truck',
-      keywords: ['water truck','truck delivery','emergency delivery','bulk water','no water emergency',
-                 'drought','run out of water','urgent water supply','fill tank'],
-      response: `**Requesting Emergency Water Truck Delivery:**\n\nThis service is for situations like:\n• Extended water outage in your area\n• Drought or infrastructure failure\n• Community or event needs\n\n**How to request:**\n1. Go to **Dashboard** → **Service Requests** → **"New Request"**\n2. Select **"Water Truck Delivery"** as the service type\n3. Set urgency to **High** if it's an emergency\n4. Enter your exact delivery location and quantity needed\n5. Submit\n\n**For immediate emergencies, call directly:**\n• **WASAC:** +250 788 123 456\n• **Water Access Rwanda:** +250 788 234 567\n\nDon't wait for online processing in a true emergency — call first.`,
-      professional: false,
-      quickReplies: ['Submit truck request now','Contact WASAC directly','Which providers offer trucks?']
-    },
-    {
-      id: 'providers_info',
-      keywords: ['provider','wasac','water access','iriba','aquasan','pro water',
-                 'water company','utility','service company','contact provider','who covers'],
-      response: `**Registered Water Service Providers on Temba:**\n\n🏢 **WASAC** — National coverage, water supply & sanitation\n📞 +250 788 123 456 | info@wasac.rw\n\n🏢 **Water Access Rwanda** — Rural water supply\n📞 +250 788 234 567 | contact@wateraccessrwanda.rw\n\n🏢 **IRIBA Water Group** — Urban & peri-urban distribution\n📞 +250 788 345 678 | support@iriba.rw\n\n🏢 **Aquasan Limited** — Sanitation services (Kigali)\n📞 +250 788 456 789 | info@aquasan.rw\n\n🏢 **Pro Water Rwanda** — Commercial water services\n📞 +250 788 567 890 | hello@prowater.rw\n\nVisit **Dashboard → Providers** for full contact details and to book appointments directly.`,
-      professional: false,
-      quickReplies: ['Book appointment with provider','Report issue to provider','Which provider covers my area?']
-    },
+
+    // USSD
     {
       id: 'ussd',
-      keywords: ['ussd','dial','basic phone','no smartphone','no internet','feature phone',
-                 'offline','without internet','star code','*xxx#','kinyarwanda phone'],
-      response: `**Using Temba via USSD (No Internet Required):**\n\nDial **\*XXX#** on **any phone** — basic phone, smartphone, or even a borrowed phone.\n\n**USSD Main Menu:**\n1. Report Water Issue\n2. Request Water Service\n3. Check Request Status\n4. Announcements & Alerts\n5. Request Callback from Provider\n6. Exit\n\n**Available in:**\n• 🇷🇼 Kinyarwanda\n• 🇬🇧 English\n\n**What you can do via USSD:**\n• Report any water or sanitation issue\n• Request water services (truck, connection, meter support)\n• Check status by reference number\n• Receive emergency announcements\n• Request a provider to call you back\n\n**Tip:** USSD sessions time out quickly — read each prompt and respond within 30 seconds.`,
-      professional: false,
-      quickReplies: ['How to report via USSD?','What is my reference number?','How to check status via USSD?']
+      keywords: ['ussd','basic phone','no smartphone','no internet','feature phone','offline',
+                 'without internet','dial','*384*','kinyarwanda phone','any phone'],
+      response: () => `**Using Temba Without Internet — USSD:**
+
+📱 Dial **\*384\*36640#** on **any mobile phone** — basic, smartphone, or borrowed.
+
+**USSD Main Menu:**
+1. 📢 Report Water Issue
+2. 🔍 Track My Reports
+3. 📅 Book Appointment
+4. 📋 My Appointments
+5. 📊 Service Request Status
+6. 🔧 Submit Service Request
+
+**Available in:**
+🇷🇼 Kinyarwanda  |  🇬🇧 English (you choose at the start)
+
+**What you can do via USSD:**
+• Report water issues and get a tracking reference code
+• Check status of your last 3 reports
+• Book appointments and check upcoming ones
+• Submit service requests (truck, connection, meter)
+• Verify that a resolution fixed your issue
+• Rate the service anonymously (1–5 stars)
+
+⏱️ Respond within **30 seconds** per prompt to avoid session timeout.`,
+      quickReplies: ['Report via USSD step by step','Register via USSD','Track via USSD'],
     },
+
+    {
+      id: 'ussd_registration',
+      keywords: ['register ussd','sign up ussd','create account ussd','ussd register',
+                 'basic phone register','register without internet'],
+      response: () => `**Registering via USSD (no internet needed):**
+
+1. Dial **\*384\*36640#**
+2. Choose language: **1. English** or **2. Kinyarwanda**
+3. Select **1. Register**
+4. Enter your **full name**
+5. Choose your **Province** from the numbered list
+6. Choose your **District**
+7. Create a **4-digit PIN** (you'll use this to log in via USSD)
+8. Confirm the PIN
+
+✅ Account created! You can now log in with your phone number + PIN on any USSD session.
+
+**Note:** For the full web platform (reports with photos, detailed tracking, appointments), visit temba.rw and sign up with email.`,
+      quickReplies: ['How to report via USSD','Login via USSD','What is USSD?'],
+    },
+
+    // ACCOUNTS
     {
       id: 'account_signup',
-      keywords: ['register','sign up','create account','join','new account','membership',
-                 'how to register','make account','open account'],
-      response: `**Creating a Temba Account:**\n\n**Community Member (free, instant):**\n1. Click **"Sign Up"** on the homepage\n2. Select **"Community Member"**\n3. Enter personal info — name, phone, ID\n4. Set your residential location (Province to Village)\n5. Create a password\n6. Your account is **active immediately** — start reporting!\n\n**Water Service Provider (verified):**\n1. Click **"Sign Up"** → **"Water Provider"**\n2. Enter organisation details and select your service categories\n3. Specify the provinces/districts you operate in\n4. Submit for admin verification\n5. Account activated within **1–2 business days** after review\n\n[Sign Up Now →](signup.html)`,
-      professional: false,
-      quickReplies: ['Sign up as community member','Register as provider','I already have an account']
+      keywords: ['register','sign up','create account','join temba','new account','how to register',
+                 'make account','open account','get started'],
+      response: () => `**Creating a Temba Account:**
+
+**Community Member — free, instant:**
+1. Click **"Sign Up"** on the homepage
+2. Select **"Community Member"**
+3. Enter name, phone, email, and ID number
+4. Set your Rwanda location (Province → Village)
+5. Create a password → account is **active immediately**
+
+**Water Provider — verified:**
+1. Click **"Sign Up"** → **"Water Provider"**
+2. Enter organisation name, description, service categories
+3. Add SLA commitment and escalation contacts (Officer + Supervisor)
+4. Submit → reviewed by admin within **1–2 business days**
+
+📧 Once approved, providers receive a verification email and can access their dashboard.
+
+[Sign Up →](signup.html)`,
+      quickReplies: ['Sign up as community member','Register as water provider','Already have an account?'],
     },
+
     {
-      id: 'account_password',
-      keywords: ['password','forgot','reset','login','sign in','cannot log in','locked out',
-                 'access account','forgot password','change password'],
-      response: `**Account Access & Password Help:**\n\n**Forgot your password?**\n1. Go to the **Sign In** page\n2. Click **"Forgot password?"**\n3. Enter your registered phone number or email\n4. You'll receive a reset code via SMS or email\n5. Create a new password\n\n**Still stuck?**\n• Make sure you're using the phone number or email you registered with\n• Check you're not switching between community and provider login tabs\n• Try a different browser or clear your cache\n\n**Alternative:** Use USSD **\*XXX#** to request a callback from your provider's support team.\n\n[Go to Sign In →](signin.html)`,
-      professional: false,
-      quickReplies: ['Go to sign in','Sign up instead','Need more help']
+      id: 'account_login',
+      keywords: ['log in','login','sign in','forgot password','reset password','locked out',
+                 'cannot login','access account','change password','wrong password'],
+      response: () => `**Signing In & Password Help:**
+
+**To sign in:** Click **"Sign In"** → enter your email + password
+
+**Forgot password?**
+1. Sign In page → **"Forgot Password?"**
+2. Enter your registered email or phone number
+3. Receive a reset code via SMS or email
+4. Create a new password
+
+**Common issues:**
+• Make sure you're on the right tab (Community vs Provider)
+• Check email spelling — no spaces before or after
+• Try clearing browser cache or use a different browser
+
+**USSD users:** Your login is your **phone number + 4-digit PIN** (not your web password)
+
+[Go to Sign In →](signin.html)`,
+      quickReplies: ['Reset my password','Sign up instead','Login via USSD'],
     },
+
+    // VERIFICATION & RATING
     {
-      id: 'billing_dispute',
-      keywords: ['bill','billing','invoice','charge','payment','overcharged','wrong amount',
-                 'dispute','fee','cost','price','expensive bill','meter reading wrong',
-                 'incorrect reading'],
-      response: `**Billing Inquiries & Disputes:**\n\nBilling matters require your full account history and records — these are best handled by a provider's billing officer directly.\n\n**Steps to resolve:**\n1. **Book an appointment** with your provider (Dashboard → Appointments) — select "Billing Dispute" as the reason\n2. **Call the provider** billing line for urgent issues\n3. **Request a meter inspection** if you believe your readings are incorrect (Dashboard → Service Requests)\n\nBring any bills or receipts you have to the appointment.\n\nI'll connect you with the right professional for this.`,
-      professional: true,
-      professionalMsg: 'Billing disputes involve your personal account records and financial data. A qualified billing officer at your water service provider is the right person to resolve this.',
-      quickReplies: ['Book appointment','Request meter inspection','Contact provider directly']
+      id: 'verify_resolution',
+      keywords: ['verify','confirm fixed','resolution','issue fixed','not fixed','dispute',
+                 'confirm resolution','verify my report','it is fixed','still not fixed'],
+      response: () => `**Verifying a Resolution:**
+
+When a provider marks your issue as resolved, you'll receive an **SMS notification** and the report status changes to "Resolution Submitted".
+
+**To verify via the web:**
+1. Dashboard → **My Reports**
+2. Find the report with status "Resolution Submitted"
+3. Click **"Verify Resolution"**
+4. Choose: **✅ Yes, it's fixed** or **❌ No, dispute resolution**
+
+**To verify via USSD:**
+Dial **\*384\*36640#** → Login → **"2. Track My Reports"**
+Reports marked [VERIFY] will appear first → select and respond
+
+**If you say it's NOT fixed:**
+The case is re-opened with "Follow Up" status. The provider must respond again — and their supervisor is notified.
+
+**After verifying as fixed:** You can leave an **anonymous 1–5 star rating** for the provider.`,
+      quickReplies: ['Rate a provider','My issue is not fixed','How to dispute a resolution'],
     },
+
     {
-      id: 'major_infrastructure',
-      keywords: ['main pipe burst','road flooding','major leak','burst main','large crack',
-                 'infrastructure collapse','emergency repair','big flood','massive leak',
-                 'street flooding','road damaged'],
-      response: `⚠️ **Major Infrastructure Emergency:**\n\n**Immediate actions:**\n1. **Stay away** from the damaged area\n2. **Call WASAC** directly for emergency response: **+250 788 123 456**\n3. Submit an **Urgent report** on Temba (select highest urgency)\n4. Alert your local authority (sector office) if the damage affects roads or public property\n\n**This situation requires emergency-response infrastructure engineers** — please call the provider directly and don't wait for online processing.`,
-      professional: true,
-      professionalMsg: 'Major infrastructure damage needs immediate response from certified water engineers and emergency teams — online processing alone is not fast enough.',
-      quickReplies: ['Call WASAC emergency','Submit urgent report','Contact local authority']
+      id: 'rating',
+      keywords: ['rate','rating','review','stars','feedback','anonymous','score','how to rate',
+                 'provider rating','review provider'],
+      response: () => `**Rating a Provider (Anonymous):**
+
+After you verify that your issue is fixed, you can leave a rating.
+
+**How it works:**
+1. Verify resolution as "Fixed" (web or USSD)
+2. A rating prompt appears automatically
+3. Select **1–5 stars** and optionally add a comment
+4. Submit
+
+**Key fact: Ratings are completely anonymous.**
+Your name, phone, and account are **never** linked to your rating. Providers only see their **average score** and total count — never who gave which rating.
+
+This encourages honest feedback and genuine improvement.
+
+**On USSD:** After verifying, select a rating (1–5). No comments on USSD.`,
+      quickReplies: ['How to verify resolution','What does the provider see?','How is the score calculated?'],
     },
+
+    // WATER SAFETY
     {
       id: 'water_safety',
-      keywords: ['safe to drink','water safety','water quality','boil water','filter water',
-                 'purify water','ph level','chlorine','turbidity','e coli','bacteria','safe'],
-      response: `**Water Safety Information:**\n\n**Signs your water may be unsafe:**\n• Unusual smell (chlorine, sulfur/egg, sewage)\n• Discolouration (brown, yellow, black, cloudy)\n• Unusual or bitter taste\n• Visible particles or sediment\n\n**Rwanda safe water standards:**\n• pH: 6.5–8.5 (normal range)\n• Turbidity: below 1 NTU (visually clear)\n• Chlorine: 0.2–0.5 mg/L (disinfection)\n• E. coli: 0 detected (bacteria-free)\n\n**If you're unsure:**\n1. Boil water for 1 minute before drinking\n2. Let it cool in a covered clean container\n3. Use a certified filter if available\n4. Check **Dashboard → Water Quality** for your area's current readings\n\nSuspect contamination? **Submit an urgent report immediately.**`,
-      professional: false,
-      quickReplies: ['Report suspected contamination','Check water quality data','Water is discoloured']
+      keywords: ['safe to drink','water safety','water quality','boil water','filter','purify',
+                 'ph level','chlorine','bacteria','is it safe','how to purify'],
+      response: () => `**Water Safety Guide:**
+
+**Signs your water may be unsafe:**
+• Unusual smell (sewage, sulfur, chemical)
+• Discolouration (brown, yellow, black, cloudy)
+• Particles or sediment visible
+• Bitter, metallic, or strange taste
+
+**Rwanda safe water standards:**
+| Parameter | Safe Range |
+|-----------|-----------|
+| pH | 6.5 – 8.5 |
+| Turbidity | Below 1 NTU (clear) |
+| Chlorine | 0.2 – 0.5 mg/L |
+| E. coli | 0 detected |
+
+**If unsure about your water:**
+1. Boil for **1 minute** and let cool in a covered container
+2. Use a certified filter
+3. Use bottled water for drinking until confirmed safe
+
+⚠️ Suspect contamination? **Submit an urgent report immediately** — this triggers a P1 (4-hour SLA) response.`,
+      quickReplies: ['Report contamination','Find provider for water quality','What is P1 priority?'],
     },
+
+    // CONTAMINATION EMERGENCY
     {
-      id: 'about_platform',
-      keywords: ['about temba','what is temba','who made temba','temba mission','purpose',
-                 'goal','platform info','about this','about platform','organisation behind'],
-      response: `**About Temba Digital Bridge:**\n\nTemba Digital Bridge is a **civic digital platform** built to close the communication gap between Rwandan communities and water service providers.\n\n**Our Mission:**\nEnable every Rwandan — whether online or on a basic phone — to report water issues, request services, and communicate transparently with providers.\n\n**What Temba provides:**\n• 🌐 Web application (this platform)\n• 📱 USSD (*XXX#) — no internet required\n• 📨 SMS notifications in English & Kinyarwanda\n\n**Registered Providers:**\nWASAC, Water Access Rwanda, IRIBA Water Group, Aquasan Limited, Pro Water Rwanda\n\n**Coverage:** All 5 administrative levels across Rwanda's provinces\n\n**Languages:** English and Kinyarwanda`,
-      professional: false,
-      quickReplies: ['How do I use Temba?','Register on Temba','View all providers']
-    },
-    {
-      id: 'legal_regulatory',
-      keywords: ['legal','law','court','lawyer','sue','rura','regulator','ministry',
-                 'government complaint','regulatory','rights','legal action'],
-      response: `**Legal & Regulatory Matters:**\n\nFor formal regulatory complaints or legal matters involving water services, these require specialists beyond Temba's direct scope.\n\n**Relevant contacts:**\n• **RURA** (Rwanda Utilities Regulatory Authority) — official complaints about service providers\n• **Ministry of Infrastructure** — policy-level concerns\n• **Your provider's legal/compliance department** — contractual disputes\n\n**To start a formal complaint process:**\n1. Document everything — dates, reference numbers, communications\n2. Book a formal appointment with your provider through Temba\n3. If unresolved, escalate to RURA\n\nI'll help you connect with the right professional.`,
+      id: 'contamination',
+      keywords: ['contaminated','contamination','chemical','bad smell','smell bad','brown water',
+                 'black water','yellow water','smell sewage','unsafe water','polluted','dirty water',
+                 'oily water','strange taste'],
+      response: () => `⚠️ **Suspected Water Contamination — Act Now:**
+
+**Immediately:**
+1. **Stop drinking** the water
+2. Use bottled or stored clean water
+3. **Warn your neighbours**
+4. Submit an **URGENT report** → select "Contamination" category
+
+Contamination is automatically classified **P1 Critical** — the provider must respond within **4 hours**.
+
+**If anyone is already ill:** Go to the nearest health centre immediately and call **912**.
+
+Contamination in your area means others may be affected — reporting it protects your whole community.`,
       professional: true,
-      professionalMsg: 'Legal and regulatory matters require qualified professionals. Start with a formal appointment through Temba, then escalate to RURA if needed.',
-      quickReplies: ['Book formal appointment','Contact RURA','Document my issue']
+      professionalMsg: 'Water contamination can affect an entire community and requires urgent assessment by a certified water quality specialist. IRIBA Water Group and WASAC both offer water quality services.',
+      quickReplies: ['Report contamination now','Find water quality provider','Emergency: Call 912'],
     },
+
+    // HEALTH
+    {
+      id: 'health_medical',
+      keywords: ['sick','ill','disease','diarrhea','vomiting','stomach pain','fever',
+                 'poisoning','hospital','doctor','health centre','unwell'],
+      response: () => `🏥 **Health Emergency Linked to Water:**
+
+**Do this right now:**
+1. **Seek medical care** at your nearest health centre or hospital
+2. **Stop drinking** tap water until confirmed safe
+3. **Report the contamination** on Temba to protect others
+4. Record when symptoms started and what water source you used
+
+**Rwanda Emergency:** Call **912**
+**WASAC Emergency:** +250 788 123 456
+
+Please prioritise getting medical care — report the water issue in parallel.`,
+      professional: true,
+      professionalMsg: 'Health symptoms from water require both medical attention and a water quality investigation. Report the issue on Temba so WASAC or IRIBA can investigate the source.',
+      quickReplies: ['Emergency: Call 912','Report contamination','Find water quality provider'],
+    },
+
+    // BURST PIPE / INFRASTRUCTURE
+    {
+      id: 'burst_pipe',
+      keywords: ['burst pipe','broken pipe','main burst','road flooding','major leak',
+                 'pipe exploded','pipe crack','water flooding road','broken main'],
+      response: () => `🚨 **Burst Pipe / Major Leak:**
+
+**Immediate steps:**
+1. **Stay away** from the damaged area — pressurised water is dangerous
+2. **Call WASAC directly** for emergency response: **+250 788 123 456**
+3. Submit an **Urgent report** on Temba (P1/P2 — 4-24h SLA)
+4. Alert your local sector office if roads are affected
+
+**WASAC** handles infrastructure emergencies as Rwanda's national water utility. Do not wait for online processing alone — call first.`,
+      professional: true,
+      professionalMsg: 'Major pipe bursts require emergency response from infrastructure engineers. WASAC is the primary contact for infrastructure emergencies in Rwanda.',
+      quickReplies: ['Call WASAC now','Submit urgent report','Find infrastructure provider'],
+    },
+
+    // BILLING
+    {
+      id: 'billing',
+      keywords: ['bill','billing','invoice','overcharged','wrong bill','meter reading wrong',
+                 'dispute bill','billing error','payment','too expensive'],
+      response: () => `**Billing & Meter Disputes:**
+
+Billing issues require your account history — these are handled by your provider's billing department.
+
+**Steps:**
+1. **Book an appointment** with your provider → select "Billing Dispute" as the reason
+2. **Bring your bills/receipts** to the appointment
+3. If meter readings seem wrong, also request a **"Meter Inspection"** service request
+
+**IRIBA Water Group** handles meter services: 📞 +250 788 345 678 | support@iriba.rw
+**WASAC billing:** 📞 +250 788 123 456 | info@wasac.rw`,
+      quickReplies: ['Book billing appointment','Request meter inspection','Contact IRIBA'],
+    },
+
+    // PLATFORM NAVIGATION
+    {
+      id: 'dashboard_guide',
+      keywords: ['dashboard','how to use dashboard','navigate','find','where is','sidebar',
+                 'menu','platform navigation','what can i do','features'],
+      response: () => `**Temba Platform Navigation Guide:**
+
+**Community Dashboard — Sidebar:**
+📊 **Overview** — stats on your reports, appointments, and requests
+📢 **My Reports** — all your submitted reports with status badges
+📅 **Appointments** — book and manage meetings with providers
+🔧 **Service Requests** — new connection, truck, meter, inspection
+🏢 **Providers** — browse all registered providers
+🔔 **Notifications** — status updates and announcements
+
+**Provider Dashboard — Sidebar:**
+📥 **Report Inbox** — all incoming reports (sorted P1 → P2 → P3)
+📋 **Service Requests** — requests assigned to your organisation
+📅 **Appointments** — manage bookings with community members
+📊 **Analytics** — your SLA stats and response metrics
+⚙️ **Availability** — set your working days, hours, and blackout dates
+
+**Top right:** Your profile, language toggle (EN/KN), and notification bell`,
+      quickReplies: ['How to submit a report','How to book appointment','How to track report','Switch to Kinyarwanda'],
+    },
+
+    {
+      id: 'language',
+      keywords: ['language','kinyarwanda','english','switch language','change language',
+                 'translate','rw','french','français'],
+      response: () => `**Language Settings:**
+
+Temba supports **English** and **Kinyarwanda** across the web platform and USSD channel.
+
+**Web — switch language:**
+1. Look for the **globe icon 🌐** or **"EN / KN"** toggle in the top-right navigation bar
+2. Click it to switch between English and Kinyarwanda
+3. All labels, menus, and UI text will change instantly
+
+**USSD — choose language at start:**
+When you dial **\*384\*36640#**, the first prompt asks:
+1. English
+2. Kinyarwanda (Ikinyarwanda)
+
+Your language choice is saved for that USSD session.
+
+**SMS notifications** are sent in the language you selected when you registered your account.`,
+      quickReplies: ['How to use USSD','Muraho — help in Kinyarwanda','Navigate the dashboard'],
+    },
+
+    // SLA / ACCOUNTABILITY
+    {
+      id: 'sla',
+      keywords: ['sla','response time','deadline','how long','accountability','when will',
+                 'resolution time','days to fix','hours to fix','provider not responding'],
+      response: () => `**SLA & Accountability System:**
+
+Every report gets an automatic **priority classification**:
+
+| Priority | Category | SLA Deadline |
+|----------|----------|-------------|
+| 🔴 P1 Critical | Contamination, burst pipe | **4 hours** |
+| 🟠 P2 Urgent | No supply, quality issues | **24 hours** |
+| 🔵 P3 Standard | Low pressure, billing, other | **72 hours** |
+
+**What happens if the deadline is missed?**
+
+1. **0h overdue** → Provider's Duty Officer receives an escalation email
+2. **+24h overdue** → Provider's Supervisor receives an escalation email
+
+Both contacts were required during provider registration — there's always someone accountable.
+
+**You can see** your report's SLA deadline and whether it's overdue from your dashboard.`,
+      quickReplies: ['My provider is not responding','Track my report','What is P1 priority?'],
+    },
+
+    {
+      id: 'provider_not_responding',
+      keywords: ['not responding','no response','provider ignoring','no action','late response',
+                 'overdue','past deadline','exceeded sla','nothing happening','weeks waiting'],
+      response: () => `**If Your Provider Is Not Responding:**
+
+1. **Check the SLA status** — Dashboard → My Reports → click the report
+   - If overdue, escalation emails have already been sent to the provider's officer and supervisor
+
+2. **Contact the provider directly:**
+   - Use the phone number or email shown in your report detail
+   - Reference your tracking code (RPT-...)
+
+3. **Book an escalation appointment:**
+   - Dashboard → Appointments → select the provider → reason: "Follow Up on Overdue Report"
+
+4. **Escalate to RURA** (if no action after escalation):
+   - Rwanda Utilities Regulatory Authority handles formal complaints against licensed providers
+   - Document all reference numbers and dates
+
+**The platform automatically tracks all overdue cases.** Provider non-compliance is monitored by Temba admins.`,
+      quickReplies: ['Contact WASAC','Contact IRIBA','Book escalation appointment','What is RURA?'],
+    },
+
+    // ABOUT
+    {
+      id: 'about',
+      keywords: ['about temba','what is temba','who made','mission','purpose','goal','platform info',
+                 'about this platform','organisation behind','how does temba work'],
+      response: () => `**About Temba Digital Bridge:**
+
+Temba (Kinyarwanda: *"to push forward"*) is a civic-tech platform connecting Rwandan communities to water service providers.
+
+**Mission:** Enable every Rwandan — whether online or on a basic phone — to report water issues, request services, and hold providers accountable.
+
+**What Temba offers:**
+🌐 **Web platform** — full-featured dashboard for community and providers
+📱 **USSD** (*384*36640#) — works on any phone, no internet
+📩 **SMS notifications** — updates in English & Kinyarwanda
+⭐ **Anonymous ratings** — honest feedback on service quality
+📊 **SLA enforcement** — automatic escalation when providers miss deadlines
+
+**Registered Providers:**
+WASAC · IRIBA Water Group · Pro Water Rwanda
+
+**Coverage:** All 5 provinces across Rwanda's administrative hierarchy
+
+Built as a final-year Software Engineering project at ALU (African Leadership University).`,
+      quickReplies: ['How do I start?','View all providers','Use Temba without internet'],
+    },
+
+    // PROVIDERS EXPLICIT
+    {
+      id: 'providers_all',
+      keywords: ['wasac','iriba','pro water','list providers','all providers','who is registered',
+                 'provider list','water companies','contact provider','provider contacts'],
+      response: () => {
+        if (PROVIDERS.length) {
+          const list = PROVIDERS.map(p => {
+            const services = getMatchingServicesFor(p);
+            return `🏢 **${p.organization_name}**\n📞 ${p.phone || 'N/A'} | ✉️ ${p.email || 'N/A'}\n🔹 ${services.map(s => s.label).join(' · ')}\n${p.description ? `_${p.description}_` : ''}`;
+          }).join('\n\n');
+          return `**Registered Water Service Providers on Temba:**\n\n${list}\n\nWant to **book an appointment** or find which provider is right for your service need?`;
+        }
+        return `**Registered Water Service Providers on Temba:**\n\n🏢 **WASAC** — National water & sanitation utility\n📞 +250 788 123 456 | info@wasac.rw\n🔹 Water Supply · Sanitation · Infrastructure\n\n🏢 **IRIBA Water Group** — Urban water distribution\n📞 +250 788 345 678 | support@iriba.rw\n🔹 Water Supply · Meter Services · Water Quality\n\n🏢 **Pro Water Rwanda** — Commercial water services\n📞 +250 788 567 890 | hello@prowater.rw\n🔹 Water Truck Delivery · Water Storage · Water Supply`;
+      },
+      quickReplies: ['Book appointment with WASAC','Book appointment with IRIBA','Water truck from Pro Water','Which provider for my area?'],
+    },
+
+    // DEFAULT
     {
       id: 'not_understood',
       keywords: [],
-      response: `I didn't quite understand that — let me offer some topics I can help with:\n\n• **Reporting** — submit or track a water issue\n• **Appointments** — book, reschedule, or cancel\n• **Service requests** — water connections, tanks, trucks, meter support\n• **Providers** — contacts, services, coverage areas\n• **USSD access** — use Temba without internet\n• **Account help** — sign up, login, password reset\n• **Water safety** — quality standards and contamination guidance\n\nCould you rephrase your question? Or tap one of the options above.`,
-      professional: false,
-      quickReplies: ['Report an issue','Book appointment','Request a service','Water safety']
+      response: () => `I didn't quite understand that — let me offer some topics I can help with:
+
+💧 **Find a provider** — match you to the right one for your service
+📢 **Report an issue** — water outage, contamination, pipe burst
+🔍 **Track your report** — status updates and timeline
+📅 **Book an appointment** — meet with a provider
+🔧 **Request a service** — water connection, truck, meter support
+📱 **USSD access** — use Temba on any phone without internet
+❓ **Platform help** — dashboard navigation, account, password
+
+Try rephrasing or tap one of the quick actions below.`,
+      quickReplies: ['Find a water provider','Report water issue','Track my report','Use USSD *384*36640#'],
     }
   ];
+
+  // ─── Service-intent detection ─────────────────────────────────────────────────
+  function detectServiceIntent(text) {
+    const lower = text.toLowerCase();
+    const matched = new Set();
+    for (const [phrase, categories] of Object.entries(INTENT_TO_SERVICE)) {
+      if (lower.includes(phrase)) {
+        categories.forEach(c => matched.add(c));
+      }
+    }
+    return Array.from(matched);
+  }
 
   // ─── Scoring engine ──────────────────────────────────────────────────────────
   function findBestMatch(input) {
@@ -206,9 +841,9 @@
     for (const topic of KB) {
       if (topic.id === 'not_understood') continue;
       let score = 0;
-      for (const kw of topic.keywords) {
+      for (const kw of (topic.keywords || [])) {
         if (lower.includes(kw)) {
-          score += kw.split(' ').length * 4; // phrase match scores high
+          score += kw.split(' ').length * 5;
         } else {
           for (const word of words) {
             if (kw === word) score += 3;
@@ -222,359 +857,394 @@
     return bestScore >= 2 ? bestTopic : KB.find(t => t.id === 'not_understood');
   }
 
-  // ─── Simple markdown renderer ────────────────────────────────────────────────
+  // ─── Build response with optional provider cards ─────────────────────────────
+  function buildResponse(input) {
+    const serviceCategories = detectServiceIntent(input);
+    const topic = findBestMatch(input);
+
+    // If we detected a service need AND have live provider data
+    if (serviceCategories.length && providersLoaded) {
+      const matched = matchProviders(serviceCategories);
+      if (matched.length) {
+        const textResponse = topic.response ? topic.response() : '';
+        return {
+          text: textResponse || `I found ${matched.length} provider${matched.length > 1 ? 's' : ''} that can help with your request:`,
+          providerCards: renderProviderCards(matched, input),
+          topic,
+        };
+      }
+    }
+
+    return {
+      text: topic.response ? topic.response() : topic.response,
+      providerCards: null,
+      topic,
+    };
+  }
+
+  // ─── Markdown renderer ───────────────────────────────────────────────────────
   function renderMd(text) {
+    if (!text) return '';
     return text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_self" style="color:#29B6F6;text-decoration:underline;">$1</a>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="tchat-link">$1</a>')
+      // Simple table → HTML
+      .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)*)/g, (_, header, rows) => {
+        const ths = header.split('|').filter(Boolean).map(h => `<th>${h.trim()}</th>`).join('');
+        const trs = rows.trim().split('\n').map(row =>
+          '<tr>' + row.split('|').filter(Boolean).map(c => `<td>${c.trim()}</td>`).join('') + '</tr>'
+        ).join('');
+        return `<table class="tchat-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+      })
       .replace(/\n/g, '<br>');
   }
 
-  // ─── Message history ─────────────────────────────────────────────────────────
+  // ─── State ───────────────────────────────────────────────────────────────────
   const history = [];
   let isOpen = false;
-  let isMinimized = false;
   let unreadCount = 0;
 
-  // ─── Inject CSS ──────────────────────────────────────────────────────────────
+  // ─── CSS ─────────────────────────────────────────────────────────────────────
   const style = document.createElement('style');
   style.textContent = `
     #temba-chat-fab {
-      position: fixed; bottom: 28px; right: 28px; z-index: 9000;
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg, #1565C0, #29B6F6);
-      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 20px rgba(21,101,192,0.45);
-      transition: transform 0.25s, box-shadow 0.25s;
-      font-size: 22px; color: #fff;
+      position:fixed;bottom:28px;right:28px;z-index:9000;
+      width:58px;height:58px;border-radius:50%;
+      background:linear-gradient(135deg,#1565C0,#29B6F6);
+      border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 24px rgba(21,101,192,.5);
+      transition:transform .25s,box-shadow .25s;
+      font-size:24px;color:#fff;
     }
-    #temba-chat-fab:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(21,101,192,0.55); }
-    #temba-chat-badge {
-      position: absolute; top: -4px; right: -4px;
-      background: #C62828; color: #fff;
-      font-size: 11px; font-weight: 700;
-      width: 20px; height: 20px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      border: 2px solid #fff; display: none;
+    #temba-chat-fab:hover{transform:scale(1.1);box-shadow:0 6px 32px rgba(21,101,192,.6);}
+    #temba-chat-badge{
+      position:absolute;top:-4px;right:-4px;
+      background:#C62828;color:#fff;
+      font-size:11px;font-weight:700;
+      width:20px;height:20px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      border:2px solid #fff;
     }
-    #temba-chat-panel {
-      position: fixed; bottom: 96px; right: 28px; z-index: 8999;
-      width: 360px; max-height: 560px;
-      background: #fff; border-radius: 18px;
-      box-shadow: 0 8px 40px rgba(10,37,64,0.18);
-      display: flex; flex-direction: column;
-      transform: translateY(20px) scale(0.96);
-      opacity: 0; pointer-events: none;
-      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s;
-      overflow: hidden;
-      font-family: 'Plus Jakarta Sans', sans-serif;
+    #temba-chat-panel{
+      position:fixed;bottom:98px;right:28px;z-index:8999;
+      width:380px;max-height:600px;
+      background:#fff;border-radius:20px;
+      box-shadow:0 8px 48px rgba(10,37,64,.2);
+      display:flex;flex-direction:column;
+      transform:translateY(24px) scale(.95);
+      opacity:0;pointer-events:none;
+      transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .25s;
+      overflow:hidden;
+      font-family:'Plus Jakarta Sans',system-ui,sans-serif;
     }
-    #temba-chat-panel.open {
-      transform: translateY(0) scale(1); opacity: 1; pointer-events: all;
+    #temba-chat-panel.open{transform:translateY(0) scale(1);opacity:1;pointer-events:all;}
+    .tchat-header{
+      background:linear-gradient(135deg,#0A2540,#1565C0);
+      padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;
     }
-    .tchat-header {
-      background: linear-gradient(135deg, #0A2540, #1565C0);
-      padding: 14px 16px; display: flex; align-items: center; gap: 10px;
-      flex-shrink: 0;
+    .tchat-avatar{
+      width:38px;height:38px;border-radius:50%;
+      background:rgba(255,255,255,.15);
+      display:flex;align-items:center;justify-content:center;
+      font-size:19px;color:#fff;flex-shrink:0;
     }
-    .tchat-avatar {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; color: #fff; flex-shrink: 0;
+    .tchat-header-info{flex:1;}
+    .tchat-title{font-size:14px;font-weight:700;color:#fff;}
+    .tchat-subtitle{font-size:11px;color:rgba(255,255,255,.75);margin-top:1px;}
+    .tchat-online{width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;margin-right:4px;}
+    .tchat-hbtn{background:none;border:none;color:rgba(255,255,255,.8);font-size:17px;cursor:pointer;padding:5px;border-radius:6px;transition:background .15s;}
+    .tchat-hbtn:hover{background:rgba(255,255,255,.18);color:#fff;}
+    .tchat-msgs{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;}
+    .tchat-msgs::-webkit-scrollbar{width:4px;}
+    .tchat-msgs::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:4px;}
+    .tchat-msg{display:flex;gap:8px;align-items:flex-end;}
+    .tchat-msg.user{flex-direction:row-reverse;}
+    .tchat-bubble{max-width:84%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.6;word-break:break-word;}
+    .tchat-msg.bot .tchat-bubble{background:#F0F4F8;color:#1E293B;border-bottom-left-radius:4px;}
+    .tchat-msg.user .tchat-bubble{background:linear-gradient(135deg,#1565C0,#29B6F6);color:#fff;border-bottom-right-radius:4px;}
+    .tchat-bot-icon{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#0A2540,#1565C0);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;}
+    .tchat-msg.user .tchat-bot-icon{display:none;}
+    .tchat-time{font-size:10px;color:#94A3B8;margin-top:4px;}
+    .tchat-msg.bot .tchat-time{text-align:left;}
+    .tchat-msg.user .tchat-time{text-align:right;}
+    /* Provider cards */
+    .tchat-provider-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+    .tchat-provider-card{
+      background:#fff;border:1.5px solid #E2E8F0;border-radius:12px;
+      padding:12px 13px;box-shadow:0 2px 8px rgba(0,0,0,.06);
     }
-    .tchat-header-info { flex: 1; }
-    .tchat-title { font-size: 14px; font-weight: 700; color: #fff; }
-    .tchat-subtitle { font-size: 11.5px; color: rgba(255,255,255,0.75); }
-    .tchat-online { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; display: inline-block; margin-right: 4px; }
-    .tchat-header-btn {
-      background: none; border: none; color: rgba(255,255,255,0.8);
-      font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px;
-      transition: background 0.15s;
+    .tchat-prov-name{font-weight:700;font-size:13px;color:#0F172A;margin-bottom:3px;}
+    .tchat-prov-desc{font-size:11.5px;color:#64748B;margin-bottom:6px;line-height:1.4;}
+    .tchat-badge-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+    .tchat-badge{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;}
+    .tchat-prov-actions{display:flex;flex-wrap:wrap;gap:6px;}
+    .tchat-prov-action{
+      padding:5px 11px;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;
+      text-decoration:none;border:none;display:inline-flex;align-items:center;gap:4px;
+      transition:opacity .15s;font-family:inherit;
     }
-    .tchat-header-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-    .tchat-messages {
-      flex: 1; overflow-y: auto; padding: 14px 14px 8px;
-      display: flex; flex-direction: column; gap: 10px;
-      scroll-behavior: smooth;
+    .tchat-prov-action:hover{opacity:.8;}
+    .tchat-prov-call{background:#E8F5E9;color:#1B5E20;}
+    .tchat-prov-email{background:#E3F2FD;color:#0D47A1;}
+    .tchat-prov-book{background:linear-gradient(135deg,#1565C0,#29B6F6);color:#fff;}
+    /* Quick replies */
+    .tchat-qrs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+    .tchat-qr{
+      background:#fff;border:1.5px solid #1565C0;color:#1565C0;
+      border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;
+      cursor:pointer;transition:background .15s,color .15s;
+      font-family:'Plus Jakarta Sans',system-ui,sans-serif;
     }
-    .tchat-messages::-webkit-scrollbar { width: 4px; }
-    .tchat-messages::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 4px; }
-    .tchat-msg { display: flex; gap: 8px; align-items: flex-end; }
-    .tchat-msg.user { flex-direction: row-reverse; }
-    .tchat-bubble {
-      max-width: 82%; padding: 10px 13px; border-radius: 14px;
-      font-size: 13px; line-height: 1.55; word-break: break-word;
+    .tchat-qr:hover{background:#1565C0;color:#fff;}
+    /* Professional box */
+    .tchat-pro{background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#5D4037;}
+    .tchat-pro strong{color:#E65100;}
+    .tchat-pro-btn{
+      display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:7px 14px;
+      background:#E65100;color:#fff;border:none;border-radius:8px;
+      font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;font-family:inherit;
     }
-    .tchat-msg.bot .tchat-bubble {
-      background: #F0F4F8; color: #1E293B;
-      border-bottom-left-radius: 4px;
+    .tchat-pro-btn:hover{background:#BF360C;}
+    /* Table */
+    .tchat-table{border-collapse:collapse;width:100%;font-size:12px;margin:6px 0;}
+    .tchat-table th,.tchat-table td{border:1px solid #E2E8F0;padding:5px 8px;text-align:left;}
+    .tchat-table th{background:#F0F4F8;font-weight:700;}
+    /* Typing */
+    .tchat-typing-row{display:flex;align-items:center;gap:8px;padding:0 14px 4px;flex-shrink:0;}
+    .tchat-typing-dots{display:flex;gap:4px;padding:8px 12px;background:#F0F4F8;border-radius:14px;border-bottom-left-radius:4px;}
+    .tchat-typing-dots span{width:7px;height:7px;border-radius:50%;background:#94A3B8;animation:tBounce 1.2s infinite;}
+    .tchat-typing-dots span:nth-child(2){animation-delay:.2s;}
+    .tchat-typing-dots span:nth-child(3){animation-delay:.4s;}
+    @keyframes tBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+    /* Input */
+    .tchat-input-row{display:flex;gap:8px;padding:10px 14px 13px;border-top:1px solid #F0F4F8;flex-shrink:0;background:#fff;}
+    .tchat-input{
+      flex:1;padding:9px 14px;border:1.5px solid #E2E8F0;
+      border-radius:24px;font-size:13px;font-family:inherit;
+      outline:none;transition:border-color .2s;color:#1E293B;background:#F8FAFB;
     }
-    .tchat-msg.user .tchat-bubble {
-      background: linear-gradient(135deg, #1565C0, #29B6F6);
-      color: #fff; border-bottom-right-radius: 4px;
+    .tchat-input:focus{border-color:#29B6F6;background:#fff;}
+    .tchat-send{
+      width:38px;height:38px;border-radius:50%;
+      background:linear-gradient(135deg,#1565C0,#29B6F6);
+      border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      font-size:16px;color:#fff;flex-shrink:0;
+      transition:transform .2s,box-shadow .2s;
     }
-    .tchat-bot-icon {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: linear-gradient(135deg, #0A2540, #1565C0);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; color: #fff; flex-shrink: 0;
-    }
-    .tchat-msg.user .tchat-bot-icon { display: none; }
-    .tchat-time { font-size: 10.5px; color: #94A3B8; margin-top: 3px; text-align: right; }
-    .tchat-msg.bot .tchat-time { text-align: left; }
-    .tchat-professional {
-      background: #FFF8E1; border: 1.5px solid #FFD54F;
-      border-radius: 10px; padding: 10px 12px; margin-top: 6px; font-size: 12px; color: #5D4037;
-    }
-    .tchat-professional strong { color: #E65100; }
-    .tchat-connect-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      margin-top: 8px; padding: 7px 14px;
-      background: #E65100; color: #fff; border: none; border-radius: 8px;
-      font-size: 12.5px; font-weight: 600; cursor: pointer;
-      transition: background 0.2s;
-    }
-    .tchat-connect-btn:hover { background: #BF360C; }
-    .tchat-quick-replies {
-      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
-    }
-    .tchat-qr {
-      background: #fff; border: 1.5px solid #1565C0; color: #1565C0;
-      border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 600;
-      cursor: pointer; transition: background 0.15s, color 0.15s;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-    .tchat-qr:hover { background: #1565C0; color: #fff; }
-    .tchat-typing {
-      display: flex; align-items: center; gap: 8px;
-      padding: 0 14px 4px; flex-shrink: 0;
-    }
-    .tchat-typing-dots {
-      display: flex; gap: 4px; padding: 8px 12px;
-      background: #F0F4F8; border-radius: 14px; border-bottom-left-radius: 4px;
-    }
-    .tchat-typing-dots span {
-      width: 7px; height: 7px; border-radius: 50%; background: #94A3B8;
-      animation: typingBounce 1.2s infinite;
-    }
-    .tchat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .tchat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
-    .tchat-input-row {
-      display: flex; gap: 8px; padding: 10px 14px 14px;
-      border-top: 1px solid #F0F4F8; flex-shrink: 0; background: #fff;
-    }
-    .tchat-input {
-      flex: 1; padding: 9px 14px; border: 1.5px solid #E2E8F0;
-      border-radius: 24px; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif;
-      outline: none; transition: border-color 0.2s; resize: none;
-      color: #1E293B; background: #F8FAFB;
-    }
-    .tchat-input:focus { border-color: #29B6F6; background: #fff; }
-    .tchat-send {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: linear-gradient(135deg, #1565C0, #29B6F6);
-      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: #fff; flex-shrink: 0;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .tchat-send:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(21,101,192,0.4); }
-    .tchat-disclaimer {
-      font-size: 10.5px; color: #94A3B8; text-align: center;
-      padding: 0 14px 8px; flex-shrink: 0;
-    }
-    @media (max-width: 440px) {
-      #temba-chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 80px; }
-      #temba-chat-fab { right: 16px; bottom: 16px; }
+    .tchat-send:hover{transform:scale(1.1);box-shadow:0 3px 12px rgba(21,101,192,.4);}
+    .tchat-footer{font-size:10px;color:#94A3B8;text-align:center;padding:0 14px 10px;flex-shrink:0;}
+    .tchat-link{color:#1565C0;text-decoration:underline;}
+    @media(max-width:440px){
+      #temba-chat-panel{width:calc(100vw - 16px);right:8px;bottom:80px;max-height:80vh;}
+      #temba-chat-fab{right:16px;bottom:16px;}
     }
   `;
   document.head.appendChild(style);
 
-  // ─── Inject HTML ─────────────────────────────────────────────────────────────
-  const wrapper = document.createElement('div');
-  wrapper.id = 'temba-chat-root';
-  wrapper.innerHTML = `
-    <!-- Chat Panel -->
+  // ─── HTML scaffold ────────────────────────────────────────────────────────────
+  const root = document.createElement('div');
+  root.id = 'temba-chat-root';
+  root.innerHTML = `
     <div id="temba-chat-panel" role="dialog" aria-label="Temba Assistant">
       <div class="tchat-header">
-        <div class="tchat-avatar"><i class="ti ti-robot"></i></div>
+        <div class="tchat-avatar">💧</div>
         <div class="tchat-header-info">
           <div class="tchat-title">Temba Assistant</div>
           <div class="tchat-subtitle"><span class="tchat-online"></span>Online — Water &amp; Sanitation Guide</div>
         </div>
-        <button class="tchat-header-btn" onclick="tembaChat.minimize()" title="Minimize"><i class="ti ti-minus"></i></button>
-        <button class="tchat-header-btn" onclick="tembaChat.close()" title="Close"><i class="ti ti-x"></i></button>
+        <button class="tchat-hbtn" onclick="tembaChat.close()" title="Close">✕</button>
       </div>
-      <div class="tchat-messages" id="tchat-messages"></div>
-      <div class="tchat-typing" id="tchat-typing" style="display:none;">
-        <div class="tchat-bot-icon" style="width:24px;height:24px;font-size:11px;"><i class="ti ti-robot"></i></div>
+      <div class="tchat-msgs" id="tchat-msgs"></div>
+      <div class="tchat-typing-row" id="tchat-typing" style="display:none;">
+        <div class="tchat-bot-icon" style="width:24px;height:24px;font-size:12px;">💧</div>
         <div class="tchat-typing-dots"><span></span><span></span><span></span></div>
       </div>
       <div class="tchat-input-row">
         <input class="tchat-input" id="tchat-input" type="text"
-               placeholder="Ask about water services…" autocomplete="off"
+               placeholder="Ask about water services, providers…"
+               autocomplete="off"
                onkeydown="if(event.key==='Enter')tembaChat.send()">
-        <button class="tchat-send" onclick="tembaChat.send()" title="Send">
-          <i class="ti ti-send"></i>
-        </button>
+        <button class="tchat-send" onclick="tembaChat.send()" title="Send">➤</button>
       </div>
-      <div class="tchat-disclaimer">Temba AI · For emergencies call 912 or your provider directly</div>
+      <div class="tchat-footer">Temba AI · Emergencies: call 912 or provider directly</div>
     </div>
-
-    <!-- FAB button -->
     <button id="temba-chat-fab" onclick="tembaChat.toggle()" title="Open Temba Assistant">
-      <i class="ti ti-message-chatbot" id="temba-fab-icon"></i>
-      <span id="temba-chat-badge"></span>
+      💧
+      <span id="temba-chat-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#C62828;color:#fff;font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;border:2px solid #fff;"></span>
     </button>
   `;
-  document.body.appendChild(wrapper);
+  document.body.appendChild(root);
 
-  // ─── Time helper ─────────────────────────────────────────────────────────────
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
   function timeStr() {
     return new Date().toLocaleTimeString('en-RW', { hour: '2-digit', minute: '2-digit' });
   }
 
-  // ─── Render message ──────────────────────────────────────────────────────────
-  function appendMessage(role, content, topic) {
-    const msgs = document.getElementById('tchat-messages');
+  function appendMessage(role, content, providerCards, topic) {
+    const msgs = document.getElementById('tchat-msgs');
     const div = document.createElement('div');
     div.className = `tchat-msg ${role}`;
 
-    let inner = `<div class="tchat-bubble">${renderMd(content)}</div>`;
+    if (role === 'user') {
+      div.innerHTML = `
+        <div class="tchat-bubble">${renderMd(content)}</div>
+        <div class="tchat-time">${timeStr()}</div>`;
+    } else {
+      let inner = `
+        <div class="tchat-bot-icon">💧</div>
+        <div>
+          <div class="tchat-bubble">${renderMd(content)}</div>
+          ${providerCards || ''}`;
 
-    if (role === 'bot') {
-      inner = `<div class="tchat-bot-icon"><i class="ti ti-robot"></i></div>
-               <div>
-                 <div class="tchat-bubble">${renderMd(content)}</div>`;
-
-      // Professional escalation box
       if (topic && topic.professional) {
-        inner += `<div class="tchat-professional">
-          <strong>⚡ This requires a professional</strong><br>
+        inner += `<div class="tchat-pro">
+          <strong>⚡ This needs a professional</strong><br>
           ${topic.professionalMsg}
           <br>
-          <button class="tchat-connect-btn" onclick="tembaChat.connectProfessional()">
-            <i class="ti ti-phone-call"></i> Connect to Professional
+          <button class="tchat-pro-btn" onclick="tembaChat.connectPro()">
+            📞 Connect to Professional
           </button>
         </div>`;
       }
 
-      // Quick replies
       if (topic && topic.quickReplies && topic.quickReplies.length) {
         const qr = topic.quickReplies.map(q =>
-          `<button class="tchat-qr" onclick="tembaChat.quickReply('${q.replace(/'/g,"\\'")}')">
-            ${q}
-          </button>`
+          `<button class="tchat-qr" onclick="tembaChat.quickReply('${q.replace(/'/g, "\\'")}')">${q}</button>`
         ).join('');
-        inner += `<div class="tchat-quick-replies">${qr}</div>`;
+        inner += `<div class="tchat-qrs">${qr}</div>`;
       }
 
       inner += `<div class="tchat-time">${timeStr()}</div></div>`;
-    } else {
-      inner += `<div class="tchat-time">${timeStr()}</div>`;
+      div.innerHTML = inner;
     }
 
-    div.innerHTML = inner;
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  // ─── Typing indicator ────────────────────────────────────────────────────────
   function showTyping() {
     document.getElementById('tchat-typing').style.display = 'flex';
-    const msgs = document.getElementById('tchat-messages');
-    msgs.scrollTop = msgs.scrollHeight;
+    document.getElementById('tchat-msgs').scrollTop = 99999;
   }
   function hideTyping() {
     document.getElementById('tchat-typing').style.display = 'none';
   }
 
+  function bumpBadge() {
+    if (!isOpen) {
+      unreadCount++;
+      const b = document.getElementById('temba-chat-badge');
+      b.textContent = unreadCount;
+      b.style.display = 'flex';
+    }
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
   window.tembaChat = {
-    toggle() {
-      isOpen ? this.close() : this.open();
-    },
+    toggle() { isOpen ? this.close() : this.open(); },
+
     open() {
       isOpen = true;
-      isMinimized = false;
       document.getElementById('temba-chat-panel').classList.add('open');
-      document.getElementById('temba-fab-icon').className = 'ti ti-x';
-      // Clear badge
       unreadCount = 0;
-      const badge = document.getElementById('temba-chat-badge');
-      badge.style.display = 'none';
-      // Show greeting if no history
+      const b = document.getElementById('temba-chat-badge');
+      b.style.display = 'none';
       if (history.length === 0) {
         setTimeout(() => {
           const greeting = KB.find(t => t.id === 'greeting');
-          appendMessage('bot', greeting.response, greeting);
-          history.push({ role: 'bot', id: 'greeting' });
+          appendMessage('bot', greeting.response(), null, greeting);
+          history.push('greeting');
         }, 200);
       }
       setTimeout(() => document.getElementById('tchat-input').focus(), 300);
     },
+
     close() {
       isOpen = false;
       document.getElementById('temba-chat-panel').classList.remove('open');
-      document.getElementById('temba-fab-icon').className = 'ti ti-message-chatbot';
     },
-    minimize() {
-      this.close();
-    },
-    send(overrideText) {
+
+    send(override) {
       const input = document.getElementById('tchat-input');
-      const text = (overrideText || input.value).trim();
+      const text = (override || input.value).trim();
       if (!text) return;
       input.value = '';
 
-      // Append user message
       appendMessage('user', text);
       history.push({ role: 'user', text });
 
-      // Find best match & respond
-      showTyping();
-      const delay = 600 + Math.random() * 700;
-      setTimeout(() => {
-        hideTyping();
-        const topic = findBestMatch(text);
-        appendMessage('bot', topic.response, topic);
-        history.push({ role: 'bot', id: topic.id });
-        // Update unread badge if closed
-        if (!isOpen) {
-          unreadCount++;
-          const badge = document.getElementById('temba-chat-badge');
-          badge.textContent = unreadCount;
-          badge.style.display = 'flex';
-        }
-      }, delay);
-    },
-    quickReply(text) {
-      this.send(text);
-    },
-    connectProfessional() {
-      const panel = document.getElementById('tchat-messages');
-      const msg = `I'm connecting you with professional support options:\n\n**Immediate contacts:**\n• **WASAC Emergency:** +250 788 123 456\n• **Rwanda Emergency Services:** 912\n• **Water Access Rwanda:** +250 788 234 567\n\n**Or book a formal appointment:**\nGo to **Dashboard → Appointments** to schedule a consultation with your provider's specialist.\n\n**USSD option:** Dial **\*XXX#** → "Request Callback" — a provider will call you back.`;
       showTyping();
       setTimeout(() => {
         hideTyping();
-        const connectTopic = {
+        const result = buildResponse(text);
+        appendMessage('bot', result.text, result.providerCards, result.topic);
+        history.push({ role: 'bot', id: result.topic.id });
+        bumpBadge();
+      }, 500 + Math.random() * 600);
+    },
+
+    quickReply(text) { this.send(text); },
+
+    connectPro() {
+      showTyping();
+      setTimeout(() => {
+        hideTyping();
+        const msg = `**Connecting you to professional support:**
+
+📞 **WASAC Emergency:** +250 788 123 456
+📞 **IRIBA Water Group:** +250 788 345 678
+📞 **Pro Water Rwanda:** +250 788 567 890
+🚨 **Rwanda Emergency Services:** 912
+
+**Or book a formal appointment:**
+Dashboard → Appointments → select your provider → "Book Appointment"
+
+**Via USSD:** Dial **\*384\*36640#** → after login → Book Appointment`;
+        const topic = {
           professional: false,
-          quickReplies: ['Book appointment now','View providers','Call WASAC']
+          quickReplies: ['Book appointment now', 'View all providers', 'Track my report'],
         };
-        appendMessage('bot', msg, connectTopic);
-      }, 800);
-    }
+        appendMessage('bot', msg, null, topic);
+        bumpBadge();
+      }, 700);
+    },
+
+    // Navigate to booking with a specific provider pre-selected
+    _bookWith(providerId, providerName) {
+      const msg = `**Booking an appointment with ${providerName}:**
+
+1. Go to your **Dashboard** → **Appointments**
+2. Click **"Book Appointment"**
+3. Select **${providerName}** from the provider list
+4. Choose your reason, date, and time slot
+5. Submit
+
+[Open Dashboard →](dashboard-community.html)
+
+Or if you're not logged in yet: [Sign In →](signin.html)`;
+      showTyping();
+      setTimeout(() => {
+        hideTyping();
+        const topic = {
+          professional: false,
+          quickReplies: ['Go to dashboard', 'Sign in first', 'Cancel appointment instead'],
+        };
+        appendMessage('bot', msg, null, topic);
+        bumpBadge();
+      }, 500);
+    },
   };
 
-  // ─── Auto-show greeting bubble after page load ───────────────────────────────
+  // ─── Init: load providers, then show badge after 4s ──────────────────────────
+  loadProviders();
+
   setTimeout(() => {
     if (!isOpen) {
       unreadCount = 1;
-      const badge = document.getElementById('temba-chat-badge');
-      badge.textContent = '1';
-      badge.style.display = 'flex';
+      const b = document.getElementById('temba-chat-badge');
+      b.textContent = '1';
+      b.style.display = 'flex';
     }
   }, 4000);
 

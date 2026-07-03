@@ -626,9 +626,10 @@ const T = {
     footer_privacy:      'Privacy Policy',
     footer_terms:        'Terms of Use',
     footer_cookies:      'Cookie Policy',
-    footer_copyright:    '© 2025 Temba Digital Bridge · Rwanda',
+    footer_copyright:    '© 2026 Temba Digital Bridge · Rwanda',
     footer_lang_en:      'English',
     footer_lang_rw:      'Kinyarwanda',
+    wash_caption:        'Connecting communities to safe, reliable water services across all 5 provinces of Rwanda',
 
     /* ── DASHBOARD UI ── */
     /* Sidebar */
@@ -1723,9 +1724,10 @@ const T = {
     footer_privacy:       "Politiki y'Ubwirinzi bw'Amakuru",
     footer_terms:         'Amabwiriza yo Gukoresha',
     footer_cookies:       'Politiki ya Cookies',
-    footer_copyright:     '© 2025 Temba Digital Bridge · Rwanda',
+    footer_copyright:     '© 2026 Temba Digital Bridge · Rwanda',
     footer_lang_en:       'English',
     footer_lang_rw:       'Kinyarwanda',
+    wash_caption:         'Guhuza abaturage n\'amazi asukuye kandi yizewe mu ntara zose 5 z\'u Rwanda',
 
     /* ── DASHBOARD UI ── */
     /* Sidebar */
