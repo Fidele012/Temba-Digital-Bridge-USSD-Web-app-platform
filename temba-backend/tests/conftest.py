@@ -1,17 +1,16 @@
 """
 Pytest fixtures providing:
 - An in-memory SQLite async engine (no Postgres needed for unit tests)
-- A test client that overrides the DB and Redis dependencies
+- A fake Redis (in-memory dict — no Redis server needed)
+- A test client that overrides the DB dependency
 - Factory helpers for users, providers, reports, appointments
 """
-import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any
 
-import pytest
 import pytest_asyncio
-from fastapi.testclient import TestClient
 from httpx import AsyncClient
+from sqlalchemy import Text, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.security import create_access_token, hash_password
@@ -23,11 +22,67 @@ from app.models.provider import Provider, ProviderStatus
 from app.models.report import Report, ReportCategory, ReportStatus, ReportUrgency
 from app.models.user import User, UserRole
 
-TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
+# ── SQLite adapter ───────────────────────────────────────────────────────────
+# Replace PostgreSQL-only column types with TEXT so SQLite can create tables.
+
+TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 engine = create_async_engine(TEST_DB_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+_PG_ONLY_TYPES = {"ARRAY", "JSONB", "JSON"}
+
+@event.listens_for(Base.metadata, "before_create")
+def _patch_pg_types_for_sqlite(target, connection, **kw):
+    if connection.dialect.name == "sqlite":
+        for table in target.tables.values():
+            for col in table.columns:
+                visit = getattr(col.type, "__visit_name__", None)
+                if visit in _PG_ONLY_TYPES:
+                    col.type = Text()
+
+
+# ── Fake Redis ───────────────────────────────────────────────────────────────
+# Inject a dict-backed fake into app.db.redis._redis BEFORE any endpoint
+# code calls get_redis().  Every redis function (store_refresh_token, etc.)
+# internally does `r = await get_redis()` then `r.setex(...)` — so this
+# single injection covers all of them without patching individual functions.
+
+class FakeRedis:
+    def __init__(self):
+        self._store: dict[str, str] = {}
+
+    async def setex(self, key: str, ttl: int, value: str) -> None:
+        self._store[key] = value
+
+    async def get(self, key: str) -> str | None:
+        return self._store.get(key)
+
+    async def delete(self, *keys: str) -> None:
+        for k in keys:
+            self._store.pop(k, None)
+
+    async def exists(self, key: str) -> int:
+        return 1 if key in self._store else 0
+
+    async def aclose(self) -> None:
+        pass
+
+    def clear(self) -> None:
+        self._store.clear()
+
+
+_fake_redis = FakeRedis()
+
+import app.db.redis as _redis_mod
+_redis_mod._redis = _fake_redis
+
+async def _noop_close() -> None:
+    pass
+_redis_mod.close_redis = _noop_close
+
+
+# ── Fixtures ─────────────────────────────────────────────────────────────────
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def create_tables():
@@ -36,6 +91,13 @@ async def create_tables():
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _clear_fake_redis():
+    _fake_redis.clear()
+    yield
+    _fake_redis.clear()
 
 
 @pytest_asyncio.fixture
@@ -53,7 +115,7 @@ async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
-# ── User factory ──────────────────────────────────────────────────────────────
+# ── User factory ─────────────────────────────────────────────────────────────
 
 async def make_user(db: AsyncSession, role: UserRole = UserRole.COMMUNITY, **kwargs) -> User:
     defaults: dict[str, Any] = {
@@ -76,18 +138,18 @@ def auth_header(user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-# ── Provider factory ──────────────────────────────────────────────────────────
+# ── Provider factory ─────────────────────────────────────────────────────────
 
 async def make_provider(db: AsyncSession, user: User, **kwargs) -> Provider:
     defaults: dict[str, Any] = {
         "user_id": user.id,
         "organization_name": "Test Water Co",
         "status": ProviderStatus.APPROVED,
-        "service_categories": ["water_supply"],
-        "custom_services": [],
-        "working_days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        "service_categories": '["water_supply"]',
+        "custom_services": '[]',
+        "working_days": '["monday","tuesday","wednesday","thursday","friday"]',
         "max_appointments_per_day": 10,
-        "unavailable_dates": [],
+        "unavailable_dates": '[]',
     }
     defaults.update(kwargs)
     provider = Provider(**defaults)
