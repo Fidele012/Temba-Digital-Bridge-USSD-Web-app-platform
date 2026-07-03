@@ -497,7 +497,7 @@
         <div class="radio-pills">
           <label class="radio-pill-opt"><input type="radio" name="apptType" value="in-person" checked /><span class="radio-pill-box"><i class="ti ti-building" aria-hidden="true"></i> <span data-i18n="appt_type_inperson">In-Person</span></span></label>
           <label class="radio-pill-opt"><input type="radio" name="apptType" value="phone" /><span class="radio-pill-box"><i class="ti ti-phone" aria-hidden="true"></i> <span data-i18n="appt_type_phone">Phone Call</span></span></label>
-          <label class="radio-pill-opt"><input type="radio" name="apptType" value="online" /><span class="radio-pill-box"><i class="ti ti-video" aria-hidden="true"></i> <span data-i18n="appt_type_online">Online</span></span></label>
+          <label class="radio-pill-opt"><input type="radio" name="apptType" value="site-visit" /><span class="radio-pill-box"><i class="ti ti-home-check" aria-hidden="true"></i> <span>Site Visit</span></span></label>
         </div>
       </div>
 
@@ -1052,7 +1052,7 @@ const REASON_MAP = {
   new_connection:'water_connection', billing:'billing', meter:'meter_reading',
   infrastructure:'pipe_repair', quality:'inspection', general:'consultation', other:'other',
 };
-const MEETING_MAP = { 'in-person':'in_person', phone:'phone_call', online:'site_visit' };
+const MEETING_MAP = { 'in-person':'in_person', phone:'phone_call', 'site-visit':'site_visit' };
 
 async function loadProviders() {
   const data = await apiGet('/providers?size=50');
@@ -1085,9 +1085,11 @@ function _normReport(r) {
   const normStatus = statusMap[rawStatus] || rawStatus.replace(/_/g,'-');
   return { ref:refNum, issue:cm[r.category]||r.category, urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.district,r.province].filter(Boolean).join(' - ')||'Rwanda', province:r.province||null, district:r.district||null, sector:r.sector||null, cell:r.cell||null, submittedBy:r.user_name||null, provider:r.provider_name||(r.provider&&r.provider.organization_name)||'WASAC', status:normStatus, time:r.created_at, fromApi:true, apiId:r.id };
 }
+const _MEETING_REVERSE = { in_person:'in-person', phone_call:'phone', site_visit:'site-visit' };
 function _normAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
-  return { id:a.id, apiId:a.id, provider:a.provider_name||(a.provider&&a.provider.organization_name)||'Provider', reason, date:a.appointment_date||'', time:a.appointment_time||'', status:(a.status||'pending').toLowerCase(), notes:a.notes||'', proposedDate:a.proposed_date||null, proposedTime:a.proposed_time||null, createdAt:a.created_at, fromApi:true };
+  const meetingType = _MEETING_REVERSE[a.meeting_type] || 'in-person';
+  return { id:a.id, apiId:a.id, provider:a.provider_name||(a.provider&&a.provider.organization_name)||'Provider', reason, date:a.appointment_date||'', time:a.appointment_time||'', meetingType, status:(a.status||'pending').toLowerCase(), notes:a.notes||'', proposedDate:a.proposed_date||null, proposedTime:a.proposed_time||null, createdAt:a.created_at, fromApi:true };
 }
 function _normSvc(s) {
   const tl = { WATER_CONNECTION:'water_connection', water_connection:'water_connection', TANK_DELIVERY:'tank_delivery', tank_delivery:'tank_delivery', TRUCK_DELIVERY:'truck_delivery', truck_delivery:'truck_delivery', METER_SUPPORT:'meter_support', meter_support:'meter_support', INSPECTION:'inspection', inspection:'inspection' };
@@ -1727,7 +1729,7 @@ function renderApptList(filter) {
          onkeydown="if(event.key==='Enter')_apptToggleDetail(this.closest('.appt-card'))">
       <div>
         <div class="appt-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${_apptReasonLabel(a.reason)} ${_slaBadge('appointment', a.createdAt, a.status)}</div>
-        <div class="appt-provider"><i class="ti ti-building" style="color:var(--blue);font-size:13px;"></i> ${a.provider} &nbsp;·&nbsp; ${({'in-person':t('appt_type_inperson'),phone:t('appt_type_phone'),online:t('appt_type_online')}[a.meetingType]||t('appt_type_inperson'))}</div>
+        <div class="appt-provider"><i class="ti ti-building" style="color:var(--blue);font-size:13px;"></i> ${a.provider} &nbsp;·&nbsp; ${({'in-person':t('appt_type_inperson'),phone:t('appt_type_phone'),'site-visit':'Site Visit'}[a.meetingType]||t('appt_type_inperson'))}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="badge ${STATUS_BADGE[a.status]||'badge-pending'}">${_statusLabel(a.status)}</span>
