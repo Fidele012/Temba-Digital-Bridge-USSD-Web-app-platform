@@ -101,13 +101,16 @@ services:
           type: redis
           property: connectionString
 
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  - type: redis
+    name: temba-redis
+    plan: free
+    region: oregon
+    ipAllowList: []
+
 databases:
   - name: temba-db
     plan: free
     region: oregon
     databaseName: temba_db
     user: temba
-
-  - name: temba-redis
-    plan: free
-    region: oregon
