@@ -88,6 +88,24 @@ def _phone_variants(phone: str) -> list[str]:
     return list(variants)
 
 
+def _ussd_email_variants(phone: str) -> list[str]:
+    """Return every USSD-generated email that could map to this phone number.
+
+    AT sometimes delivers the same physical SIM as +250XXXXXXXXX, 250XXXXXXXXX,
+    or 0XXXXXXXXX depending on network / session config.  All three produce a
+    different email suffix during registration, so we try every combination at
+    login time so any of those accounts is found.
+    """
+    emails: set[str] = set()
+    for v in _phone_variants(phone):
+        emails.add(f"{v.lstrip('+')}@ussd.temba.rw")
+        if v.startswith("+250"):
+            emails.add(f"0{v[4:]}@ussd.temba.rw")
+        elif v.startswith("250"):
+            emails.add(f"0{v[3:]}@ussd.temba.rw")
+    return list(emails)
+
+
 # ── Rwanda Administrative Hierarchy ──────────────────────────────────────────
 # Province list (index 0-4 maps to choice "1"-"5")
 _PROVINCES_LIST: list[str] = [
@@ -1461,6 +1479,10 @@ async def ussd_callback(
 async def _handle_ussd(
     db: AsyncSession, sessionId: str, phoneNumber: str, text: str
 ) -> str:
+    # Normalize: form-encoded '+' arrives as a space when not percent-encoded by AT
+    phoneNumber = phoneNumber.strip()
+    if phoneNumber and phoneNumber[0].isdigit() and not phoneNumber.startswith("0"):
+        phoneNumber = "+" + phoneNumber  # bare 250... → +250...
     parts = [p for p in text.split("*") if p]
     log.info("ussd_request", session=sessionId, phone=phoneNumber, text=repr(text))
 
@@ -1488,14 +1510,27 @@ async def _handle_ussd(
 
     # ── LOGIN FLOW ────────────────────────────────────────────────────────────
     if route == "2":
-        variants = _phone_variants(phoneNumber)
-        result = await db.execute(
-            select(User).where(or_(*[User.phone == v for v in variants]))
-        )
-        user: User | None = result.scalar_one_or_none()
+        # USSD-registered users have email = {phone_digits}@ussd.temba.rw and
+        # may have phone=NULL (when the phone was already taken by a web account).
+        # Always prefer the USSD-email lookup so we find the correct account even
+        # when a web account shares the same phone number.
+        user: User | None = None
+        for email_candidate in _ussd_email_variants(phoneNumber):
+            row = (await db.execute(
+                select(User).where(User.email == email_candidate)
+            )).scalar_one_or_none()
+            if row is not None:
+                user = row
+                break
+
+        # Fallback: web user who has set up a USSD PIN (phone stored, no USSD email)
+        if user is None:
+            variants = _phone_variants(phoneNumber)
+            user = (await db.execute(
+                select(User).where(or_(*[User.phone == v for v in variants]))
+            )).scalar_one_or_none()
 
         if user is None:
-            # Not registered — bounce back to auth menu with message
             return _t("not_registered_ussd", lang)
 
         # Existing web user who has never set a USSD PIN → PIN setup
@@ -1617,16 +1652,30 @@ async def _signup_flow(
     email_base = safe_phone.lstrip("+")
     email = f"{email_base}@ussd.temba.rw"
 
-    existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    # Check every possible email variant so we handle AT number format differences
+    existing: User | None = None
+    for email_candidate in _ussd_email_variants(phoneNumber):
+        existing = (await db.execute(
+            select(User).where(User.email == email_candidate)
+        )).scalar_one_or_none()
+        if existing:
+            break
+
     if existing:
+        # Re-registration: update PIN and location, keep the existing account
         existing.ussd_pin_hash = hash_password(pin)
+        existing.full_name = name
         existing.province = province_name
         existing.district = district_name
         existing.sector = sector_name
         existing.cell = cell_name
         await db.flush()
+        log.info("ussd_user_updated", phone=phoneNumber, name=name,
+                 sector=sector_name, cell=cell_name)
         return _t("account_created", lang)
 
+    # Phone UNIQUE constraint: if a web user already holds this number, leave
+    # phone=None on the USSD record — the email is the canonical identifier.
     phone_variants = _phone_variants(phoneNumber)
     phone_conflict = (await db.execute(
         select(User).where(or_(*[User.phone == v for v in phone_variants]))
