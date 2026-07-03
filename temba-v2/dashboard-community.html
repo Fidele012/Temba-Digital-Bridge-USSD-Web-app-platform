@@ -1088,7 +1088,7 @@ function _normAppt(a) {
 }
 function _normSvc(s) {
   const tl = { WATER_CONNECTION:'water_connection', water_connection:'water_connection', TANK_DELIVERY:'tank_delivery', tank_delivery:'tank_delivery', TRUCK_DELIVERY:'truck_delivery', truck_delivery:'truck_delivery', METER_SUPPORT:'meter_support', meter_support:'meter_support', INSPECTION:'inspection', inspection:'inspection' };
-  return { id:s.id, type:tl[s.request_type]||'water_connection', provider:s.provider_name||(s.provider&&s.provider.organization_name)||'Provider', urgency:(s.urgency||'low').toLowerCase(), status:(s.status||'submitted').toLowerCase(), description:s.description||'', location:[s.district,s.province].filter(Boolean).join(', ')||'', createdAt:s.created_at, fromApi:true };
+  return { id:s.id, apiId:s.id, type:tl[s.request_type]||'water_connection', provider:s.provider_name||(s.provider&&s.provider.organization_name)||'Provider', urgency:(s.urgency||'low').toLowerCase(), status:(s.status||'submitted').toLowerCase(), description:s.description||'', location:[s.district,s.province].filter(Boolean).join(', ')||'', createdAt:s.created_at, fromApi:true };
 }
 
 function getAllReports() {
@@ -1146,7 +1146,7 @@ function _refreshAll() {
   renderOverview(all); renderReportsList(all,'all'); renderSvcList('all'); renderApptList('all');
   renderVerifyBanners();
   // Show/hide the top overview "action needed" banner
-  const pendingVerify = all.filter(r => r.status === 'resolution_submitted');
+  const pendingVerify = all.filter(r => r.status === 'pending-verification');
   const allSvc = getAllSvcReqs();
   const pendingSvc = allSvc.filter(r => r.status === 'resolution_submitted');
   const totalPending = pendingVerify.length + pendingSvc.length;
@@ -1545,8 +1545,8 @@ async function deleteSvcReq(id, apiId, el) {
   if (!confirm('Remove this service request from your history? This cannot be undone.')) return;
   const card = el.closest('.request-card');
   // Remove from localStorage
-  const stored = getSvcReqs().filter(r => r.id !== id && r.apiId !== id);
-  saveSvcReqs(stored);
+  const stored = getSvcRequests().filter(r => r.id !== id && r.apiId !== id);
+  saveSvcRequests(stored);
   window._apiSvcReqs = (window._apiSvcReqs || []).filter(r => r.apiId !== apiId && r.apiId !== id);
   // Hard-delete via API
   const token = localStorage.getItem('temba_token');

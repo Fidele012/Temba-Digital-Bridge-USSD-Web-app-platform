@@ -1788,7 +1788,7 @@ function renderProvSvcList(filter) {
           <button class="btn-action success" onclick="updateSvcStatus('${r.id}','completed')"><i class="ti ti-circle-check"></i> Mark Completed</button>
         `:''}
         ${r.phone?`<a href="tel:${r.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`:''}
-        ${'completed verified cancelled rejected closed_unverified'.split(' ').includes(r.status)?`<button class="btn-action danger" title="Remove permanently" onclick="deleteProviderSvcReq('${r.id}','${r.apiId||''}',this)"><i class="ti ti-trash"></i> Remove</button>`:''}
+        ${'completed verified cancelled rejected closed-unverified'.split(' ').includes(r.status)?`<button class="btn-action danger" title="Remove permanently" onclick="deleteProviderSvcReq('${r.id}','${r.apiId||''}',this)"><i class="ti ti-trash"></i> Remove</button>`:''}
       </div>
     </div>
   </div>`).join('');
