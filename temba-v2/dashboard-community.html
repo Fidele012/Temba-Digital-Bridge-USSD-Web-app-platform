@@ -991,6 +991,9 @@ function getSvcRequests() { return JSON.parse(localStorage.getItem(SVC_KEY) || '
 function saveSvcRequests(d) { localStorage.setItem(SVC_KEY, JSON.stringify(d)); }
 function getAppts() { return JSON.parse(localStorage.getItem(APPT_KEY) || '[]'); }
 function saveAppts(d) { localStorage.setItem(APPT_KEY, JSON.stringify(d)); }
+const DISMISSED_APPTS_KEY = `temba_dismissed_appts_${_userKey}`;
+function getDismissedAppts() { return new Set(JSON.parse(localStorage.getItem(DISMISSED_APPTS_KEY) || '[]')); }
+function dismissAppt(id) { const s = getDismissedAppts(); s.add(String(id)); localStorage.setItem(DISMISSED_APPTS_KEY, JSON.stringify([...s])); }
 function uid() { return 'id_' + Date.now() + '_' + Math.floor(Math.random()*9999); }
 function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'}); }
 
@@ -1084,7 +1087,7 @@ function _normReport(r) {
 }
 function _normAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
-  return { id:a.id, provider:a.provider_name||(a.provider&&a.provider.organization_name)||'Provider', reason, date:a.appointment_date||'', time:a.appointment_time||'', status:(a.status||'pending').toLowerCase(), notes:a.notes||'', proposedDate:a.proposed_date||null, proposedTime:a.proposed_time||null, createdAt:a.created_at, fromApi:true };
+  return { id:a.id, apiId:a.id, provider:a.provider_name||(a.provider&&a.provider.organization_name)||'Provider', reason, date:a.appointment_date||'', time:a.appointment_time||'', status:(a.status||'pending').toLowerCase(), notes:a.notes||'', proposedDate:a.proposed_date||null, proposedTime:a.proposed_time||null, createdAt:a.created_at, fromApi:true };
 }
 function _normSvc(s) {
   const tl = { WATER_CONNECTION:'water_connection', water_connection:'water_connection', TANK_DELIVERY:'tank_delivery', tank_delivery:'tank_delivery', TRUCK_DELIVERY:'truck_delivery', truck_delivery:'truck_delivery', METER_SUPPORT:'meter_support', meter_support:'meter_support', INSPECTION:'inspection', inspection:'inspection' };
@@ -1100,7 +1103,7 @@ function _provPhone(nameOrId) {
   const p = window._apiProviders.find(x => x.id === nameOrId || x.organization_name === nameOrId);
   return p ? (p.phone || '').replace(/[\s\-]/g, '') : '';
 }
-function getAllAppts()   { return [...window._apiAppts,   ...getAppts().filter(a => !a.fromApi)]; }
+function getAllAppts()   { const d = getDismissedAppts(); return [...window._apiAppts, ...getAppts().filter(a => !a.fromApi)].filter(a => !d.has(String(a.id))); }
 
 async function loadApiData() {
   const token = localStorage.getItem('temba_token');
@@ -1722,6 +1725,7 @@ function renderApptList(filter) {
       <div class="appt-detail" style="gap:8px;" onclick="event.stopPropagation()">
         ${canModify?`<button class="btn-action warning" onclick="openReschedModal('${a.id}')"><i class="ti ti-calendar-event"></i> ${t('btn_reschedule')}</button>`:''}
         ${canModify?`<button class="btn-action danger" onclick="cancelAppt('${a.id}')"><i class="ti ti-x"></i> ${t('btn_cancel')}</button>`:''}
+        ${'cancelled completed rejected'.split(' ').includes(a.status)?`<button class="btn-action danger" onclick="deleteAppt('${a.id}','${a.apiId||''}',this)"><i class="ti ti-trash"></i> Delete</button>`:''}
         ${(ph=>ph?`<a href="tel:${ph}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'' )(_provPhone(a.provider))}
       </div>
     </div>
@@ -2048,6 +2052,19 @@ async function cancelAppt(id) {
   _pushNotif({ type:'appointment_cancelled', icon:'ti-calendar-x', color:'red', title:'Appointment Cancelled', body:`Your appointment with ${a?.provider || 'the provider'} on ${a?.date || ''} has been cancelled.` });
   if (a?.provider) _pushProvNotif(a.provider, { type:'appointment_cancelled', icon:'ti-calendar-x', color:'red', title:'Appointment Cancelled by Member', body:`${a.bookedByName || 'A community member'} cancelled their appointment scheduled for ${a.date || ''}.` });
   toast('Appointment cancelled.','info');
+}
+
+function deleteAppt(id, apiId, el) {
+  if (!confirm('Remove this appointment from your history? This cannot be undone.')) return;
+  const card = el.closest('.appt-card');
+  // Remove from localStorage
+  saveAppts(getAppts().filter(a => a.id !== id));
+  // Dismiss API appointment (persisted across reloads via localStorage set)
+  if (apiId) dismissAppt(apiId);
+  window._apiAppts = (window._apiAppts || []).filter(a => a.id !== id && a.id !== apiId);
+  if (card) { card.style.transition = 'opacity .25s'; card.style.opacity = '0'; }
+  setTimeout(() => { renderApptList('all'); updateApptBadge(); }, 300);
+  toast('Appointment removed.', 'success');
 }
 
 async function acceptResched(id) {

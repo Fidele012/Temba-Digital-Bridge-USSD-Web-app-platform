@@ -830,11 +830,6 @@ function getProviderSvcRequests() {
   const all = getSvcRequests();
   return CURRENT_PROVIDER ? all.filter(r => r.provider === CURRENT_PROVIDER) : all;
 }
-function getProviderAppts() {
-  const all = getAppts();
-  return CURRENT_PROVIDER ? all.filter(a => a.provider === CURRENT_PROVIDER) : all;
-}
-
 /* ── Seed Data (cleared — data comes from API only) ── */
 const reports = [];
 const community = [];
@@ -860,6 +855,9 @@ function getSvcRequests() { return JSON.parse(localStorage.getItem(SVC_KEY) || '
 function saveSvcRequests(d) { localStorage.setItem(SVC_KEY, JSON.stringify(d)); }
 function getAppts() { return JSON.parse(localStorage.getItem(APPT_KEY) || '[]'); }
 function saveAppts(d) { localStorage.setItem(APPT_KEY, JSON.stringify(d)); }
+const DISMISSED_APPTS_KEY = `temba_dismissed_appts_${_userKey}`;
+function getDismissedAppts() { return new Set(JSON.parse(localStorage.getItem(DISMISSED_APPTS_KEY) || '[]')); }
+function dismissAppt(id) { const s = getDismissedAppts(); s.add(String(id)); localStorage.setItem(DISMISSED_APPTS_KEY, JSON.stringify([...s])); }
 function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'}); }
 
 /* ── API Integration ── */
@@ -1004,8 +1002,9 @@ function getProviderSvcRequests() {
   return [...window._apiSvcReqs, ...local];
 }
 function getProviderAppts() {
+  const d = getDismissedAppts();
   const local = getAppts().filter(a => !a.fromApi && (!CURRENT_PROVIDER || a.provider === CURRENT_PROVIDER));
-  return [...window._apiAppts, ...local];
+  return [...window._apiAppts, ...local].filter(a => !d.has(String(a.id)));
 }
 function getProviderReports() {
   const local = reports.filter(r => !r.fromApi);
@@ -1890,11 +1889,23 @@ function renderProvApptList(filter) {
           <button class="btn-action warning" onclick="openProvReschedModal('${a.id}')"><i class="ti ti-calendar-event"></i> Reschedule</button>
           <button class="btn-action danger"  onclick="cancelApptProv('${a.id}')"><i class="ti ti-x"></i> Cancel</button>
         `:''}
+        ${'completed cancelled rejected'.split(' ').includes(a.status)?`<button class="btn-action danger" title="Remove permanently" onclick="deleteProvAppt('${a.id}','${a.apiId||''}',this)"><i class="ti ti-trash"></i> Remove</button>`:''}
         ${a.phone ? `<a href="tel:${a.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;" title="Call ${a.reporter||''}"><i class="ti ti-phone"></i> Call</a><a href="sms:${a.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;" title="SMS ${a.reporter||''}"><i class="ti ti-message"></i> SMS</a>` : `<button class="btn-action secondary" disabled style="opacity:.45;cursor:default;"><i class="ti ti-phone"></i> No Phone</button>`}
       </div>
     </div>
   </div>`;
   }).join('');
+}
+
+function deleteProvAppt(id, apiId, el) {
+  if (!confirm('Remove this appointment from your records? This cannot be undone.')) return;
+  const card = el.closest('.appt-mgmt-card');
+  saveAppts(getAppts().filter(a => a.id !== id));
+  if (apiId) dismissAppt(apiId);
+  window._apiAppts = (window._apiAppts || []).filter(a => a.id !== id && a.id !== apiId);
+  if (card) { card.style.transition = 'opacity .25s'; card.style.opacity = '0'; }
+  setTimeout(() => { renderProvApptList('all'); updateBadges(); }, 300);
+  toast('Appointment removed.', 'success');
 }
 
 function filterProvAppts(filter, btn) {
