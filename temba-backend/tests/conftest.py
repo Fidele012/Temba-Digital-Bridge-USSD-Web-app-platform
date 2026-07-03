@@ -117,10 +117,15 @@ async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 # ── User factory ─────────────────────────────────────────────────────────────
 
-async def make_user(db: AsyncSession, role: UserRole = UserRole.COMMUNITY, **kwargs) -> User:
+async def make_user(
+    db: AsyncSession,
+    role: UserRole = UserRole.COMMUNITY,
+    password: str = "Test@12345",
+    **kwargs,
+) -> User:
     defaults: dict[str, Any] = {
         "email": f"user_{role.value}_{id(kwargs)}@test.com",
-        "hashed_password": hash_password("Test@12345"),
+        "hashed_password": hash_password(password),
         "full_name": f"Test {role.value.capitalize()}",
         "role": role,
         "is_active": True,

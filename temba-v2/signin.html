@@ -101,7 +101,8 @@
 <div id="temba-toast"></div>
 <script src="temba-auth.js"></script>
 <script>
-const API_BASE = 'http://127.0.0.1:8001/api/v1';
+const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
+  ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api.onrender.com/api/v1';
 
 /* Track which tab the user selected — enforced during sign-in */
 let _signinRole = 'community';

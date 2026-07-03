@@ -166,7 +166,8 @@ const STATUS_META={
   resolved:{title:'Resolved ✓',desc:'This issue has been fully resolved.',bg:'var(--green-light)',badgeCls:'badge-resolved',badgeTxt:'Resolved',icon:'ti-circle-check'},
 };
 let currentReport=null;
-const API_BASE='http://127.0.0.1:8001/api/v1';
+const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
+  ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api.onrender.com/api/v1';
 
 async function _fetchReportByRef(ref) {
   const token=localStorage.getItem('temba_token');

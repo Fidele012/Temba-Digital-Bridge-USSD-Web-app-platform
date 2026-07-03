@@ -152,3 +152,115 @@ async def test_register_with_kinyarwanda_name(client: AsyncClient):
     })
     assert resp.status_code == 201
     assert resp.json()["full_name"] == "Uwimana Jean Baptiste"
+
+
+# ── Large Data Tests ──────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_report_large_description_accepted(client: AsyncClient, db: AsyncSession):
+    """Large data: a 5,000-character description must be accepted without crashing."""
+    user = await make_user(db, email="largedesc@test.com")
+    long_description = "Water quality issue. " * 250  # ~5,000 characters
+    resp = await client.post("/api/v1/reports", json={
+        "category": "water_quality",
+        "urgency": "medium",
+        "title": "Extended water quality report",
+        "description": long_description,
+    }, headers=auth_header(user))
+    # Must either accept it (201) or reject cleanly (422) — never crash (500)
+    assert resp.status_code in (201, 422)
+
+
+@pytest.mark.asyncio
+async def test_report_title_exact_max_length(client: AsyncClient, db: AsyncSession):
+    """Boundary: title at exactly 255 characters (the defined maximum) must be accepted."""
+    user = await make_user(db, email="maxtitle@test.com")
+    max_title = "A" * 255
+    resp = await client.post("/api/v1/reports", json={
+        "category": "other",
+        "urgency": "low",
+        "title": max_title,
+        "description": "Valid description to accompany the maximum length title test",
+    }, headers=auth_header(user))
+    assert resp.status_code == 201
+    assert resp.json()["title"] == max_title
+
+
+@pytest.mark.asyncio
+async def test_report_title_exceeds_max_rejected(client: AsyncClient, db: AsyncSession):
+    """Boundary: title exceeding 255 characters must be rejected with 422."""
+    user = await make_user(db, email="overtitle@test.com")
+    resp = await client.post("/api/v1/reports", json={
+        "category": "other",
+        "urgency": "low",
+        "title": "B" * 256,
+        "description": "Valid description to test title length validation boundary",
+    }, headers=auth_header(user))
+    assert resp.status_code == 422
+
+
+# ── Special Characters Tests ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_report_description_with_special_characters(client: AsyncClient, db: AsyncSession):
+    """Special chars: description containing @, #, &, <, > must be stored safely."""
+    user = await make_user(db, email="specialchars@test.com")
+    special_desc = "Water issue: pH < 6.5 & turbidity > 10 NTU. Contact: info@wasac.rw #urgent"
+    resp = await client.post("/api/v1/reports", json={
+        "category": "water_quality",
+        "urgency": "high",
+        "title": "Water quality test with special characters",
+        "description": special_desc,
+    }, headers=auth_header(user))
+    assert resp.status_code == 201
+    assert resp.json()["description"] == special_desc
+
+
+@pytest.mark.asyncio
+async def test_register_full_name_with_hyphens_and_apostrophes(client: AsyncClient):
+    """Special chars: names with hyphens and apostrophes are common in Rwanda."""
+    resp = await client.post("/api/v1/auth/register", json={
+        "email": "hyphen_name@test.com",
+        "password": "Test@12345",
+        "full_name": "Marie-Claire D'Amour Ingabire",
+        "role": "community",
+    })
+    assert resp.status_code == 201
+    assert resp.json()["full_name"] == "Marie-Claire D'Amour Ingabire"
+
+
+# ── Invalid / Empty Data Tests ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_register_empty_full_name_rejected(client: AsyncClient):
+    """Empty data: empty full_name must be rejected."""
+    resp = await client.post("/api/v1/auth/register", json={
+        "email": "emptyname@test.com",
+        "password": "Test@12345",
+        "full_name": "",
+        "role": "community",
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_report_missing_required_fields_rejected(client: AsyncClient, db: AsyncSession):
+    """Empty data: submitting a report without required fields returns 422."""
+    user = await make_user(db, email="missingfields@test.com")
+    resp = await client.post("/api/v1/reports", json={
+        "category": "pipe_burst",
+        # missing urgency, title, description
+    }, headers=auth_header(user))
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_service_request_short_description_rejected(client: AsyncClient, db: AsyncSession):
+    """Boundary: service request description under minimum 10 characters is rejected."""
+    user = await make_user(db, email="shortsr@test.com")
+    resp = await client.post("/api/v1/service-requests", json={
+        "request_type": "inspection",
+        "urgency": "low",
+        "description": "Too short",  # 9 chars — below the 10-char minimum
+    }, headers=auth_header(user))
+    assert resp.status_code == 422

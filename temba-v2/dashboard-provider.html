@@ -887,7 +887,8 @@ function dismissAppt(id) { const s = getDismissedAppts(); s.add(String(id)); loc
 function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'}); }
 
 /* ── API Integration ── */
-const API_BASE = 'http://127.0.0.1:8001/api/v1';
+const _IS_LOCAL = ['localhost','127.0.0.1'].includes(window.location.hostname);
+const API_BASE = _IS_LOCAL ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api.onrender.com/api/v1';
 window._apiReports = []; window._apiAppts = []; window._apiSvcReqs = [];
 window._myProviderProfile = null;
 
