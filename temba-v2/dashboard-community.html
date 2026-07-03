@@ -97,7 +97,7 @@
             <div style="font-weight:800;font-size:14px;color:#4C1D95;" id="overviewVerifyTitle">Your provider marked an issue as resolved</div>
             <div style="font-size:13px;color:#6D28D9;margin-top:2px;" id="overviewVerifyBody">Please confirm whether the issue was actually fixed.</div>
           </div>
-          <button onclick="_navToPanel('my-reports','resolution_submitted')" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          <button onclick="_navToPanel('my-reports','pending-verification')" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
             <i class="ti ti-arrow-right"></i> Review Now
           </button>
         </div>
@@ -967,8 +967,8 @@ function getAreaData() {
 const SVC_ICONS = { water_connection:'ti-droplet', tank_delivery:'ti-device-floppy', truck_delivery:'ti-truck', meter_support:'ti-gauge', inspection:'ti-search' };
 const SVC_ICON_CLASS = { water_connection:'water-conn', tank_delivery:'tank', truck_delivery:'truck', meter_support:'meter', inspection:'inspection' };
 const SVC_LABELS = { water_connection:'Water Connection', tank_delivery:'Tank Delivery', truck_delivery:'Water Truck', meter_support:'Meter Support', inspection:'Technical Inspection' };
-const STATUS_BADGE = { submitted:'badge-active', 'in-progress':'badge-moderate', resolved:'badge-resolved', reviewing:'badge-reviewing', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed', cancelled:'badge-cancelled', pending:'badge-pending', rescheduled:'badge-rescheduled' };
-const STATUS_LABEL = { submitted:'Submitted','in-progress':'In Progress', resolved:'Resolved', reviewing:'Under Review', approved:'Approved', rejected:'Rejected', completed:'Completed', cancelled:'Cancelled', pending:'Pending Approval', rescheduled:'Reschedule Requested' };
+const STATUS_BADGE = { submitted:'badge-active', 'in-progress':'badge-moderate', resolved:'badge-resolved', reviewing:'badge-reviewing', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed', cancelled:'badge-cancelled', pending:'badge-pending', rescheduled:'badge-rescheduled', 'resolution_submitted':'badge-reviewing', 'pending-verification':'badge-reviewing' };
+const STATUS_LABEL = { submitted:'Submitted','in-progress':'In Progress', resolved:'Resolved', reviewing:'Under Review', approved:'Approved', rejected:'Rejected', completed:'Completed', cancelled:'Cancelled', pending:'Pending Approval', rescheduled:'Reschedule Requested', 'resolution_submitted':'Awaiting Your Confirmation', 'pending-verification':'Awaiting Your Confirmation' };
 const URGENCY_COLOR = { urgent:'#C62828', moderate:'#E65100', low:'#1565C0', resolved:'#2E7D32', submitted:'#29B6F6','in-progress':'#E65100' };
 const APPT_REASON_LABELS = { water_connection:'New Connection Inquiry', billing:'Billing Dispute', meter_reading:'Meter Issue', pipe_repair:'Pipe Repair / Infrastructure', inspection:'Inspection / Water Quality', consultation:'General Consultation', other:'Other', new_connection:'New Connection Inquiry', general:'General Consultation', meter:'Meter Issue', infrastructure:'Service Complaint', quality:'Water Quality Concern' };
 
@@ -1131,7 +1131,7 @@ async function loadApiData() {
     _syncReportVerifyFromApi(rd.items);
   }
   if (ad && ad.items) window._apiAppts   = ad.items.map(_normAppt);
-  if (sd && sd.items) window._apiSvcReqs = sd.items.map(_normSvc);
+  if (sd && sd.items) { window._apiSvcReqs = sd.items.map(_normSvc); _syncSvcVerifyFromApi(sd.items); }
   /* Always refresh — even if all APIs failed, localStorage data must render */
   _refreshAll();
 }
@@ -1542,7 +1542,7 @@ function onApptReasonChange() {
   if (val !== 'other') { const inp = document.getElementById('apptOtherReason'); if (inp) inp.value = ''; }
 }
 
-const _DELETABLE_SVC_STATUSES = new Set(['completed','verified','cancelled','rejected','closed_unverified']);
+const _DELETABLE_SVC_STATUSES = new Set(['completed','verified','cancelled','rejected','closed_unverified','resolution_submitted']);
 
 async function deleteSvcReq(id, apiId, el) {
   if (!confirm('Remove this service request from your history? This cannot be undone.')) return;
@@ -2479,6 +2479,23 @@ function _syncReportVerifyFromApi(rawReports) {
   const stored = getPendingVerify();
   const nonReports = stored.filter(i => i.type !== 'report');
   savePendingVerify([...nonReports, ...pendingFromApi]);
+  renderVerifyBanners();
+}
+
+function _syncSvcVerifyFromApi(rawSvcReqs) {
+  const _svcLabel = (t) => ({ water_connection:'Water Connection',WATER_CONNECTION:'Water Connection',tank_delivery:'Tank Delivery',TANK_DELIVERY:'Tank Delivery',truck_delivery:'Truck Delivery',TRUCK_DELIVERY:'Truck Delivery',meter_support:'Meter Support',METER_SUPPORT:'Meter Support',inspection:'Inspection',INSPECTION:'Inspection' }[t] || 'Service Request');
+  const pendingFromApi = rawSvcReqs
+    .filter(r => (r.status || '').toLowerCase() === 'resolution_submitted')
+    .map(r => ({
+      id: r.id,
+      type: 'service_request',
+      label: _svcLabel(r.request_type),
+      providerName: r.provider_name || 'Your provider',
+      completedAt: r.resolution_submitted_at || r.updated_at || r.created_at,
+    }));
+  const stored = getPendingVerify();
+  const nonSvc = stored.filter(i => i.type !== 'service_request');
+  savePendingVerify([...nonSvc, ...pendingFromApi]);
   renderVerifyBanners();
 }
 

@@ -983,7 +983,7 @@ function _normProvReport(r) {
   const issue = isUssd ? rawIssue.replace(/^USSD:\s*/i, '') : rawIssue;
   const ref = r.reference_number || ('#'+String(r.id).slice(0,8).toUpperCase());
   const pc = r.priority_class || 'P3';
-  return { ref, issue, channel:isUssd?'ussd':'web', urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.sector,r.district,r.province].filter(Boolean).join(', ')||'Rwanda', reporter:r.user_name||'Community Member', phone:r.user_phone||'', status:sm[r.status]||'submitted', time:r.created_at, fromApi:true, apiId:r.id };
+  return { ref, issue, channel:isUssd?'ussd':'web', urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.sector,r.district,r.province].filter(Boolean).join(', ')||'Rwanda', reporter:r.user_name||'Community Member', phone:r.user_phone||'', userEmail:r.user_email||'', status:sm[r.status]||'submitted', time:r.created_at, fromApi:true, apiId:r.id };
 }
 function _normProvAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
@@ -995,7 +995,7 @@ function _normProvSvc(s) {
   const tl = { WATER_CONNECTION:'water_connection', water_connection:'water_connection', TANK_DELIVERY:'tank_delivery', tank_delivery:'tank_delivery', TRUCK_DELIVERY:'truck_delivery', truck_delivery:'truck_delivery', METER_SUPPORT:'meter_support', meter_support:'meter_support', INSPECTION:'inspection', inspection:'inspection' };
   const desc = s.description||'';
   const isUssd = desc.includes('via USSD');
-  return { id:s.id, apiId:s.id, type:tl[s.request_type]||'water_connection', provider:CURRENT_PROVIDER, urgency:(s.urgency||'low').toLowerCase(), status:(s.status||'submitted').toLowerCase().replace('_','-'), description:desc, channel:isUssd?'ussd':'web', location:[s.address_detail,s.district,s.province].filter(Boolean).join(', ')||'', reporter:s.user_name||'Community Member', phone:s.user_phone||'', providerNotes:s.provider_notes||'', createdAt:s.created_at, fromApi:true };
+  return { id:s.id, apiId:s.id, type:tl[s.request_type]||'water_connection', provider:CURRENT_PROVIDER, urgency:(s.urgency||'low').toLowerCase(), status:(s.status||'submitted').toLowerCase().replace(/_/g,'-'), description:desc, channel:isUssd?'ussd':'web', location:[s.address_detail,s.district,s.province].filter(Boolean).join(', ')||'', reporter:s.user_name||'Community Member', phone:s.user_phone||'', userEmail:s.user_email||'', providerNotes:s.provider_notes||'', createdAt:s.created_at, fromApi:true };
 }
 
 function getProviderSvcRequests() {
@@ -1694,6 +1694,11 @@ async function _submitResolve() {
   if (apiId) {
     const r = await apiPut(`/reports/${apiId}`, payload);
     if (r) {
+      // Push community notification + pending-verify entry using email from API response
+      const commEmail = r.user_email || '';
+      const label = r.title || ref;
+      _pushCommNotif(commEmail, { type:'report_resolved', icon:'ti-circle-check', color:'purple', title:'Resolution Submitted — Please Verify', body:`${CURRENT_PROVIDER} marked your report "${label}" as resolved. Please confirm whether the issue was actually fixed.` });
+      _writePendingVerify(commEmail, { id: apiId, type: 'report', label, providerName: CURRENT_PROVIDER });
       await loadApiData();
       toast(`Resolution submitted for ${ref} — community member will be notified to verify`, 'success');
       return;
@@ -1785,10 +1790,11 @@ function renderProvSvcList(filter) {
           <button class="btn-action danger"  onclick="updateSvcStatus('${r.id}','rejected')"><i class="ti ti-x"></i> Reject</button>
         `:''}
         ${r.status==='approved'||r.status==='in-progress'?`
-          <button class="btn-action success" onclick="updateSvcStatus('${r.id}','completed')"><i class="ti ti-circle-check"></i> Mark Completed</button>
+          <button class="btn-action success" onclick="updateSvcStatus('${r.id}','resolution_submitted')"><i class="ti ti-circle-check"></i> Mark Completed</button>
         `:''}
+        ${r.status==='resolution-submitted'?`<span style="font-size:11.5px;color:#7C3AED;font-weight:600;"><i class="ti ti-clock"></i> Awaiting member confirmation</span>`:''}
         ${r.phone?`<a href="tel:${r.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`:''}
-        ${'completed verified cancelled rejected closed-unverified'.split(' ').includes(r.status)?`<button class="btn-action danger" title="Remove permanently" onclick="deleteProviderSvcReq('${r.id}','${r.apiId||''}',this)"><i class="ti ti-trash"></i> Remove</button>`:''}
+        ${'completed verified cancelled rejected closed-unverified resolution-submitted'.split(' ').includes(r.status)?`<button class="btn-action danger" title="Remove permanently" onclick="deleteProviderSvcReq('${r.id}','${r.apiId||''}',this)"><i class="ti ti-trash"></i> Remove</button>`:''}
       </div>
     </div>
   </div>`).join('');
@@ -1812,12 +1818,14 @@ async function updateSvcStatus(id, newStatus, providerNotes) {
 
   const _svcNotifs = (svcEntry) => {
     _pushNotif({ type:'service_updated', icon:'ti-tool', color:'teal', title:'Service Request Updated', body:`${svcEntry?.reporter || 'Customer'}'s ${svcLabel} request has been marked as ${statusMsg}.` });
-    const commBody = newStatus === 'completed'
-      ? `${CURRENT_PROVIDER} marked your ${svcLabel} request as completed. Please open your Service Requests panel to confirm.`
+    const commEmail = svcEntry?.userEmail || svcEntry?.bookedBy || '';
+    const isResolved = newStatus === 'resolution_submitted' || newStatus === 'completed';
+    const commBody = isResolved
+      ? `${CURRENT_PROVIDER} marked your ${svcLabel} request as completed. Please open your Service Requests to confirm whether the issue was actually resolved.`
       : `Your ${svcLabel} request with ${CURRENT_PROVIDER} is now ${statusMsg}.`;
-    _pushCommNotif(svcEntry?.bookedBy || '', { type:'service_updated', icon:'ti-tool', color:'teal', title: newStatus === 'completed' ? 'Service Completed — Please Verify' : 'Service Request Update', body: commBody });
-    if (newStatus === 'completed') {
-      _writePendingVerify(svcEntry?.bookedBy || '', { id: svcEntry?.id || id, type: 'service_request', label: svcLabel, providerName: CURRENT_PROVIDER });
+    _pushCommNotif(commEmail, { type:'service_updated', icon:'ti-tool', color:'teal', title: isResolved ? 'Service Completed — Please Confirm' : 'Service Request Update', body: commBody });
+    if (isResolved) {
+      _writePendingVerify(commEmail, { id: svcEntry?.id || id, type: 'service_request', label: svcLabel, providerName: CURRENT_PROVIDER });
     }
   };
 

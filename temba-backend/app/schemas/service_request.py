@@ -52,4 +52,5 @@ class ServiceRequestPublic(ORMModel):
     verified_at: datetime | None = None
     user_name: str | None = None
     user_phone: str | None = None
+    user_email: str | None = None
     provider_name: str | None = None

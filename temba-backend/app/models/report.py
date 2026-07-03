@@ -102,6 +102,13 @@ class Report(UUIDMixin, TimestampMixin, Base):
             return None
 
     @property
+    def user_email(self) -> str | None:
+        try:
+            return self.user.email if self.user else None
+        except Exception:
+            return None
+
+    @property
     def provider_name(self) -> str | None:
         try:
             return self.provider.organization_name if self.provider else None
