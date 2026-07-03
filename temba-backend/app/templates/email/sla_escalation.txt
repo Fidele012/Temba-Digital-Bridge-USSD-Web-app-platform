@@ -1,0 +1,24 @@
+{% if level == 1 %}OVERDUE REPORT ALERT{% else %}ESCALATION — LEVEL {{ level }}{% endif %}
+
+Dear {{ recipient_name }},
+
+{% if level == 1 %}A water issue report assigned to your organization has not been responded to within the agreed SLA timeframe.{% else %}This report has been escalated to you because the Level 1 Officer ({{ officer_name }}) did not respond within 24 hours of the initial SLA breach.{% endif %}
+
+REPORT DETAILS:
+  Reference:  {{ reference }}
+  Category:   {{ category }}
+  Urgency:    {{ urgency }}
+  Location:   {{ location }}
+  Submitted:  {{ submitted_at }}
+  Overdue by: {{ overdue_hours }} hours
+
+COMMUNITY MEMBER:
+  {{ community_name }} · {{ community_phone }}
+
+{% if level == 2 %}ESCALATION HISTORY:
+  Level 1 Officer ({{ officer_name }}) notified {{ officer_notified_ago }} ago — no response.
+{% endif %}
+Please log in to the Temba provider dashboard to acknowledge and address this report immediately.
+
+---
+Temba Digital Bridge — Rwanda Water & Sanitation Platform

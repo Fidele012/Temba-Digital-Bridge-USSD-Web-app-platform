@@ -49,6 +49,7 @@ services:
       - "9001:9001"
 
   # ── Temba API ──────────────────────────────────────────────────────────────
+  # Port 8000 is NOT exposed to the host — all traffic must come through NGINX.
   api:
     build:
       context: .
@@ -64,8 +65,21 @@ services:
       S3_ENDPOINT_URL: http://minio:9000
       S3_ACCESS_KEY_ID: minioadmin
       S3_SECRET_ACCESS_KEY: minioadmin
-    ports:
-      - "8000:8000"
+    # --proxy-headers: trust X-Forwarded-For from NGINX so SlowAPI sees the
+    # real client IP instead of NGINX's internal Docker address.
+    # --forwarded-allow-ips '*': safe within the private Docker bridge network.
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app
+               --host 0.0.0.0
+               --port 8000
+               --workers 4
+               --loop uvloop
+               --http httptools
+               --proxy-headers
+               --forwarded-allow-ips '*'"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -77,6 +91,28 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  # ── NGINX Load Balancer ────────────────────────────────────────────────────
+  # Single public entry point.  All HTTP traffic enters here.
+  # To scale horizontally add "server api-2:8000;" in nginx/nginx.conf and
+  # run:  docker compose up --scale api=2
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # Uncomment after placing SSL certs in nginx/certs/:
+      # - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/temba.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # ── Celery worker ─────────────────────────────────────────────────────────
   worker:
@@ -92,6 +128,24 @@ services:
       CELERY_BROKER_URL: redis://:temba_redis_pass@redis:6379/1
       CELERY_RESULT_BACKEND: redis://:temba_redis_pass@redis:6379/2
     command: celery -A app.worker worker --loglevel=info --concurrency=4
+    depends_on:
+      - redis
+      - db
+
+  # ── Celery Beat (periodic task scheduler) ─────────────────────────────────
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://temba:temba_pass@db:5432/temba_db
+      DATABASE_URL_SYNC: postgresql://temba:temba_pass@db:5432/temba_db
+      REDIS_URL: redis://:temba_redis_pass@redis:6379/0
+      CELERY_BROKER_URL: redis://:temba_redis_pass@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:temba_redis_pass@redis:6379/2
+    command: celery -A app.worker beat --loglevel=info
     depends_on:
       - redis
       - db

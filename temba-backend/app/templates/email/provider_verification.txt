@@ -1,0 +1,37 @@
+NEW PROVIDER REGISTRATION — REVIEW REQUIRED
+
+Organization: {{ org_name }}
+Registration #: {{ reg_number }}
+Website: {{ website }}
+Phone: {{ phone }}
+Email: {{ email }}
+
+DESCRIPTION:
+{{ description }}
+
+SERVICE CATEGORIES: {{ categories }}
+SERVICE AREAS: {{ service_areas }}
+
+SLA COMMITMENT:
+  Response time: {{ sla_response }}
+  Resolution time: {{ sla_resolution }}
+
+ESCALATION CONTACTS:
+  Level 1 — Officer/Coordinator:
+    Name:  {{ officer_name }}
+    Email: {{ officer_email }}
+    Phone: {{ officer_phone }}
+
+  Level 2 — Supervisor:
+    Name:  {{ supervisor_name }}
+    Email: {{ supervisor_email }}
+    Phone: {{ supervisor_phone }}
+
+REGISTERED BY: {{ registered_by }} ({{ registered_email }})
+
+ACTION REQUIRED:
+Log in to the Temba admin dashboard to APPROVE or REJECT this provider.
+Until approved, they cannot receive community reports.
+
+---
+Temba Digital Bridge — Rwanda Water & Sanitation Platform

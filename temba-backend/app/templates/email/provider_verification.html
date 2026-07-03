@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;margin:0;padding:20px;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+  <div style="background:linear-gradient(135deg,#0A2540,#0277BD);padding:28px 32px;color:#fff;">
+    <h1 style="margin:0;font-size:20px;font-weight:700;">New Provider Registration</h1>
+    <p style="margin:6px 0 0;opacity:0.8;font-size:14px;">Review required before activation</p>
+  </div>
+
+  <div style="padding:28px 32px;">
+
+    <h2 style="margin:0 0 16px;font-size:18px;color:#0A2540;">{{ org_name }}</h2>
+
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
+      <tr><td style="padding:8px 0;color:#64748b;width:140px;">Registration #</td><td style="padding:8px 0;font-weight:600;color:#1e293b;">{{ reg_number }}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Website</td><td style="padding:8px 0;font-weight:600;color:#1e293b;">{{ website }}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Phone</td><td style="padding:8px 0;font-weight:600;color:#1e293b;">{{ phone }}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Email</td><td style="padding:8px 0;font-weight:600;color:#1e293b;">{{ email }}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Categories</td><td style="padding:8px 0;font-weight:600;color:#1e293b;">{{ categories }}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Service Areas</td><td style="padding:8px 0;font-weight:600;color:#1e293b;">{{ service_areas }}</td></tr>
+    </table>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="margin:0 0 8px;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Description</h3>
+      <p style="margin:0;font-size:14px;color:#1e293b;line-height:1.6;">{{ description }}</p>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="margin:0 0 12px;font-size:13px;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;">SLA Commitment</h3>
+      <table style="width:100%;font-size:14px;">
+        <tr><td style="padding:4px 0;color:#1e40af;">Response time:</td><td style="font-weight:700;color:#1e40af;">{{ sla_response }}</td></tr>
+        <tr><td style="padding:4px 0;color:#1e40af;">Resolution time:</td><td style="font-weight:700;color:#1e40af;">{{ sla_resolution }}</td></tr>
+      </table>
+    </div>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="margin:0 0 12px;font-size:13px;color:#166534;text-transform:uppercase;letter-spacing:0.5px;">Escalation Contacts</h3>
+      <p style="margin:0 0 8px;font-size:13px;color:#64748b;">Level 1 — Officer/Coordinator</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#1e293b;"><strong>{{ officer_name }}</strong> &nbsp;·&nbsp; {{ officer_email }} &nbsp;·&nbsp; {{ officer_phone }}</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#64748b;">Level 2 — Supervisor</p>
+      <p style="margin:0;font-size:14px;color:#1e293b;"><strong>{{ supervisor_name }}</strong> &nbsp;·&nbsp; {{ supervisor_email }} &nbsp;·&nbsp; {{ supervisor_phone }}</p>
+    </div>
+
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="margin:0;font-size:14px;color:#92400e;"><strong>Registered by:</strong> {{ registered_by }} ({{ registered_email }})</p>
+      <p style="margin:8px 0 0;font-size:14px;color:#92400e;"><strong>Status:</strong> PENDING — awaiting your approval</p>
+    </div>
+
+    <p style="font-size:13px;color:#64748b;margin:16px 0 0;line-height:1.6;">
+      Log in to the Temba admin dashboard to <strong>APPROVE</strong> or <strong>REJECT</strong> this provider.
+      Until approved, they cannot receive community reports.
+    </p>
+
+  </div>
+
+  <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;text-align:center;">
+    Temba Digital Bridge &mdash; Rwanda Water &amp; Sanitation Platform
+  </div>
+
+</div>
+</body>
+</html>

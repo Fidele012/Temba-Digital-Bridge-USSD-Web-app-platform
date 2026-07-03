@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;margin:0;padding:20px;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+  <div style="background:linear-gradient(135deg,{% if level == 1 %}#0277BD,#00897B{% else %}#C62828,#E65100{% endif %});padding:28px 32px;color:#fff;">
+    <h1 style="margin:0;font-size:20px;font-weight:700;">{% if level == 1 %}Overdue Report Alert{% else %}ESCALATION — Level {{ level }}{% endif %}</h1>
+    <p style="margin:6px 0 0;opacity:0.85;font-size:14px;">Report {{ reference }} has exceeded its SLA deadline</p>
+  </div>
+
+  <div style="padding:28px 32px;">
+
+    <p style="font-size:15px;color:#1e293b;margin:0 0 20px;line-height:1.6;">
+      Dear <strong>{{ recipient_name }}</strong>,
+    </p>
+
+    <p style="font-size:14px;color:#475569;line-height:1.7;margin:0 0 20px;">
+      {% if level == 1 %}
+      A water issue report assigned to your organization has not been responded to within the agreed SLA timeframe. Please take immediate action.
+      {% else %}
+      This report has been escalated to you because the Level 1 Officer ({{ officer_name }}) did not respond within 24 hours of the initial SLA breach. Your immediate attention is required.
+      {% endif %}
+    </p>
+
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="margin:0 0 12px;font-size:13px;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;">Report Details</h3>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#991b1b;width:120px;">Reference</td><td style="padding:6px 0;font-weight:700;color:#1e293b;">{{ reference }}</td></tr>
+        <tr><td style="padding:6px 0;color:#991b1b;">Category</td><td style="padding:6px 0;font-weight:600;color:#1e293b;">{{ category }}</td></tr>
+        <tr><td style="padding:6px 0;color:#991b1b;">Urgency</td><td style="padding:6px 0;font-weight:600;color:#1e293b;">{{ urgency }}</td></tr>
+        <tr><td style="padding:6px 0;color:#991b1b;">Location</td><td style="padding:6px 0;font-weight:600;color:#1e293b;">{{ location }}</td></tr>
+        <tr><td style="padding:6px 0;color:#991b1b;">Submitted</td><td style="padding:6px 0;font-weight:600;color:#1e293b;">{{ submitted_at }}</td></tr>
+        <tr><td style="padding:6px 0;color:#991b1b;">Overdue by</td><td style="padding:6px 0;font-weight:700;color:#C62828;">{{ overdue_hours }} hours</td></tr>
+      </table>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="margin:0 0 8px;font-size:13px;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;">Community Member</h3>
+      <p style="margin:0;font-size:14px;color:#1e293b;"><strong>{{ community_name }}</strong> &nbsp;·&nbsp; {{ community_phone }}</p>
+    </div>
+
+    {% if level == 2 %}
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="margin:0 0 8px;font-size:13px;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;">Escalation History</h3>
+      <p style="margin:0;font-size:14px;color:#92400e;">Level 1 Officer ({{ officer_name }}) was notified {{ officer_notified_ago }} ago — no response received.</p>
+    </div>
+    {% endif %}
+
+    <p style="font-size:14px;color:#475569;line-height:1.7;">
+      Please log in to the Temba provider dashboard to acknowledge and address this report immediately.
+    </p>
+
+  </div>
+
+  <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;text-align:center;">
+    Temba Digital Bridge &mdash; Rwanda Water &amp; Sanitation Platform
+  </div>
+
+</div>
+</body>
+</html>
