@@ -766,6 +766,31 @@
   </div>
 </div>
 
+<!-- ══ SERVICE REQUEST COMPLETION MODAL ══ -->
+<div id="svcCompleteModal" onclick="if(event.target===this)closeSvcCompleteModal()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;padding:1.75rem;box-shadow:0 24px 80px rgba(15,23,42,0.22);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#1B5E20,#2E7D32);display:flex;align-items:center;justify-content:center;"><i class="ti ti-circle-check" style="color:#fff;font-size:20px;"></i></div>
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#071E38;">Submit Completion for Approval</div>
+        <div style="font-size:12.5px;color:var(--gray-400);">Service request by <strong id="svcCompleteReporter"></strong></div>
+      </div>
+    </div>
+    <div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;padding:10px 14px;margin-bottom:1rem;font-size:13px;color:#166534;line-height:1.6;">
+      <i class="ti ti-info-circle" style="margin-right:5px;"></i>
+      The community member will receive a confirmation request and must approve before this request is marked as resolved. They can confirm, dispute, or reopen it.
+    </div>
+    <input type="hidden" id="svcCompleteId">
+    <div style="font-size:13px;font-weight:600;color:#071E38;margin-bottom:4px;" id="svcCompleteLabel"></div>
+    <label style="font-size:12.5px;font-weight:600;color:#071E38;display:block;margin-bottom:6px;margin-top:1rem;">Completion notes <span style="font-weight:400;color:var(--gray-400);">(optional — shown to community member)</span></label>
+    <textarea id="svcCompleteNotes" rows="3" placeholder="Describe the work done, materials used, or any follow-up needed…" style="width:100%;padding:10px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13.5px;resize:vertical;box-sizing:border-box;"></textarea>
+    <div style="display:flex;gap:10px;margin-top:1.25rem;justify-content:flex-end;">
+      <button onclick="closeSvcCompleteModal()" style="padding:9px 20px;border:1.5px solid #CBD5E1;border-radius:9px;background:#fff;font-size:13.5px;font-weight:600;cursor:pointer;color:#475569;">Cancel</button>
+      <button onclick="_submitSvcComplete()" style="padding:9px 20px;border:none;border-radius:9px;background:linear-gradient(135deg,#1B5E20,#2E7D32);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;"><i class="ti ti-send"></i> Send for Approval</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ REPORT DETAIL MODAL ══ -->
 <div class="modal-overlay" id="reportDetailModal" onclick="if(event.target===this)closeReportDetail()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:900;align-items:center;justify-content:center;padding:1rem;">
   <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(15,23,42,0.22);">
@@ -1710,6 +1735,23 @@ function closeResolveModal() {
   document.getElementById('resolveModal').style.display = 'none';
 }
 
+function openSvcCompleteModal(id, type, reporter) {
+  document.getElementById('svcCompleteId').value = id;
+  document.getElementById('svcCompleteLabel').textContent = SVC_LABELS[type] || 'Service Request';
+  document.getElementById('svcCompleteReporter').textContent = reporter || 'Community Member';
+  document.getElementById('svcCompleteNotes').value = '';
+  document.getElementById('svcCompleteModal').style.display = 'flex';
+}
+function closeSvcCompleteModal() {
+  document.getElementById('svcCompleteModal').style.display = 'none';
+}
+async function _submitSvcComplete() {
+  const id    = document.getElementById('svcCompleteId').value;
+  const notes = document.getElementById('svcCompleteNotes').value.trim();
+  closeSvcCompleteModal();
+  await updateSvcStatus(id, 'resolution_submitted', notes || undefined);
+}
+
 async function deleteProviderReport(ref, apiId, el) {
   if (!confirm(`Remove report ${ref} from your inbox? This permanently deletes it.`)) return;
   const row = el.closest('tr');
@@ -1790,7 +1832,7 @@ function renderProvSvcList(filter) {
           <button class="btn-action danger"  onclick="updateSvcStatus('${r.id}','rejected')"><i class="ti ti-x"></i> Reject</button>
         `:''}
         ${r.status==='approved'||r.status==='in-progress'?`
-          <button class="btn-action success" onclick="updateSvcStatus('${r.id}','resolution_submitted')"><i class="ti ti-circle-check"></i> Mark Completed</button>
+          <button class="btn-action success" onclick="openSvcCompleteModal('${r.id}','${r.type}','${(r.reporter||'').replace(/'/g,'')}')"><i class="ti ti-circle-check"></i> Mark Completed</button>
         `:''}
         ${r.status==='resolution-submitted'?`<span style="font-size:11.5px;color:#7C3AED;font-weight:600;"><i class="ti ti-clock"></i> Awaiting member confirmation</span>`:''}
         ${r.phone?`<a href="tel:${r.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`:''}
