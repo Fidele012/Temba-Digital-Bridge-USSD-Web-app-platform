@@ -2,6 +2,12 @@
 
 > A bilingual (English / Kinyarwanda) digital platform that connects Rwandan communities to water service providers through a web interface and a USSD feature-phone channel — so every citizen, regardless of smartphone access, can report water issues, book appointments, and track resolutions in real time.
 
+![Tests](https://img.shields.io/badge/tests-55%2F55%20passing-2E7D32?style=flat-square)
+![Coverage](https://img.shields.io/badge/coverage-57%25-0097A7?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10%2B-1565C0?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)
+![License](https://img.shields.io/badge/licence-ALU%20Capstone-0A2540?style=flat-square)
+
 ---
 
 ![Temba Digital Bridge — Landing Page](docs/screenshots/Landing.png)
@@ -16,21 +22,23 @@
 2. [Key Features](#2-key-features)
 3. [System Architecture](#3-system-architecture)
 4. [Technology Stack](#4-technology-stack)
-5. [Designs](#5-designs)
+5. [Demo Video](#demo-video)
+6. [Testing](#testing)
+7. [Designs](#5-designs)
    - [Figma Prototype](#51-figma-prototype)
    - [App Interface Screenshots](#52-app-interface-screenshots)
    - [System Architecture Diagram](#53-system-architecture-diagram)
-6. [Getting Started](#6-getting-started)
+8. [Getting Started](#6-getting-started)
    - [Prerequisites](#61-prerequisites)
    - [Clone the Repository](#62-clone-the-repository)
    - [Backend Setup](#63-backend-setup)
    - [Frontend Setup](#64-frontend-setup)
    - [Africa's Talking USSD Setup](#65-africas-talking-ussd-setup)
-7. [Environment Variables](#7-environment-variables)
-8. [Deployment Plan](#8-deployment-plan)
-9. [API Reference](#9-api-reference)
-10. [Project Structure](#10-project-structure)
-11. [Database Schema](#11-database-schema)
+9. [Environment Variables](#7-environment-variables)
+10. [Deployment Plan](#8-deployment-plan)
+11. [API Reference](#9-api-reference)
+12. [Project Structure](#10-project-structure)
+13. [Database Schema](#11-database-schema)
 
 ---
 
@@ -199,6 +207,48 @@ Feature Phone User
 | **USSD Tunnel (dev)** | ngrok | — |
 | **Monitoring** | Sentry | 2.2.0 |
 | **Logging** | structlog | 24.1.0 |
+
+---
+
+## Demo Video
+
+A full technical walkthrough demonstrating the complete Temba Digital Bridge system — USSD feature-phone flow, web dashboard, chatbot, and provider management.
+
+> **[Watch the Demo Video →](https://youtu.be/YOUR_VIDEO_ID_HERE)**
+>
+> The video covers: account registration (web + USSD), submitting a water issue report, the provider dashboard SLA indicators, the AI-powered chatbot routing users to the right water provider, and the end-to-end accountability loop from report to verified resolution.
+
+---
+
+## Testing
+
+The full test suite runs 55 tests across 7 modules and passes in under 64 seconds with zero failures.
+
+```bash
+cd temba-backend
+pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+```
+
+### Results: 55/55 passed — 57% coverage — 63.53s
+
+| Suite | Tests | Focus |
+| --- | --- | --- |
+| `test_auth.py` | 6 | Registration, login, JWT, password change |
+| `test_reports.py` | 3 | Report creation, data isolation, access control |
+| `test_appointments.py` | 2 | Book → approve flow, reschedule |
+| `test_service_requests.py` | 3 | Create, list own, provider status update |
+| `test_security.py` | 11 | JWT boundary, RBAC, input validation, SQL injection |
+| `test_edge_cases.py` | 12 | Boundary values, coordinates, all enums, Unicode names |
+| `test_ussd.py` | 18 | Full bilingual USSD flows via AT callback simulation |
+
+Four distinct testing strategies are used:
+
+- **Unit** — each endpoint tested in isolation with SQLite in-memory + FakeRedis
+- **Integration** — multi-step workflows (book → approve, create → update status) through the full ASGI stack
+- **Security** — JWT forgery, RBAC enforcement, weak passwords, SQL injection, data isolation
+- **Functional / USSD** — simulated Africa's Talking POST requests for 18 distinct USSD navigation paths
+
+For the full coverage report with individual test descriptions, see [`docs/testing-report.html`](docs/testing-report.html).
 
 ---
 

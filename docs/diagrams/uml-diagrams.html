@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Temba Digital Bridge — UML Diagrams</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #222; }
+  header { background: #1E6B45; color: #fff; padding: 36px 24px; text-align: center; }
+  header h1 { font-size: 2em; letter-spacing: 1px; }
+  header p  { margin-top: 8px; opacity: .85; font-size: .95em; }
+  .toc { background:#fff; max-width:900px; margin:28px auto; border-radius:8px;
+         box-shadow:0 2px 10px rgba(0,0,0,.10); padding:24px 32px; }
+  .toc h3 { color:#1E6B45; margin-bottom:12px; }
+  .toc ol  { padding-left:20px; line-height:2; }
+  .toc a   { color:#1E6B45; text-decoration:none; font-weight:600; }
+  .toc a:hover { text-decoration:underline; }
+  .card { background:#fff; max-width:1600px; margin:32px auto;
+          border-radius:10px; box-shadow:0 2px 14px rgba(0,0,0,.10); padding:36px; }
+  .card-header { display:flex; align-items:center; gap:16px; margin-bottom:10px; }
+  .card-num  { background:#1E6B45; color:#fff; border-radius:50%;
+               width:40px; height:40px; display:flex; align-items:center;
+               justify-content:center; font-size:1.1em; font-weight:700; flex-shrink:0; }
+  .card h2   { color:#1E6B45; font-size:1.4em; }
+  .card p    { color:#555; font-size:.9em; margin:6px 0 22px 56px; line-height:1.6; }
+  .diagram   { display:flex; justify-content:center; overflow-x:auto;
+               border:1px solid #e8edf2; border-radius:6px; padding:20px;
+               background:#fafcff; min-height:120px; }
+  .diagram svg { max-width:100%; height:auto; }
+  .loading { color:#999; font-style:italic; padding:40px; text-align:center; }
+  footer { text-align:center; padding:28px; color:#888; font-size:.85em; }
+  @media print {
+    body { background:#fff; }
+    .card { box-shadow:none; border:1px solid #ccc; page-break-after:always; margin:0 0 20px 0; }
+    .toc  { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Temba Digital Bridge</h1>
+  <p>UML &amp; System Architecture Diagrams &mdash; Software Design Documentation</p>
+  <p style="margin-top:4px;font-size:.82em;opacity:.7;">
+    FastAPI · PostgreSQL · Redis · Celery · Africa's Talking · Rwanda Water Services Platform
+  </p>
+</header>
+
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#sec-uc">Use Case Diagram</a></li>
+    <li><a href="#sec-class">Class Diagram</a></li>
+    <li><a href="#sec-erd">Entity Relationship Diagram (ERD)</a></li>
+    <li><a href="#sec-arch">System Architecture Diagram</a></li>
+    <li><a href="#sec-flow">Flowchart — Report Lifecycle &amp; Accountability Loop</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     1. USE CASE DIAGRAM
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-uc">
+  <div class="card-header">
+    <div class="card-num">1</div>
+    <h2>Use Case Diagram</h2>
+  </div>
+  <p>Shows all actors interacting with the Temba Digital Bridge platform, the use cases available to each actor,
+     and the <em>&laquo;include&raquo;</em> / <em>&laquo;extend&raquo;</em> relationships between use cases.
+     Actors: Community Member (web), Feature Phone User (USSD), Provider Staff, and Africa's Talking
+     as the external USSD/SMS gateway. There is no separate admin portal — admin actions are performed
+     directly via API or database tooling.</p>
+  <div class="diagram" id="uc-diagram"><span class="loading">Rendering…</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     2. CLASS DIAGRAM
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-class">
+  <div class="card-header">
+    <div class="card-num">2</div>
+    <h2>Class Diagram</h2>
+  </div>
+  <p>UML class diagram of all domain entities. <strong>User</strong> is the shared abstract account base —
+     both <strong>Community Member</strong> and <strong>Water Service Provider</strong> can register, log in,
+     verify their email, and reset their password the same way, so those fields/methods live once on
+     <strong>User</strong> and are inherited rather than duplicated. There is no admin account type and no
+     <code>role</code> field anywhere — which kind of account it is, is simply which subclass it is.
+     <strong>Water Service Provider</strong> adds organization-level attributes (registration number, service
+     categories, availability) and can employ <strong>ProviderStaff</strong>, cover <strong>ProviderServiceArea</strong>s,
+     and handle/attend the Reports, Service Requests, and Appointments that a <strong>Community Member</strong>
+     submits or books. Each entity carries its own specifically named identifier (<code>userId</code>,
+     <code>reportId</code>, &hellip;) rather than a generic <code>id</code>; audit timestamps
+     (<code>createdAt</code>/<code>updatedAt</code>) are omitted from the diagram for clarity, though they still
+     exist in the database via SQLAlchemy's <code>TimestampMixin</code>. Enumeration types (status, category,
+     urgency, audience, etc.) are kept as plain attributes rather than separate classes to keep the diagram focused
+     on structure and behaviour — their full value sets are documented in the ERD and README Section 11.
+     <strong>Report</strong>, <strong>ServiceRequest</strong>, and <strong>Appointment</strong> inherit shared
+     SLA-tracking behaviour (<code>status</code>, <code>escalationLevel</code>, <code>escalate()</code>) from the
+     abstract <strong>Trackable</strong> class. <strong>Location</strong> is a reusable value object for Rwanda's
+     5-level administrative hierarchy
+     (province &rarr; district &rarr; sector &rarr; cell &rarr; village), embedded wherever an address is needed.
+     Visibility markers: <strong>+</strong> public &nbsp;|&nbsp; <strong>-</strong> private.
+     Multiplicity is shown on all associations. Composition (<strong>&#9670;&#9135;</strong>) denotes lifecycle
+     dependency; aggregation (<strong>&#9671;&#9135;</strong>) denotes shared reference.</p>
+  <div class="diagram" id="class-diagram"><span class="loading">Rendering…</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     3. ERD
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-erd">
+  <div class="card-header">
+    <div class="card-num">3</div>
+    <h2>Entity Relationship Diagram (ERD)</h2>
+  </div>
+  <p>Simplified ERD showing the 8 core PostgreSQL entities and the 10 foreign-key relationships that connect
+     them. Each entity lists only its primary key, foreign keys, and essential business columns — internal
+     fields (<code>hashed_password</code>, SLA-tracking timestamps, coordinates, audit timestamps) are omitted
+     for readability. Supporting tables (<code>PROVIDER_STAFF</code>, <code>PROVIDER_SERVICE_AREAS</code>,
+     <code>REPORT_MEDIA</code>) exist in the database but are excluded from this diagram to keep the
+     structure easy to follow — they are documented in full in README Section 11.
+     <strong>USSD_SESSION</strong> (dashed lines) represents the stateless USSD channel — Africa's Talking
+     manages session state; Temba decodes navigation from the <code>text</code> callback parameter and
+     authenticates via <code>USERS.ussd_pin_hash</code>. All primary keys are UUID.</p>
+  <div class="diagram" id="erd-diagram"><span class="loading">Rendering…</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     4. SYSTEM ARCHITECTURE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-arch">
+  <div class="card-header">
+    <div class="card-num">4</div>
+    <h2>System Architecture Diagram</h2>
+  </div>
+  <p>Six-layer modular service architecture, organized by responsibility for clarity:
+     <strong>1. Client Layer</strong> (Community Member Portal, Provider Dashboard, USSD feature phones)
+     → <strong>2. Network &amp; Security Layer</strong> (SSL/TLS, NGINX Load Balancer, API Gateway, Rate Limiting)
+     → <strong>3. Application Layer</strong> (nine FastAPI business services — Authentication, Reporting, Service Requests,
+     Appointments, Provider Management, Announcements, Notifications, Analytics, USSD Handler — plus a lightweight
+     <strong>Navigation Chatbot</strong> that guides users around the platform's features without resolving issues itself)
+     → <strong>4. Accountability &amp; SLA Layer</strong> (Response Monitoring, Automated Reminders, 4-level Escalation,
+     Community Verification, Audit Logging)
+     → <strong>5. Data Layer</strong> (PostgreSQL 16, Redis 7, MinIO S3 Object Storage)
+     → <strong>6. External Integrations</strong> (Africa's Talking USSD gateway, Gmail SMTP, SMS notifications).
+     There is no admin portal — admin operations are performed directly via the API.</p>
+  <div class="diagram" id="arch-diagram"><span class="loading">Rendering…</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     5. FLOWCHART
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-flow">
+  <div class="card-header">
+    <div class="card-num">5</div>
+    <h2>Flowchart — Report Lifecycle &amp; Accountability Loop</h2>
+  </div>
+  <p>End-to-end flow from report submission through SLA enforcement, provider resolution, community verification,
+     and the 4-level escalation chain. Covers the full accountability loop including auto-closure,
+     management review, and immutable audit logging.</p>
+  <div class="diagram" id="flow-diagram"><span class="loading">Rendering…</span></div>
+</div>
+
+<footer>
+  Temba Digital Bridge &mdash; Software Design Documentation &mdash; Ndihokubwayo Fidele &mdash; ALU Software Engineering
+</footer>
+
+<script>
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  themeVariables: {
+    primaryColor: '#1E6B45',
+    primaryTextColor: '#ffffff',
+    primaryBorderColor: '#145234',
+    lineColor: '#333333',
+    secondaryColor: '#F5A623',
+    tertiaryColor: '#e8f5ee',
+    background: '#ffffff',
+    mainBkg: '#1E6B45',
+    nodeBorder: '#145234',
+    clusterBkg: '#e8f5ee',
+    titleColor: '#1E6B45',
+    edgeLabelBackground: '#ffffff',
+    fontFamily: 'Segoe UI, Arial, sans-serif'
+  },
+  flowchart: { curve: 'basis', htmlLabels: true },
+  er:         { diagramPadding: 30 },
+  classDiagram: { diagramPadding: 20 }
+});
+
+/* ─── DIAGRAM CODE ──────────────────────────────────────────── */
+
+const UC = `
+graph LR
+    CM["👤 Community Member\\n(Web)"]
+    FPU["📱 Feature Phone User\\n(USSD)"]
+    PS["👤 Provider Staff"]
+    AT(["🌐 Africa's Talking\\nExternal System"])
+
+    subgraph SYS["  ┌─────────── Temba Digital Bridge — System Boundary ───────────┐  "]
+        direction TB
+
+        subgraph AUTH_GRP["Authentication"]
+            UC_REG(["Register Account"])
+            UC_LOGIN(["Login / Authenticate"])
+            UC_FORGOT(["Forgot Password"])
+            UC_VERIFY(["Verify Email"])
+        end
+
+        subgraph COMM_GRP["Community Actions"]
+            UC_REPORT(["Submit Water Issue Report"])
+            UC_TRACK(["Track Report by Reference Code"])
+            UC_VERIFY_RES(["Verify Provider Resolution"])
+            UC_BOOK(["Book Appointment"])
+            UC_RESCHED(["Request Reschedule"])
+            UC_CANCEL_APPT(["Cancel Appointment"])
+            UC_SREQ(["Submit Service Request"])
+            UC_BROWSE(["Browse Service Providers"])
+            UC_NOTIF(["View Notifications"])
+            UC_LANG(["Switch Language EN / KN"])
+        end
+
+        subgraph USSD_GRP["USSD Channel"]
+            UC_USSD_REG(["Register via USSD"])
+            UC_USSD_REP(["Report Issue via USSD"])
+            UC_USSD_TRACK(["Track Status via USSD"])
+            UC_SMS(["Receive SMS Confirmation"])
+        end
+
+        subgraph PROV_GRP["Provider Actions"]
+            UC_MREPORTS(["Manage Reports"])
+            UC_USTATUS(["Update Report Status"])
+            UC_SUBMIT_RES(["Submit Resolution"])
+            UC_MAPPT(["Manage Appointments"])
+            UC_PROPOSE(["Propose New Time"])
+            UC_MSR(["Manage Service Requests"])
+            UC_AVAIL(["Set Availability Schedule"])
+            UC_TEAM(["Manage Team Members"])
+            UC_STATS(["View Stats and SLA Dashboard"])
+        end
+
+        subgraph SVC_GRP["System Services"]
+            SVC_SMS(["Send SMS Notification"])
+            SVC_EMAIL(["Send Email"])
+            SVC_SLA(["Check SLA and Escalate"])
+        end
+    end
+
+    CM --> UC_REG
+    CM --> UC_LOGIN
+    CM --> UC_FORGOT
+    CM --> UC_REPORT
+    CM --> UC_TRACK
+    CM --> UC_VERIFY_RES
+    CM --> UC_BOOK
+    CM --> UC_RESCHED
+    CM --> UC_CANCEL_APPT
+    CM --> UC_SREQ
+    CM --> UC_BROWSE
+    CM --> UC_NOTIF
+    CM --> UC_LANG
+
+    FPU --> UC_USSD_REG
+    FPU --> UC_USSD_REP
+    FPU --> UC_USSD_TRACK
+    AT --- UC_USSD_REG
+    AT --- UC_USSD_REP
+    AT --- UC_USSD_TRACK
+
+    PS --> UC_LOGIN
+    PS --> UC_MREPORTS
+    PS --> UC_MAPPT
+    PS --> UC_MSR
+    PS --> UC_AVAIL
+    PS --> UC_TEAM
+    PS --> UC_STATS
+
+    UC_REG       -.->|"<<include>>"| SVC_EMAIL
+    UC_REG       -.->|"<<include>>"| UC_VERIFY
+    UC_REPORT    -.->|"<<include>>"| SVC_SMS
+    UC_VERIFY_RES-.->|"<<include>>"| SVC_SMS
+    UC_USTATUS   -.->|"<<include>>"| SVC_SMS
+    UC_MAPPT     -.->|"<<include>>"| SVC_SMS
+    UC_MREPORTS  -.->|"<<include>>"| UC_USTATUS
+    UC_MREPORTS  -.->|"<<include>>"| SVC_SLA
+    UC_MAPPT     -.->|"<<include>>"| UC_PROPOSE
+    UC_USTATUS   -.->|"<<include>>"| UC_SUBMIT_RES
+    UC_USSD_REP  -.->|"<<include>>"| UC_SMS
+
+    UC_BOOK      -.->|"<<extend>>"| UC_RESCHED
+    UC_REPORT    -.->|"<<extend>>"| UC_USSD_REP
+`;
+
+const CLASS = `
+classDiagram
+    direction TB
+
+    class User {
+        <<abstract>>
+        +UUID userId
+        +String email
+        +String phone
+        +String fullName
+        +Boolean isVerified
+        +Location location
+        -String passwordHash
+        +register()
+        +login()
+        +verifyEmail()
+        +updateProfile()
+        +resetPassword()
+    }
+
+    class CommunityMember {
+        <<entity>>
+    }
+
+    class WaterServiceProvider {
+        <<entity>>
+        +String organizationName
+        +String registrationNumber
+        +String status
+        +String[] serviceCategories
+        +String description
+        +String workStartTime
+        +String workEndTime
+        +Integer maxAppointmentsPerDay
+        +registerProvider()
+        +approve()
+        +reject()
+        +setAvailability()
+    }
+
+    class AuditLog {
+        <<entity>>
+        +UUID logId
+        +String action
+        +String resourceType
+        +String resourceId
+        +JSON metadata
+        +log()
+    }
+
+    class Notification {
+        <<entity>>
+        +UUID notificationId
+        +String type
+        +String title
+        +String body
+        +Boolean isRead
+        +String referenceId
+        +markAsRead()
+        +markAllAsRead()
+    }
+
+    class Announcement {
+        <<entity>>
+        +UUID announcementId
+        +String title
+        +String body
+        +String audience
+        +Boolean isPinned
+        +DateTime publishedAt
+        +publish()
+        +unpublish()
+    }
+
+    class ProviderServiceArea {
+        <<entity>>
+        +UUID areaId
+        +Location location
+        +addArea()
+        +removeArea()
+    }
+
+    class ProviderStaff {
+        <<entity>>
+        +UUID staffId
+        +String role
+        +addStaff()
+        +removeStaff()
+    }
+
+    class Trackable {
+        <<abstract>>
+        +String status
+        +Integer escalationLevel
+        +submit()
+        +approve()
+        +reject()
+        +cancel()
+        +escalate()
+    }
+
+    class Report {
+        <<entity>>
+        +UUID reportId
+        +String category
+        +String urgency
+        +String title
+        +String description
+        +String referenceNumber
+        +DateTime resolutionDeadline
+        +Location location
+        +Float latitude
+        +Float longitude
+        +verifyResolution()
+        +reopen()
+    }
+
+    class ServiceRequest {
+        <<entity>>
+        +UUID requestId
+        +String requestType
+        +String description
+        +Location location
+        +complete()
+    }
+
+    class Appointment {
+        <<entity>>
+        +UUID appointmentId
+        +String reason
+        +DateTime requestedTime
+        +DateTime confirmedTime
+        +DateTime proposedTime
+        +book()
+        +reschedule()
+        +confirm()
+        +complete()
+    }
+
+    class ReportMedia {
+        <<entity>>
+        +UUID mediaId
+        +String mediaType
+        +String fileUrl
+        +upload()
+        +delete()
+    }
+
+    class Location {
+        <<value object>>
+        +String province
+        +String district
+        +String sector
+        +String cell
+        +String village
+    }
+
+    %% ── Inheritance — both account types share one User ──
+    User <|-- CommunityMember
+    User <|-- WaterServiceProvider
+
+    %% ── Inheritance — shared SLA-tracked behaviour ──
+    Trackable <|-- Report
+    Trackable <|-- ServiceRequest
+    Trackable <|-- Appointment
+
+    %% ── User relationships (inherited by both subtypes) ──
+    User "1" *-- "0..1" Location     : lives in
+    User "1" *-- "0..*" Notification : receives
+    User "1" o-- "0..*" AuditLog     : generates
+    User "1" o-- "0..*" ProviderStaff: is staff in
+
+    %% ── CommunityMember relationships ────────────────
+    CommunityMember "1" *-- "0..*" Report         : submits
+    CommunityMember "1" *-- "0..*" ServiceRequest : submits
+    CommunityMember "1" *-- "0..*" Appointment    : books
+
+    %% ── WaterServiceProvider relationships ───────────
+    WaterServiceProvider "1" *-- "0..*" ProviderServiceArea : covers
+    WaterServiceProvider "1" *-- "0..*" ProviderStaff       : employs
+    WaterServiceProvider "1" o-- "0..*" Report              : handles
+    WaterServiceProvider "1" o-- "0..*" ServiceRequest      : handles
+    WaterServiceProvider "1" o-- "0..*" Appointment         : attends
+    WaterServiceProvider "1" o-- "0..*" Announcement        : authors
+    ProviderServiceArea  "1" *-- "1"    Location            : covers
+
+    %% ── Report / ServiceRequest relationships ───────
+    Report         "1" *-- "0..1" Location    : located at
+    Report         "1" *-- "0..*" ReportMedia : has
+    ServiceRequest "1" *-- "0..1" Location    : located at
+`;
+
+const ERD = `
+erDiagram
+    USERS {
+        uuid    id              PK
+        varchar email           UK
+        varchar phone           UK
+        varchar full_name
+        boolean is_verified
+        varchar province
+        varchar district
+    }
+
+    PROVIDERS {
+        uuid    id                  PK
+        uuid    user_id             FK
+        varchar organization_name
+        varchar registration_number UK
+        varchar status
+        text    description
+    }
+
+    REPORTS {
+        uuid    id               PK
+        uuid    user_id          FK
+        uuid    provider_id      FK
+        varchar category
+        varchar urgency
+        varchar status
+        varchar reference_number UK
+        text    description
+    }
+
+    SERVICE_REQUESTS {
+        uuid    id               PK
+        uuid    user_id          FK
+        uuid    provider_id      FK
+        varchar request_type
+        varchar status
+        varchar reference_number UK
+        text    description
+    }
+
+    APPOINTMENTS {
+        uuid    id               PK
+        uuid    user_id          FK
+        uuid    provider_id      FK
+        varchar reason
+        varchar status
+        date    appointment_date
+        varchar appointment_time
+    }
+
+    NOTIFICATIONS {
+        uuid    id                PK
+        uuid    user_id           FK
+        varchar notification_type
+        varchar title
+        boolean is_read
+    }
+
+    ANNOUNCEMENTS {
+        uuid    id           PK
+        uuid    author_id    FK
+        varchar title
+        varchar audience
+        boolean is_published
+    }
+
+    AUDIT_LOGS {
+        uuid    id            PK
+        uuid    actor_id      FK
+        varchar action
+        varchar resource_type
+        varchar resource_id
+    }
+
+    USSD_SESSION {
+        varchar session_id
+        varchar phone_number    FK
+        varchar service_code
+        varchar text_state
+    }
+
+    USERS        ||--o|  PROVIDERS        : "has profile"
+    USERS        ||--o{  REPORTS          : "submits"
+    USERS        ||--o{  SERVICE_REQUESTS : "submits"
+    USERS        ||--o{  APPOINTMENTS     : "books"
+    USERS        ||--o{  NOTIFICATIONS    : "receives"
+    USERS        ||--o{  ANNOUNCEMENTS    : "authors"
+    USERS        ||--o{  AUDIT_LOGS       : "generates"
+    PROVIDERS    ||--o{  REPORTS          : "assigned to"
+    PROVIDERS    ||--o{  SERVICE_REQUESTS : "handles"
+    PROVIDERS    ||--o{  APPOINTMENTS     : "attends"
+    USERS        ||..o{  USSD_SESSION     : "authenticates via PIN"
+    USSD_SESSION ||..o{  REPORTS          : "can create"
+    USSD_SESSION ||..o{  SERVICE_REQUESTS : "can create"
+    USSD_SESSION ||..o{  APPOINTMENTS     : "can create"
+`;
+
+const ARCH = `
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1E3A5F', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#1D4ED8', 'lineColor': '#64748B', 'clusterBkg': '#F8FAFC', 'clusterBorder': '#94A3B8', 'titleColor': '#0F172A', 'edgeLabelBackground': '#F8FAFC'}}}%%
+graph TD
+    subgraph L1["1.  CLIENT LAYER"]
+        WEB["🌐 Community Member Portal\\nWeb Browser · React · HTML · JS"]
+        PROVDASH["🏢 Provider Dashboard\\nWeb Browser · Staff & Officers"]
+        PHONE["📱 Feature Phone Users\\nUSSD · Any Basic Mobile"]
+    end
+
+    subgraph L2["2.  NETWORK & SECURITY LAYER"]
+        SSL["🔒 HTTPS / SSL\\nTLS Termination"]
+        LB["⚖️ Load Balancer\\nNGINX · Layer 7 Reverse Proxy"]
+        GATEWAY["🛡️ API Gateway\\nRequest Routing · Header Validation"]
+        RATELIMIT["🚦 Rate Limiting\\nPer-IP Throttling"]
+        SSL --> LB --> GATEWAY --> RATELIMIT
+    end
+
+    subgraph L3["3.  APPLICATION LAYER  —  FastAPI Services"]
+        AUTH["👤 Authentication Service\\nJWT HS256 · bcrypt"]
+        REPORT["🚰 Water Issue Reporting Service"]
+        SREQ["📋 Service Request Management"]
+        APPT["📅 Appointment Booking Service"]
+        PROVMGT["🏢 Provider Management Service"]
+        ANNOUNCE["📢 Announcements Service"]
+        NOTIF["🔔 Notification Service"]
+        ANALYTICS["📊 Analytics & Reporting Service"]
+        USSDSVC["📱 USSD Service Handler"]
+        CHATBOT["🤖 Navigation Chatbot\\nGuides Users Around the Platform\\nNavigation Only — No Issue Resolution"]
+    end
+
+    subgraph L4["4.  ACCOUNTABILITY & SLA LAYER"]
+        MONITOR["⏱️ Response Monitoring Engine\\nCelery Beat — Hourly SLA Checks"]
+        REMIND["🔔 Automated Reminders"]
+        ESCALATE["⚠️ Escalation Workflow\\n4-Level Alert Chain"]
+        VERIFY["⭐ Community Verification & Feedback"]
+        AUDIT["📜 Audit Logging\\nImmutable Records"]
+    end
+
+    subgraph L5["5.  DATA LAYER"]
+        PG[("🐘 PostgreSQL 16\\nUsers · Issues · Requests · Providers")]
+        REDIS[("⚡ Redis 7\\nCache & Task Queue")]
+        STORAGE["🗄️ Object Storage — MinIO S3\\nImages & Documents"]
+    end
+
+    subgraph L6["6.  EXTERNAL INTEGRATIONS"]
+        AT["📞 Africa's Talking\\nUSSD Gateway"]
+        EMAIL["📧 Email Service\\nGmail SMTP"]
+        SMS["📲 SMS Notifications\\nvia Africa's Talking API"]
+    end
+
+    WEB & PROVDASH -->|"HTTPS · JWT Bearer"| SSL
+    PHONE -->|"Dials *384*36640#"| AT
+    AT <-->|"USSD webhook callback"| USSDSVC
+
+    RATELIMIT -->|"Routed requests"| AUTH & REPORT & SREQ & APPT & PROVMGT & ANNOUNCE & ANALYTICS & USSDSVC
+
+    WEB & PROVDASH -.->|"Navigation help"| CHATBOT
+
+    REPORT & SREQ & APPT -->|"Track deadlines"| MONITOR
+    MONITOR --> REMIND & ESCALATE
+    REPORT -->|"Resolution confirmation"| VERIFY
+    ESCALATE & PROVMGT & ANNOUNCE -->|"Record action"| AUDIT
+    REMIND & ESCALATE & VERIFY --> NOTIF
+
+    AUTH & REPORT & SREQ & APPT & PROVMGT & ANNOUNCE & ANALYTICS & AUDIT -->|"SQLAlchemy 2 ORM"| PG
+    AUTH & USSDSVC -->|"Tokens · session state"| REDIS
+    REPORT & PROVMGT -->|"Photos · documents"| STORAGE
+
+    NOTIF --> SMS & EMAIL
+
+    classDef clientCls   fill:#1E40AF,stroke:#1D4ED8,color:#ffffff,stroke-width:2px
+    classDef netCls      fill:#0F766E,stroke:#0D9488,color:#ffffff,stroke-width:2px
+    classDef appCls      fill:#4F46E5,stroke:#4338CA,color:#ffffff,stroke-width:2px
+    classDef chatbotCls  fill:#BE185D,stroke:#9D174D,color:#ffffff,stroke-width:2px
+    classDef slaCls      fill:#6D28D9,stroke:#5B21B6,color:#ffffff,stroke-width:2px
+    classDef dataCls     fill:#075985,stroke:#0284C7,color:#ffffff,stroke-width:2px
+    classDef extCls      fill:#92400E,stroke:#B45309,color:#ffffff,stroke-width:2px
+
+    class WEB,PROVDASH,PHONE clientCls
+    class SSL,LB,GATEWAY,RATELIMIT netCls
+    class AUTH,REPORT,SREQ,APPT,PROVMGT,ANNOUNCE,NOTIF,ANALYTICS,USSDSVC appCls
+    class CHATBOT chatbotCls
+    class MONITOR,REMIND,ESCALATE,VERIFY,AUDIT slaCls
+    class PG,REDIS,STORAGE dataCls
+    class AT,EMAIL,SMS extCls
+`;
+
+const FLOW = `
+flowchart TD
+    START(["🏁 Community Member\\nSubmits Report"])
+    FORM["📝 Fill Report Form\\nCategory · Urgency · Description\\nLocation Province → Village\\nOptional Photo Upload"]
+    POST["POST /api/v1/reports"]
+    REF["🔖 Generate Reference Number\\nRPT-YYYYMMDD-XXXX"]
+    SLA["⏱ Calculate SLA Deadline\\nContamination & Pipe Burst → 4 h\\nNo Supply → 24 h\\nOther Issues → 72 h"]
+    NOTIFY_P["📲 Notify Provider\\nIn-App Notification + SMS"]
+
+    SLA_CHECK{"Provider\\nAcknowledges?"}
+
+    ACK["Status: ACKNOWLEDGED\\nfirst_responded_at = NOW"]
+    OVERDUE["🔔 Celery SLA Checker\\nRuns Hourly"]
+
+    ESC1["Notify Officer\\n(Level 1 — 0 h overdue)"]
+    ESC2["Notify Supervisor\\n(Level 2 — +24 h)"]
+    ESC3["Notify Regional Manager\\n(Level 3 — +48 h)"]
+    ESC4["Notify Executive\\n(Level 4 — +72 h)"]
+
+    INPROG["Status: IN_PROGRESS\\nProvider Works on Issue"]
+    RESOLVE["Provider Submits Resolution\\nStatus: RESOLUTION_SUBMITTED\\nresolution_submitted_at = NOW"]
+    NOTIFY_C["📲 Notify Community Member\\nPlease Verify Resolution"]
+
+    VERIFY{"Community\\nVerifies?"}
+
+    VERIFIED["✅ Status: VERIFIED\\nverified_at = NOW\\nCase Closed"]
+    DISPUTE["❌ Status: FOLLOW_UP_REQUIRED\\nreopen_count++"]
+    AUTOCLOSE["⏰ Status: CLOSED_UNVERIFIED\\nAuto-Closed after 7 Days\\nNo Response"]
+
+    REPEAT{"reopen_count\\n> 2?"}
+    MGMT["Status: MANAGEMENT_REVIEW\\nEscalate to Executive"]
+
+    AUDIT["📋 Write to Audit Log\\nImmutable — Never Deleted"]
+    END(["🏁 Lifecycle Complete"])
+
+    START     --> FORM
+    FORM      --> POST
+    POST      --> REF
+    REF       --> SLA
+    SLA       --> NOTIFY_P
+    NOTIFY_P  --> SLA_CHECK
+
+    SLA_CHECK -->|"Within SLA ✓"| ACK
+    SLA_CHECK -->|"SLA Breached ✗"| OVERDUE
+
+    OVERDUE --> ESC1
+    OVERDUE --> ESC2
+    OVERDUE --> ESC3
+    OVERDUE --> ESC4
+
+    ESC1 & ESC2 & ESC3 & ESC4 --> ACK
+    ACK --> INPROG
+    INPROG  --> RESOLVE
+    RESOLVE --> NOTIFY_C
+    NOTIFY_C --> VERIFY
+
+    VERIFY -->|"Confirms Fixed ✅"| VERIFIED
+    VERIFY -->|"Disputes ❌"| DISPUTE
+    VERIFY -->|"No Response\\n(7 days)"| AUTOCLOSE
+
+    DISPUTE --> REPEAT
+    REPEAT  -->|"Yes"| MGMT
+    REPEAT  -->|"No"| INPROG
+
+    VERIFIED  --> AUDIT
+    AUTOCLOSE --> AUDIT
+    MGMT      --> AUDIT
+    AUDIT     --> END
+`;
+
+/* ─── RENDER ────────────────────────────────────────────────── */
+async function render(elementId, code) {
+    try {
+        const { svg } = await mermaid.render(elementId + '-svg', code);
+        document.getElementById(elementId).innerHTML = svg;
+    } catch (e) {
+        document.getElementById(elementId).innerHTML =
+            '<p style="color:red;padding:20px">Render error: ' + e.message + '</p>';
+    }
+}
+
+window.addEventListener('load', async () => {
+    await render('uc-diagram',    UC);
+    await render('class-diagram', CLASS);
+    await render('erd-diagram',   ERD);
+    await render('arch-diagram',  ARCH);
+    await render('flow-diagram',  FLOW);
+});
+</script>
+</body>
+</html>

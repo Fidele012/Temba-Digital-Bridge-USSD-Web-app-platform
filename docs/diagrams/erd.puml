@@ -1,0 +1,130 @@
+@startuml ERD — Temba Digital Bridge
+
+skinparam backgroundColor #FAFCFF
+skinparam EntityBackgroundColor #F1F5F9
+skinparam EntityBorderColor #475569
+skinparam EntityFontColor #0F172A
+skinparam EntityHeaderBackgroundColor #075985
+skinparam EntityHeaderFontColor #FFFFFF
+skinparam linetype ortho
+skinparam defaultFontName "Segoe UI"
+
+' ══════════════════════════════════════════════════════
+' CORE ENTITIES
+' ══════════════════════════════════════════════════════
+entity USERS {
+    * id : uuid <<PK>>
+    --
+    email : varchar <<UK>>
+    phone : varchar <<UK>>
+    full_name : varchar
+    is_verified : boolean
+    province : varchar
+    district : varchar
+}
+
+entity PROVIDERS {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    organization_name : varchar
+    registration_number : varchar <<UK>>
+    status : varchar
+    description : text
+}
+
+entity REPORTS {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    provider_id : uuid <<FK>>
+    category : varchar
+    urgency : varchar
+    status : varchar
+    reference_number : varchar <<UK>>
+    description : text
+}
+
+entity SERVICE_REQUESTS {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    provider_id : uuid <<FK>>
+    request_type : varchar
+    status : varchar
+    reference_number : varchar <<UK>>
+    description : text
+}
+
+entity APPOINTMENTS {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    provider_id : uuid <<FK>>
+    reason : varchar
+    status : varchar
+    appointment_date : date
+    appointment_time : varchar
+}
+
+entity NOTIFICATIONS {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    notification_type : varchar
+    title : varchar
+    is_read : boolean
+}
+
+entity ANNOUNCEMENTS {
+    * id : uuid <<PK>>
+    --
+    author_id : uuid <<FK>>
+    title : varchar
+    audience : varchar
+    is_published : boolean
+}
+
+entity AUDIT_LOGS {
+    * id : uuid <<PK>>
+    --
+    actor_id : uuid <<FK>>
+    action : varchar
+    resource_type : varchar
+    resource_id : varchar
+}
+
+' ══════════════════════════════════════════════════════
+' USSD CHANNEL (stateless — not a physical table)
+' ══════════════════════════════════════════════════════
+entity USSD_SESSION <<stateless>> {
+    session_id : varchar
+    --
+    phone_number : varchar <<FK>>
+    service_code : varchar
+    text_state : varchar
+}
+
+' ══════════════════════════════════════════════════════
+' RELATIONSHIPS — physical foreign keys
+' ══════════════════════════════════════════════════════
+USERS        ||--o|  PROVIDERS        : "has profile"
+USERS        ||--o{  REPORTS          : "submits"
+USERS        ||--o{  SERVICE_REQUESTS : "submits"
+USERS        ||--o{  APPOINTMENTS     : "books"
+USERS        ||--o{  NOTIFICATIONS    : "receives"
+USERS        ||--o{  ANNOUNCEMENTS    : "authors"
+USERS        ||--o{  AUDIT_LOGS       : "generates"
+PROVIDERS    ||--o{  REPORTS          : "assigned to"
+PROVIDERS    ||--o{  SERVICE_REQUESTS : "handles"
+PROVIDERS    ||--o{  APPOINTMENTS     : "attends"
+
+' ══════════════════════════════════════════════════════
+' RELATIONSHIPS — USSD channel (non-identifying / dashed)
+' ══════════════════════════════════════════════════════
+USERS        ||..o{  USSD_SESSION     : "authenticates\nvia PIN"
+USSD_SESSION ||..o{  REPORTS          : "can create"
+USSD_SESSION ||..o{  SERVICE_REQUESTS : "can create"
+USSD_SESSION ||..o{  APPOINTMENTS     : "can create"
+
+@enduml

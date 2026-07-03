@@ -1,0 +1,207 @@
+@startuml Class Diagram — Temba Digital Bridge
+
+skinparam backgroundColor #FAFCFF
+skinparam classAttributeIconSize 0
+skinparam classBackgroundColor #F1F5F9
+skinparam classBorderColor #475569
+skinparam classHeaderBackgroundColor #1E40AF
+skinparam classFontColor #0F172A
+skinparam classArrowColor #475569
+skinparam stereotypeCBackgroundColor #1E40AF
+skinparam stereotypeABackgroundColor #6D28D9
+skinparam defaultFontName "Segoe UI"
+skinparam linetype ortho
+
+' ══════════════════════════════════════════════════════
+' ACCOUNT HIERARCHY
+' ══════════════════════════════════════════════════════
+abstract class User <<abstract>> {
+    +UUID userId
+    +String email
+    +String phone
+    +String fullName
+    +Boolean isVerified
+    +Location location
+    -String passwordHash
+    +register()
+    +login()
+    +verifyEmail()
+    +updateProfile()
+    +resetPassword()
+}
+
+class CommunityMember <<entity>> {
+}
+
+class WaterServiceProvider <<entity>> {
+    +String organizationName
+    +String registrationNumber
+    +String status
+    +String[] serviceCategories
+    +String description
+    +String workStartTime
+    +String workEndTime
+    +Integer maxAppointmentsPerDay
+    +registerProvider()
+    +approve()
+    +reject()
+    +setAvailability()
+}
+
+' ══════════════════════════════════════════════════════
+' SLA-TRACKED WORKFLOWS
+' ══════════════════════════════════════════════════════
+abstract class Trackable <<abstract>> {
+    +String status
+    +Integer escalationLevel
+    +submit()
+    +approve()
+    +reject()
+    +cancel()
+    +escalate()
+}
+
+class Report <<entity>> {
+    +UUID reportId
+    +String category
+    +String urgency
+    +String title
+    +String description
+    +String referenceNumber
+    +DateTime resolutionDeadline
+    +Location location
+    +Float latitude
+    +Float longitude
+    +verifyResolution()
+    +reopen()
+}
+
+class ServiceRequest <<entity>> {
+    +UUID requestId
+    +String requestType
+    +String description
+    +Location location
+    +complete()
+}
+
+class Appointment <<entity>> {
+    +UUID appointmentId
+    +String reason
+    +DateTime requestedTime
+    +DateTime confirmedTime
+    +DateTime proposedTime
+    +book()
+    +reschedule()
+    +confirm()
+    +complete()
+}
+
+' ══════════════════════════════════════════════════════
+' SUPPORTING ENTITIES
+' ══════════════════════════════════════════════════════
+class AuditLog <<entity>> {
+    +UUID logId
+    +String action
+    +String resourceType
+    +String resourceId
+    +JSON metadata
+    +log()
+}
+
+class Notification <<entity>> {
+    +UUID notificationId
+    +String type
+    +String title
+    +String body
+    +Boolean isRead
+    +String referenceId
+    +markAsRead()
+    +markAllAsRead()
+}
+
+class Announcement <<entity>> {
+    +UUID announcementId
+    +String title
+    +String body
+    +String audience
+    +Boolean isPinned
+    +DateTime publishedAt
+    +publish()
+    +unpublish()
+}
+
+class ProviderServiceArea <<entity>> {
+    +UUID areaId
+    +Location location
+    +addArea()
+    +removeArea()
+}
+
+class ProviderStaff <<entity>> {
+    +UUID staffId
+    +String role
+    +addStaff()
+    +removeStaff()
+}
+
+class ReportMedia <<entity>> {
+    +UUID mediaId
+    +String mediaType
+    +String fileUrl
+    +upload()
+    +delete()
+}
+
+class Location <<value object>> {
+    +String province
+    +String district
+    +String sector
+    +String cell
+    +String village
+}
+
+' ══════════════════════════════════════════════════════
+' INHERITANCE
+' ══════════════════════════════════════════════════════
+User <|-- CommunityMember
+User <|-- WaterServiceProvider
+
+Trackable <|-- Report
+Trackable <|-- ServiceRequest
+Trackable <|-- Appointment
+
+' ══════════════════════════════════════════════════════
+' RELATIONSHIPS — User (inherited by both subtypes)
+' ══════════════════════════════════════════════════════
+User "1" *-- "0..1" Location : lives in
+User "1" *-- "0..*" Notification : receives
+User "1" o-- "0..*" AuditLog : generates
+User "1" o-- "0..*" ProviderStaff : is staff in
+
+' ══════════════════════════════════════════════════════
+' RELATIONSHIPS — CommunityMember
+' ══════════════════════════════════════════════════════
+CommunityMember "1" *-- "0..*" Report : submits
+CommunityMember "1" *-- "0..*" ServiceRequest : submits
+CommunityMember "1" *-- "0..*" Appointment : books
+
+' ══════════════════════════════════════════════════════
+' RELATIONSHIPS — WaterServiceProvider
+' ══════════════════════════════════════════════════════
+WaterServiceProvider "1" *-- "0..*" ProviderServiceArea : covers
+WaterServiceProvider "1" *-- "0..*" ProviderStaff : employs
+WaterServiceProvider "1" o-- "0..*" Report : handles
+WaterServiceProvider "1" o-- "0..*" ServiceRequest : handles
+WaterServiceProvider "1" o-- "0..*" Appointment : attends
+WaterServiceProvider "1" o-- "0..*" Announcement : authors
+
+ProviderServiceArea "1" *-- "1" Location : covers
+
+' ══════════════════════════════════════════════════════
+' RELATIONSHIPS — Report / ServiceRequest
+' ══════════════════════════════════════════════════════
+Report "1" *-- "0..1" Location : located at
+Report "1" *-- "0..*" ReportMedia : has
+ServiceRequest "1" *-- "0..1" Location : located at
+
+@enduml

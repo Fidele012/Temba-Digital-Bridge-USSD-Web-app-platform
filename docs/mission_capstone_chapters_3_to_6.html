@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Temba Digital Bridge — Mission Capstone Chapters 3–6</title>
+<style>
+  body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; margin: 40px 60px; color: #000; text-align: justify; }
+  h1 { font-size: 16pt; font-weight: bold; text-align: center; margin-top: 36pt; margin-bottom: 18pt; text-transform: uppercase; }
+  h2 { font-size: 14pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; }
+  h3 { font-size: 12pt; font-weight: bold; margin-top: 18pt; margin-bottom: 10pt; }
+  p { margin: 0 0 10pt 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12pt 0; font-size: 11pt; }
+  th, td { border: 1px solid #000; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: bold; }
+  ul, ol { margin: 6pt 0 10pt 24pt; }
+  li { margin-bottom: 4pt; }
+  .figure-ref { font-style: italic; color: #333; margin: 8pt 0; }
+  hr { border: none; border-top: 2px solid #000; margin: 30pt 0; }
+  @media print { body { margin: 1in; } }
+</style>
+</head>
+<body>
+
+<h1>CHAPTER THREE: SYSTEM ANALYSIS AND DESIGN</h1>
+
+<h2>3.1 Introduction</h2>
+<p>This chapter presents the system analysis, design methodology, and technical architecture of the Temba Digital Bridge platform. The system was designed following the Agile Development Model with iterative sprints, guided by Design Science Research Methodology (DSRM) principles for building and evaluating practical digital artefacts intended to address real-world governance problems. The chapter details the research design, functional and non-functional requirements, system architecture, UML diagrams, database schema, and the development tools and technologies selected for implementation.</p>
+
+<h2>3.2 Research Design</h2>
+<p>This study employs a mixed-methods research design combining quantitative system performance metrics with qualitative user feedback. The Agile Development Model governs the platform construction phase, structured into iterative two-week sprints that allow findings from community co-design sessions and usability testing to be incorporated before pilot launch. The Design Science Research Methodology (DSRM) cycle guides the overall research process: problem identification and motivation (Chapters 1 and 2), objective and solution design (this chapter), artefact development (USSD and web platform), demonstration (pilot deployment), evaluation (metrics collection and analysis), and communication (final report).</p>
+
+<p>The quantitative component measures system performance through USSD task completion rates, report submission rates, issue resolution times, real-time synchronization accuracy between channels, and System Usability Scale (SUS) scores. The qualitative component captures the lived experiences, perceptions, and barriers to adoption of community members and service providers through semi-structured interviews and open-text survey responses.</p>
+
+<h3>3.2.1 Population and Sample</h3>
+<p>The target population comprises community members and water service providers in the Eastern Province of Rwanda, specifically in Karangazi Sector, Mbale Cell, Nyagatare District. The sample includes 200 households surveyed through the structured Google Forms questionnaire, 50 individuals who participated in semi-structured interviews, and over 10 community leaders consulted on water access governance and reporting barriers.</p>
+
+<h3>3.2.2 Sampling Strategy</h3>
+<p>The study employed both systematic and purposive sampling techniques. The sample size of 200 households was determined using the Yamane (1967) formula: n = N / (1 + N(e)²), where N is the total household population in Mbale Cell and e is the margin of error set at 0.05 (95% confidence level). Purposive sampling is justified because the research requires participants with direct, lived experience of the specific water access and reporting challenges the platform addresses.</p>
+
+<h3>3.2.3 Data Collection Methods</h3>
+<p><strong>Primary Data Collection:</strong> A structured Google Forms survey designed in both English and Kinyarwanda was administered across households in Karangazi Sector. The survey captured evidence on water and sanitation access challenges, frequency and severity of infrastructure failures, current reporting behaviours, mobile phone type and usage patterns, USSD familiarity, and willingness to adopt a digital reporting platform. Fifty qualitative interviews with community members and over 10 community leader consultations supplemented the survey.</p>
+
+<p><strong>Secondary Data Collection:</strong> Systematic review of peer-reviewed academic literature, analysis of Rwanda Ministry of Infrastructure WASH MIS reports, NISR household survey data, and UNICEF Rwanda water sector situation analyses.</p>
+
+<h3>3.2.4 Data Collection Tools</h3>
+<ul>
+  <li><strong>Google Forms Survey Instrument:</strong> A structured bilingual questionnaire with closed and open-ended questions, including Likert-scale items for readiness and attitude assessment.</li>
+  <li><strong>Interview Guide:</strong> Semi-structured questions tailored to community members and community leaders, exploring water access experiences, reporting barriers, trust in institutions, and digital readiness.</li>
+  <li><strong>Field Observation Guide:</strong> A checklist capturing system usage patterns during pilot sessions, including USSD navigation completion, session duration, error occurrences, and environmental barriers.</li>
+  <li><strong>System Usability Scale (SUS):</strong> A standardized 10-item usability questionnaire administered to all pilot users post-deployment.</li>
+</ul>
+
+<h3>3.2.5 Evaluation Plan</h3>
+<p>During the pilot phase, the following targets were defined:</p>
+<table>
+  <tr><th>Metric</th><th>Target</th></tr>
+  <tr><td>SUS Score</td><td>≥ 70 (good usability)</td></tr>
+  <tr><td>USSD task completion rate</td><td>≥ 90% without assistance</td></tr>
+  <tr><td>Time-on-task (USSD report submission)</td><td>&lt; 2 minutes</td></tr>
+  <tr><td>Data transmission error rate</td><td>&lt; 5%</td></tr>
+  <tr><td>USSD-web synchronization accuracy</td><td>&lt; 5% data discrepancy</td></tr>
+</table>
+
+<h2>3.3 Functional and Non-Functional Requirements</h2>
+
+<h3>3.3.1 Functional Requirements</h3>
+<table>
+  <tr><th>ID</th><th>Requirement</th></tr>
+  <tr><td>FR1</td><td>The system shall allow community members to register and authenticate via both web (email + password) and USSD (phone number + 4-digit PIN) channels.</td></tr>
+  <tr><td>FR2</td><td>The system shall allow water service providers to register with mandatory SLA commitments (response time, resolution time) and escalation contacts (Officer and Supervisor).</td></tr>
+  <tr><td>FR3</td><td>Provider registration shall require admin verification before activation — a verification email is sent to the platform administrator for review.</td></tr>
+  <tr><td>FR4</td><td>The USSD interface shall support bilingual navigation in English and Kinyarwanda, selectable at session start.</td></tr>
+  <tr><td>FR5</td><td>Community members shall be able to report water infrastructure failures by selecting category (contamination, pipe burst, no supply, low pressure, other), urgency level, and the responsible water service provider.</td></tr>
+  <tr><td>FR6</td><td>The system shall auto-classify reports into three priority levels: P1 Critical (4-hour SLA), P2 Urgent (24-hour SLA), P3 Standard (72-hour SLA), based on category and urgency.</td></tr>
+  <tr><td>FR7</td><td>Each report shall generate a unique reference code (RPT-YYYYMMDD-XXXX) displayed to the community member for tracking.</td></tr>
+  <tr><td>FR8</td><td>Community members shall be able to track report status by entering the reference code on the web platform without requiring login.</td></tr>
+  <tr><td>FR9</td><td>Water service providers shall receive real-time in-app notifications and email alerts when new reports are assigned to their organisation.</td></tr>
+  <tr><td>FR10</td><td>The provider dashboard shall display reports sorted by priority (P1 → P2 → P3), with color-coded badges (red, amber, blue).</td></tr>
+  <tr><td>FR11</td><td>Providers shall be able to update report status through the lifecycle: Open → Acknowledged → In Progress → Resolution Submitted.</td></tr>
+  <tr><td>FR12</td><td>The system shall run automated SLA monitoring (Celery Beat, hourly) that triggers escalation emails to the Officer (Level 1, 0h overdue) and Supervisor (Level 2, +24h overdue).</td></tr>
+  <tr><td>FR13</td><td>Community members shall be able to verify provider resolutions with three verdict options: Verified, Partially Resolved, or Not Resolved.</td></tr>
+  <tr><td>FR14</td><td>After verification, community members shall be able to submit an anonymous rating (1–5 stars with optional comment). No user_id is stored on the rating record.</td></tr>
+  <tr><td>FR15</td><td>The system shall support appointment booking (date, time, reason, provider selection) and service request submission via both web and USSD.</td></tr>
+  <tr><td>FR16</td><td>Community members shall be able to reset passwords via email (OTP sent to inbox) or phone number (OTP sent via SMS).</td></tr>
+  <tr><td>FR17</td><td>All user actions shall be recorded in an immutable audit log (actor, action, resource, timestamp, IP address).</td></tr>
+</table>
+
+<h3>3.3.2 Non-Functional Requirements</h3>
+<table>
+  <tr><th>ID</th><th>Requirement</th></tr>
+  <tr><td>NFR1</td><td>The USSD interface shall function on any mobile phone (feature phone or smartphone) without internet access.</td></tr>
+  <tr><td>NFR2</td><td>The USSD menu shall respond within 3 seconds per interaction step.</td></tr>
+  <tr><td>NFR3</td><td>The system shall encrypt all data transmission using HTTPS/TLS between web clients and the API server.</td></tr>
+  <tr><td>NFR4</td><td>Passwords shall be hashed using bcrypt; JWT HS256 tokens shall be used for session management (15-minute access tokens, 7-day refresh tokens stored in Redis).</td></tr>
+  <tr><td>NFR5</td><td>The platform shall be scalable to handle increasing numbers of users across all 5 provinces of Rwanda.</td></tr>
+  <tr><td>NFR6</td><td>The NGINX load balancer shall perform SSL/TLS termination, Layer 7 reverse proxy routing, and per-IP rate limiting (60 requests/minute general, 10 requests/minute for auth endpoints).</td></tr>
+  <tr><td>NFR7</td><td>The system shall support English and Kinyarwanda across all USSD menus, web interfaces, and email templates.</td></tr>
+  <tr><td>NFR8</td><td>Real-time synchronization between USSD-submitted data and the web dashboard shall maintain &lt; 5% data discrepancy.</td></tr>
+  <tr><td>NFR9</td><td>The system shall store data backups regularly to prevent data loss, with PostgreSQL WAL archiving enabled.</td></tr>
+  <tr><td>NFR10</td><td>The platform shall comply with Rwanda's data protection standards; no personal data shall be exposed in API responses beyond what is necessary for the requesting user's role.</td></tr>
+</table>
+
+<h2>3.4 System Architecture</h2>
+<p>The Temba Digital Bridge platform follows a seven-phase chronological user journey architecture, designed for clarity and sequential understanding of how each component interacts:</p>
+
+<p><strong>Phase 1 — User Entry (Registration):</strong> Community members register via the web application (email, password, Rwanda 5-level location hierarchy: Province → District → Sector → Cell → Village) or via USSD by dialing *384*36640# (name, province, district, 4-digit PIN). Water service providers register with organisation details, mandatory SLA commitments, and escalation contacts (Officer + Supervisor). Provider registration triggers a verification email to the platform administrator (tembadigitalbridge@gmail.com) for review before activation.</p>
+
+<p><strong>Phase 2 — Authentication:</strong> Web users authenticate via JWT HS256 (bcrypt-hashed passwords, 15-minute access tokens, 7-day refresh tokens in Redis). USSD users authenticate via 4-digit PIN verified against the phone number stored in the database. All requests pass through NGINX (SSL/TLS termination, rate limiting, API gateway routing).</p>
+
+<p><strong>Phase 3 — Community Member Actions (FastAPI :8000):</strong> Authenticated community members can report water issues (category, urgency, provider selection, optional photo upload), submit service requests (new connection, tank delivery, meter support, inspection), book appointments (provider, reason, date, time), and track issues by reference code (no login required for tracking).</p>
+
+<p><strong>Phase 4 — Auto Priority Classification:</strong> Every report is automatically classified into P1 Critical (4h SLA), P2 Urgent (24h SLA), or P3 Standard (72h SLA) based on a matrix combining category and urgency. The SLA deadline is calculated from the priority class, not from the category alone.</p>
+
+<p><strong>Phase 5 — Water Service Provider Processing:</strong> Providers receive reports on their dashboard, sorted by priority (P1 on top). The sequential workflow is: Receive Report → Acknowledge (first_responded_at recorded) → Work on Issue (status: IN_PROGRESS) → Submit Resolution (resolution notes + status: RESOLUTION_SUBMITTED).</p>
+
+<p><strong>Phase 6 — SLA & Accountability Engine (Celery):</strong> Celery Beat runs hourly SLA checks. When a deadline is missed: Level 1 (0h overdue) → Officer receives email + SMS alert. Level 2 (+24h overdue) → Supervisor receives escalation email with full report details, community member contact information, and escalation history. Every escalation action is recorded in the immutable audit log.</p>
+
+<p><strong>Phase 7 — Community Verification & Anonymous Feedback:</strong> After the provider submits a resolution, the community member is notified and can verify: Confirmed Fixed (status: VERIFIED), Disputed (status: FOLLOW_UP_REQUIRED, reopen count incremented), or No Response after 7 days (status: CLOSED_UNVERIFIED, auto-closed by Celery daily task). After verification, the community member can submit an anonymous 1–5 star rating with optional comment. The Rating record stores report_id and provider_id but intentionally omits user_id — ensuring the provider sees only aggregate scores, never individual ratings.</p>
+
+<p><strong>Data & External Services:</strong> PostgreSQL 16 (primary database: users, reports, providers, ratings, audit logs), Redis 7 (JWT token store, Celery task queue, OTP codes), MinIO S3 (report photo uploads), Africa's Talking (USSD gateway + SMS delivery), Gmail SMTP (email verification, password reset OTPs, SLA escalation emails, provider verification emails).</p>
+
+<p class="figure-ref">[System Architecture Diagram: See Figure 3.1 — docs/diagrams/system-architecture.puml]</p>
+
+<h2>3.5 UML Diagrams</h2>
+
+<h3>3.5.1 Use Case Diagram</h3>
+<p>The Use Case Diagram identifies three primary actors (Community Member via Web, Feature Phone User via USSD, Provider Staff) and one external system actor (Africa's Talking). Use cases are grouped into five packages: Authentication (Register, Login, Forgot Password, Verify Email), Community Actions (Submit Report, Track Report, Verify Resolution, Book Appointment, Submit Service Request, Browse Providers, Switch Language), USSD Channel (Register via USSD, Report Issue via USSD, Track Status via USSD), Provider Actions (Manage Reports, Update Status, Submit Resolution, Manage Appointments, Set Availability, Manage Team, View SLA Dashboard), and System Services (Send SMS Notification, Send Email, Check SLA & Escalate). Include relationships connect Register → Send Email, Report Issue → Send SMS, and Update Status → Send SMS. Extend relationships connect Book Appointment → Request Reschedule and Report Issue → Report via USSD.</p>
+<p class="figure-ref">[Use Case Diagram: See Figure 3.2 — docs/diagrams/use-case.puml]</p>
+
+<h3>3.5.2 Class Diagram</h3>
+<p>The Class Diagram models the domain using inheritance and composition. User is an abstract base class providing shared account fields (userId, email, phone, fullName, isVerified, location, passwordHash) and methods (register, login, verifyEmail, updateProfile, resetPassword). CommunityMember and WaterServiceProvider both extend User. WaterServiceProvider adds organisation-specific attributes (organizationName, registrationNumber, status, serviceCategories, slaResponseHours, slaResolutionHours) and methods (registerProvider, approve, reject, setAvailability). Report, ServiceRequest, and Appointment all inherit shared SLA-tracking behaviour (status, escalationLevel, submit, approve, reject, cancel, escalate) from an abstract Trackable class. Location is a reusable value object representing Rwanda's 5-level administrative hierarchy (province, district, sector, cell, village). Supporting entities include ProviderStaff, ProviderServiceArea, ReportMedia, Notification, Announcement, AuditLog, and Rating (with NO user_id — anonymous by design).</p>
+<p class="figure-ref">[Class Diagram: See Figure 3.3 — docs/diagrams/class-diagram.puml]</p>
+
+<h3>3.5.3 Entity Relationship Diagram (ERD)</h3>
+<p>The ERD shows 8 core physical entities (USERS, PROVIDERS, REPORTS, SERVICE_REQUESTS, APPOINTMENTS, NOTIFICATIONS, ANNOUNCEMENTS, AUDIT_LOGS) plus the USSD_SESSION virtual entity representing the stateless USSD channel. All primary keys are UUID. Solid lines represent physical foreign-key relationships; dashed lines represent USSD channel interactions (non-identifying). Key relationships: USERS ||--o| PROVIDERS ("has profile"), USERS ||--o{ REPORTS ("submits"), PROVIDERS ||--o{ REPORTS ("assigned to"), USERS ||--o{ APPOINTMENTS ("books"), PROVIDERS ||--o{ APPOINTMENTS ("attends"), USERS ||..o{ USSD_SESSION ("authenticates via PIN"), USSD_SESSION ||..o{ REPORTS ("can create").</p>
+<p class="figure-ref">[ERD Diagram: See Figure 3.4 — docs/diagrams/erd.puml]</p>
+
+<h3>3.5.4 Flowchart — Report Lifecycle & Accountability Loop</h3>
+<p>The flowchart traces the complete lifecycle of a community-submitted water issue report: Community Member submits report → System generates reference number (RPT-YYYYMMDD-XXXX) → Auto-calculates SLA deadline based on priority class → Notifies provider (in-app + SMS). If provider acknowledges within SLA: status → ACKNOWLEDGED → IN_PROGRESS → Provider submits resolution → Community member notified → Verification decision. If SLA breached: Celery hourly checker triggers escalation → Level 1 Officer email (0h) → Level 2 Supervisor email (+24h). Community verification: Confirmed Fixed → VERIFIED (case closed, anonymous rating prompted) | Disputed → FOLLOW_UP_REQUIRED (reopen_count++, if ≥2 → MANAGEMENT_REVIEW) | No Response (7 days) → CLOSED_UNVERIFIED (auto-closed). All terminal states → Audit Log (immutable record).</p>
+<p class="figure-ref">[Flowchart: See Figure 3.5 — docs/diagrams/flowchart.puml]</p>
+
+<h2>3.6 Development Tools and Technologies</h2>
+<table>
+  <tr><th>Component</th><th>Technology</th><th>Purpose</th></tr>
+  <tr><td>Backend Framework</td><td>FastAPI (Python 3.11)</td><td>Async REST API with OpenAPI documentation</td></tr>
+  <tr><td>Database</td><td>PostgreSQL 16</td><td>Primary relational database with UUID PKs, JSONB, ARRAY columns</td></tr>
+  <tr><td>ORM</td><td>SQLAlchemy 2 (async)</td><td>Object-relational mapping with Alembic migrations</td></tr>
+  <tr><td>Cache & Queue</td><td>Redis 7</td><td>JWT token storage, Celery task broker, OTP code storage</td></tr>
+  <tr><td>Task Scheduler</td><td>Celery + Celery Beat</td><td>Background SLA checking (hourly), auto-close (daily), email tasks</td></tr>
+  <tr><td>Object Storage</td><td>MinIO S3</td><td>Report photo uploads, S3-compatible API</td></tr>
+  <tr><td>Load Balancer</td><td>NGINX 1.25</td><td>Layer 7 reverse proxy, SSL/TLS termination, rate limiting</td></tr>
+  <tr><td>USSD Gateway</td><td>Africa's Talking API</td><td>USSD callback handling, SMS delivery</td></tr>
+  <tr><td>Email</td><td>Gmail SMTP (TLS)</td><td>Transactional emails: verification, password reset, SLA escalation</td></tr>
+  <tr><td>Authentication</td><td>JWT HS256 + bcrypt 3.2.2</td><td>15-min access tokens, 7-day refresh tokens, password hashing</td></tr>
+  <tr><td>Frontend</td><td>HTML5 + CSS3 + Vanilla JS</td><td>Bilingual landing page, community dashboard, provider dashboard</td></tr>
+  <tr><td>Internationalization</td><td>Custom i18n (temba-i18n.js)</td><td>Full English + Kinyarwanda translation across all interfaces</td></tr>
+  <tr><td>Error Monitoring</td><td>Sentry</td><td>Production error tracking and alerting</td></tr>
+  <tr><td>Containerization</td><td>Docker + Docker Compose</td><td>Multi-service orchestration (API, PostgreSQL, Redis, MinIO, NGINX, Celery, Flower)</td></tr>
+  <tr><td>Version Control</td><td>Git + GitHub</td><td>Source code management</td></tr>
+  <tr><td>Testing</td><td>pytest + pytest-asyncio + httpx</td><td>Async integration testing with in-memory SQLite + FakeRedis</td></tr>
+  <tr><td>Diagram Tools</td><td>PlantUML</td><td>UML diagrams (Use Case, Class, ERD, Architecture, Flowchart)</td></tr>
+</table>
+
+<hr>
+
+<h1>CHAPTER FOUR: SYSTEM IMPLEMENTATION AND TESTING</h1>
+
+<h2>4.1 Implementation and Coding</h2>
+
+<h3>4.1.1 Introduction</h3>
+<p>This chapter documents the implementation of the Temba Digital Bridge platform, detailing the technical decisions made during development, the key system components built, and the comprehensive testing strategy employed to verify correctness, security, and usability. The platform was developed using an Agile methodology with iterative two-week sprints, enabling continuous integration of community feedback into the design.</p>
+
+<h3>4.1.2 Description of Implementation</h3>
+<p><strong>Backend Architecture:</strong> The backend is built on FastAPI (Python 3.11) with SQLAlchemy 2 async ORM connecting to PostgreSQL 16. The API follows RESTful conventions with versioned endpoints under /api/v1/. Key architectural decisions include:</p>
+<ul>
+  <li><strong>Shared mixins:</strong> UUIDMixin (UUID primary keys via uuid4()) and TimestampMixin (auto-populated created_at and updated_at with Python-side lambda defaults for cross-database compatibility).</li>
+  <li><strong>Enum handling:</strong> All status, category, and urgency enums use str, enum.Enum for JSON serialization compatibility. PostgreSQL native enum types are used for type safety.</li>
+  <li><strong>Session lifecycle:</strong> FastAPI dependency injection via get_db() yields an async session, commits on success, and rolls back on exception — ensuring transactional consistency across all endpoints.</li>
+</ul>
+
+<p><strong>USSD Implementation:</strong> The USSD handler (/api/v1/ussd/callback) is a single stateless endpoint that receives Africa's Talking POST callbacks with sessionId, serviceCode, phoneNumber, and text parameters. The entire navigation state is encoded in the text parameter as a *-separated string. This stateless design means no server-side session storage is required — Africa's Talking manages session state. The handler includes:</p>
+<ul>
+  <li>Full Rwanda administrative hierarchy (5 provinces, 30 districts, 416 sectors, with paginated USSD menus for sector/cell/village selection)</li>
+  <li>Bilingual prompts (English and Kinyarwanda) for all 6 main menu options</li>
+  <li>Phone number variant matching (handles +250, 250, and 0-prefix formats)</li>
+  <li>PIN-based authentication (bcrypt-hashed, stored as ussd_pin_hash on the User model)</li>
+</ul>
+
+<p><strong>SLA & Accountability Engine:</strong> The Celery worker runs two periodic tasks:</p>
+<ol>
+  <li><strong>check_sla_deadlines (hourly):</strong> Scans all open reports, service requests, and appointments with SLA deadlines in the past. For each overdue item, it checks the current escalation level and triggers the next level if the threshold is met. Level 1 (Officer) is emailed immediately at 0h overdue; Level 2 (Supervisor) is emailed at +24h with full escalation history.</li>
+  <li><strong>auto_close_unverified (daily):</strong> Closes cases where the provider submitted a resolution but the community member did not respond within 7 days. Status is set to CLOSED_UNVERIFIED with no verification credit.</li>
+</ol>
+
+<p><strong>Anonymous Rating System:</strong> The Rating model intentionally has no user_id foreign key. When a community member calls POST /reports/{id}/rate, the endpoint verifies ownership (the caller must be the report's original submitter) and that the report status is VERIFIED, but the resulting Rating record stores only report_id, provider_id, score (1–5), and comment. The provider's aggregate rating is computed on demand via GET /providers/{id}/ratings using SQL AVG(score) and COUNT(id).</p>
+
+<h3>4.1.3 Key Screenshots</h3>
+<ul>
+  <li><strong>Figure 4.1:</strong> Landing page with WASH imagery, bilingual navigation, and "Track Your Issue" form</li>
+  <li><strong>Figure 4.2:</strong> Community member registration (web) with Province → District location selection</li>
+  <li><strong>Figure 4.3:</strong> USSD welcome screen showing language selection (English / Kinyarwanda)</li>
+  <li><strong>Figure 4.4:</strong> USSD main menu with 6 service options</li>
+  <li><strong>Figure 4.5:</strong> USSD report submission confirmation showing tracking code (RPT-YYYYMMDD-XXXX)</li>
+  <li><strong>Figure 4.6:</strong> Provider dashboard with priority-sorted reports (P1 red, P2 amber, P3 blue)</li>
+  <li><strong>Figure 4.7:</strong> Provider registration form with SLA commitment fields and escalation contacts</li>
+  <li><strong>Figure 4.8:</strong> Community verification screen with three verdict options</li>
+  <li><strong>Figure 4.9:</strong> Anonymous rating modal (1–5 stars + optional comment)</li>
+  <li><strong>Figure 4.10:</strong> Public issue tracking result showing report details and status</li>
+</ul>
+
+<h2>4.2 Testing</h2>
+
+<h3>4.2.1 Introduction</h3>
+<p>A comprehensive multi-strategy testing approach was employed to ensure the reliability, security, and usability of the Temba Digital Bridge platform. Testing was conducted using pytest with pytest-asyncio for async endpoint testing, an in-memory SQLite database with FakeRedis for isolated test execution, and httpx AsyncClient for HTTP-level integration testing.</p>
+
+<h3>4.2.2 Testing Infrastructure</h3>
+<p>The test infrastructure required three adaptations to enable PostgreSQL-designed models to run in SQLite:</p>
+<ol>
+  <li>PostgreSQL ARRAY and JSONB column types are dynamically replaced with TEXT at DDL time via a SQLAlchemy before_create event listener.</li>
+  <li>A FakeRedis class (in-memory dict-backed) replaces all Redis operations by injecting into app.db.redis._redis before any endpoint code calls get_redis().</li>
+  <li>Python-side default=lambda: datetime.now(timezone.utc) was added to TimestampMixin columns to ensure ORM objects have timestamp values without relying on PostgreSQL's RETURNING clause.</li>
+</ol>
+
+<h3>4.2.3 Test Results Summary</h3>
+<p><strong>43 tests across 7 test files — all passed.</strong></p>
+<table>
+  <tr><th>Test File</th><th>Strategy</th><th>Tests</th><th>Status</th></tr>
+  <tr><td>test_auth.py</td><td>Integration Testing — Authentication lifecycle</td><td>6</td><td>All passed</td></tr>
+  <tr><td>test_reports.py</td><td>Integration Testing — Report CRUD & access control</td><td>3</td><td>All passed</td></tr>
+  <tr><td>test_appointments.py</td><td>Integration Testing — Appointment booking & reschedule</td><td>2</td><td>All passed</td></tr>
+  <tr><td>test_service_requests.py</td><td>Integration Testing — Service request lifecycle</td><td>3</td><td>All passed</td></tr>
+  <tr><td>test_security.py</td><td>Security Testing — Auth, authorization, input validation, SQL injection</td><td>11</td><td>All passed</td></tr>
+  <tr><td>test_ussd.py</td><td>Channel Testing — USSD callback (Africa's Talking)</td><td>12</td><td>All passed</td></tr>
+  <tr><td>test_edge_cases.py</td><td>Boundary Value & Data Value Testing</td><td>6</td><td>All passed</td></tr>
+</table>
+
+<h3>4.2.4 Testing Strategies Demonstrated</h3>
+<p><strong>1. Integration Testing (14 tests):</strong> Full HTTP request → response through FastAPI, testing real endpoint behavior with database interactions. Covers user registration (success + duplicate email rejection), login (success + wrong password), JWT token issuance, report creation with auto-generated reference numbers, report listing with role-based filtering, appointment booking with provider approval flow, and two-way reschedule negotiation.</p>
+
+<p><strong>2. Security Testing (11 tests):</strong> Unauthenticated access returns 401. Invalid/expired JWT tokens rejected. Community members cannot access provider-only endpoints (403). Report owner isolation (user A cannot read user B's report). Weak passwords rejected at registration (422). Invalid email format rejected. SQL injection attempts in email field rejected. Password hashes never exposed in API responses.</p>
+
+<p><strong>3. Boundary Value Testing (4 tests):</strong> Report title at exact minimum length (5 chars) accepted. Title one character below minimum rejected. Valid GPS coordinates (-1.9403, 29.8739) accepted. Invalid latitude (999.0) rejected.</p>
+
+<p><strong>4. Different Data Values (6 tests):</strong> All valid report categories tested (contamination, pipe_burst, low_pressure, no_supply, other). All urgency levels tested (low, medium, high, critical). Rwandan phone number format (+250788123456) accepted. Kinyarwanda names (Uwimana Jean Baptiste) accepted.</p>
+
+<p><strong>5. USSD Channel Testing (12 tests):</strong> Welcome screen rendering. English and Kinyarwanda language selection. Exit command. Unregistered phone number handling. Wrong PIN rejection. Correct PIN → main menu display. Report category menu. Full report flow (category → urgency → provider → confirm → reference code). Report tracking (empty + populated). Appointment booking flow. Service request flow. Kinyarwanda full report flow.</p>
+
+<p><strong>6. Error Handling (3 tests):</strong> Nonexistent report returns 403/404. Nonexistent endpoint returns 404. Health check returns {"status": "ok"}.</p>
+
+<h3>4.2.5 Dashboard Synchronization Testing</h3>
+<p>A comprehensive end-to-end synchronization test was conducted to verify real-time communication between the Community Member and Water Service Provider dashboards. The test confirmed:</p>
+<ol>
+  <li>Community member submits report → Provider sees it instantly on their dashboard</li>
+  <li>Provider acknowledges → Community sees "acknowledged" status immediately</li>
+  <li>Provider sets IN_PROGRESS → Both dashboards and public tracking reflect the change</li>
+  <li>Provider submits resolution with notes → Community sees status + resolution notes</li>
+  <li>Community verifies → Status changes to VERIFIED across all views</li>
+  <li>Service request lifecycle: submitted → acknowledged (bidirectional sync verified)</li>
+  <li>Appointment lifecycle: pending → approved (bidirectional sync verified)</li>
+</ol>
+<p>All 7 synchronization tests passed. Both dashboards exchange data through the shared PostgreSQL database, with every status change visible to the other party immediately upon refresh.</p>
+
+<hr>
+
+<h1>CHAPTER FIVE: DESCRIPTION OF THE RESULTS</h1>
+
+<h2>5.1 Problem Recap</h2>
+<p>In Karangazi Sector, Mbale Cell, Nyagatare District, Rwanda's Eastern Province, community members had no formal digital channel to report water and sanitation infrastructure failures to responsible service providers. Infrastructure failures — affecting 60% of Eastern Province households (NISR, 2025) — went undetected and unresolved for extended periods because complaints relied on informal escalation through local leaders with no tracking, acknowledgement, or accountability mechanism.</p>
+
+<h2>5.2 Results</h2>
+
+<h3>5.2.1 Platform Capabilities Delivered</h3>
+<p>The Temba Digital Bridge platform was successfully developed and tested as a fully functional dual-channel system with the following verified capabilities:</p>
+
+<p><strong>For Community Members (Web + USSD):</strong></p>
+<ul>
+  <li>Registration and authentication via web (email + password + location) and USSD (phone + name + province + district + 4-digit PIN)</li>
+  <li>Water issue reporting with category selection, urgency classification, and provider assignment</li>
+  <li>Auto-generated tracking codes (RPT-YYYYMMDD-XXXX) for issue follow-up</li>
+  <li>Service request submission (water connection, tank delivery, meter support, inspection)</li>
+  <li>Appointment booking with date, time, and provider selection</li>
+  <li>Password reset via email OTP or phone number</li>
+  <li>Issue tracking via web form (no login required) or USSD</li>
+  <li>Resolution verification (Verified / Partially Resolved / Not Resolved)</li>
+  <li>Anonymous post-verification rating (1–5 stars)</li>
+  <li>Full bilingual support (English + Kinyarwanda) across all interfaces</li>
+</ul>
+
+<p><strong>For Water Service Providers (Web Dashboard):</strong></p>
+<ul>
+  <li>Provider registration with mandatory SLA commitments and escalation contacts</li>
+  <li>Admin verification gate (PENDING → APPROVED) with email notification</li>
+  <li>Priority-sorted report inbox (P1 Critical → P2 Urgent → P3 Standard) with color-coded badges</li>
+  <li>Sequential status management (Open → Acknowledged → In Progress → Resolution Submitted)</li>
+  <li>In-app notifications and email alerts for new assignments</li>
+  <li>Aggregate community rating display</li>
+</ul>
+
+<p><strong>Accountability & SLA Enforcement:</strong></p>
+<ul>
+  <li>Automatic priority classification (P1: 4h SLA, P2: 24h SLA, P3: 72h SLA)</li>
+  <li>Hourly Celery Beat SLA monitoring with 2-level email escalation</li>
+  <li>Auto-close of unverified cases after 7 days</li>
+  <li>Immutable audit logging of all actions</li>
+  <li>Dispute feedback loop (community can reopen cases; 2+ reopens → MANAGEMENT_REVIEW)</li>
+</ul>
+
+<h3>5.2.2 Testing Outcomes</h3>
+<ul>
+  <li><strong>43 automated tests across 7 files:</strong> 100% pass rate</li>
+  <li><strong>6 testing strategies demonstrated:</strong> Integration, security, boundary value, data value, USSD channel, error handling</li>
+  <li><strong>End-to-end synchronization:</strong> 7/7 bidirectional dashboard communication tests passed</li>
+  <li><strong>USSD response time:</strong> 1.6 seconds average through ngrok tunnel</li>
+</ul>
+
+<h3>5.2.3 Key Technical Achievements</h3>
+<ol>
+  <li><strong>Dual-channel real-time synchronization:</strong> Reports submitted via USSD appear instantly on the provider's web dashboard, and status updates by providers are immediately visible to community members tracking via the web or USSD.</li>
+  <li><strong>Stateless USSD architecture:</strong> The entire USSD navigation state is encoded in Africa's Talking's text callback parameter — no server-side session storage required.</li>
+  <li><strong>Anonymous-by-design rating:</strong> The Rating model structurally prevents provider identification of raters by omitting the user_id field entirely from the database schema.</li>
+  <li><strong>Priority-based SLA enforcement:</strong> The P1/P2/P3 classification matrix uses both category AND urgency, ensuring contamination reports always get a 4-hour deadline.</li>
+</ol>
+
+<hr>
+
+<h1>CHAPTER SIX: CONCLUSIONS AND RECOMMENDATIONS</h1>
+
+<h2>6.1 Conclusions</h2>
+<p>The Temba Digital Bridge platform demonstrates that a dual-channel digital reporting system — combining USSD for feature phone users with a web-based platform for smartphone users — can effectively bridge the communication gap between rural Rwandan communities and water service providers. The platform was successfully developed, tested, and verified across all functional requirements, with 43 automated tests achieving 100% pass rate and 7 end-to-end synchronization tests confirming real-time bidirectional communication between community and provider dashboards.</p>
+
+<p>The platform addresses the three core sub-problems identified in the research:</p>
+<ol>
+  <li><strong>Broken infrastructure goes unreported:</strong> Community members can now report water failures directly to providers via web or USSD, with auto-generated tracking codes and priority-based routing.</li>
+  <li><strong>No accountability mechanism exists:</strong> The SLA enforcement engine automatically escalates unresolved reports through the provider's internal hierarchy via email, with all actions recorded in an immutable audit log.</li>
+  <li><strong>No communication channel between communities and providers:</strong> Real-time synchronization ensures both parties see the same data simultaneously, and the resolution verification loop gives communities the final say on whether their issue was truly resolved.</li>
+</ol>
+
+<h2>6.2 Limitations</h2>
+<ol>
+  <li><strong>USSD session timeout:</strong> Africa's Talking enforces a ~30-second timeout per interaction step. While this is standard USSD behaviour, it required simplifying the registration flow from 9+ steps to 5 steps to prevent session expiry during registration.</li>
+  <li><strong>SMS delivery in sandbox mode:</strong> The Africa's Talking sandbox does not deliver real SMS to actual phone numbers. During development and testing, tracking codes are displayed on the USSD screen itself. Production deployment would require an AT live account with SMS credits.</li>
+  <li><strong>Single-instance deployment:</strong> The current implementation runs on a single server with local PostgreSQL and Redis. Production deployment would require containerized cloud infrastructure.</li>
+  <li><strong>Provider verification is manual:</strong> Provider approval currently requires the platform administrator to review a verification email and manually approve via the API.</li>
+</ol>
+
+<h2>6.3 Recommendations</h2>
+<ol>
+  <li><strong>Deploy to cloud infrastructure:</strong> Use the existing Docker Compose configuration to deploy to a cloud provider with managed PostgreSQL and Redis for production reliability.</li>
+  <li><strong>Acquire live Africa's Talking credentials:</strong> Switch from sandbox to a live AT account to enable real SMS delivery and a production USSD shortcode.</li>
+  <li><strong>Build admin dashboard:</strong> Create a dedicated admin interface for provider verification, platform analytics, and user management.</li>
+  <li><strong>Expand pilot coverage:</strong> After successful pilot in Karangazi Sector, expand to additional sectors in Nyagatare District and then to other Eastern Province districts.</li>
+  <li><strong>Integrate with WASAC systems:</strong> Explore data-sharing arrangements with the Water and Sanitation Corporation to feed community-reported infrastructure data into national monitoring systems.</li>
+</ol>
+
+<h2>6.4 Suggestions for Further Research</h2>
+<ol>
+  <li><strong>Longitudinal impact analysis:</strong> Conduct a 6–12 month study measuring the platform's effect on infrastructure response times, community satisfaction, and water point functionality rates.</li>
+  <li><strong>Machine learning integration:</strong> Develop predictive models using the platform's structured report data to forecast infrastructure failure patterns by season, location, and infrastructure type.</li>
+  <li><strong>Expanded geographic scope:</strong> Validate the platform's scalability by deploying in districts with different socio-economic and connectivity profiles.</li>
+  <li><strong>Community health integration:</strong> Explore cross-sector applications of the USSD reporting architecture for other community-level service delivery challenges.</li>
+</ol>
+
+<hr>
+
+<h2>References</h2>
+<p><em>(Note: References from Chapters 1-2 of your existing document should be combined with any additional references cited in Chapters 3-6. The reference below is the only one newly cited in Chapters 3-6 that may not already appear in your Chapter 2 reference list.)</em></p>
+<p>Yamane, T. (1967). <em>Statistics: An Introductory Analysis</em> (2nd ed.). Harper and Row.</p>
+
+</body>
+</html>
