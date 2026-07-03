@@ -292,7 +292,7 @@ Feature Phone User
 
 A full technical walkthrough demonstrating the complete Temba Digital Bridge system — USSD feature-phone flow, web dashboard, chatbot, and provider management.
 
-> **[Watch the Demo Video →](https://youtu.be/YOUR_VIDEO_ID_HERE)**
+> **[Watch the Demo Video →](https://youtu.be/35idZ4yx3IM)**
 >
 > The video covers: account registration (web + USSD), submitting a water issue report, the provider dashboard SLA indicators, the AI-powered chatbot routing users to the right water provider, and the end-to-end accountability loop from report to verified resolution.
 
