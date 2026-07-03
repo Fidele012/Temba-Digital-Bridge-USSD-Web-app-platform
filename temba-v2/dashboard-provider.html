@@ -48,7 +48,7 @@
     <a href="#" class="sidebar-item active" onclick="showPanel('overview',this)"><i class="ti ti-layout-dashboard"></i> <span data-i18n="prov_overview">Overview</span></a>
     <a href="#" class="sidebar-item" onclick="showPanel('inbox',this)">
       <i class="ti ti-inbox"></i> <span data-i18n="prov_inbox">Reports Inbox</span>
-      <span class="s-badge" id="inboxBadge">5</span>
+      <span class="s-badge" id="inboxBadge" style="display:none">0</span>
     </a>
     <a href="#" class="sidebar-item" onclick="showPanel('service-requests',this)">
       <i class="ti ti-tool"></i> <span data-i18n="dash_service_requests">Service Requests</span>
@@ -137,6 +137,7 @@
         <button class="filter-btn" onclick="filterInbox('submitted',this)" data-i18n="filter_new">New</button>
         <button class="filter-btn" onclick="filterInbox('in-progress',this)" data-i18n="filter_in_progress">In Progress</button>
         <button class="filter-btn" onclick="filterInbox('urgent',this)" data-i18n="filter_urgent">Urgent</button>
+        <button class="filter-btn" onclick="filterInbox('pending-verification',this)"><i class="ti ti-clock" style="color:#7C3AED;"></i> Awaiting Verification</button>
         <button class="filter-btn" onclick="filterInbox('resolved',this)" data-i18n="filter_resolved">Resolved</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
@@ -166,6 +167,18 @@
     <!-- ── APPOINTMENTS MANAGEMENT ── -->
     <div class="dash-panel" id="panel-appointments">
       <div class="dash-header"><div><h1 data-i18n="dash_appointments">Appointments</h1><p data-i18n="prov_appt_subtitle">Review, approve, reschedule, and manage community appointment requests.</p></div></div>
+      <!-- USSD tracking code lookup -->
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:10px 14px;">
+        <i class="ti ti-device-mobile" style="color:#7C3AED;font-size:18px;flex-shrink:0;"></i>
+        <span style="font-size:13px;font-weight:600;color:#5B21B6;flex-shrink:0;">USSD Lookup:</span>
+        <input id="apptTrackInput" type="text" maxlength="10" placeholder="Enter tracking code e.g. E2430026"
+          style="flex:1;border:1px solid #DDD6FE;border-radius:7px;padding:7px 12px;font-size:13px;outline:none;background:#fff;"
+          onkeydown="if(event.key==='Enter')lookupUssdAppt()">
+        <button onclick="lookupUssdAppt()" style="background:#7C3AED;color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;">
+          <i class="ti ti-search"></i> Find
+        </button>
+      </div>
+      <div id="apptTrackResult" style="display:none;margin-bottom:12px;"></div>
       <div class="filter-bar">
         <button class="filter-btn active" onclick="filterProvAppts('all',this)" data-i18n="filter_all">All</button>
         <button class="filter-btn" onclick="filterProvAppts('pending',this)" data-i18n="filter_pending_approval">Pending Approval</button>
@@ -473,9 +486,44 @@
             <i class="ti ti-clock field-icon"></i>
             <select id="provReschedTime">
               <option value="" disabled selected data-i18n="resched_select_time">Select time</option>
-              <option>08:00 AM</option><option>09:00 AM</option><option>10:00 AM</option>
-              <option>11:00 AM</option><option>12:00 PM</option><option>01:00 PM</option>
-              <option>02:00 PM</option><option>03:00 PM</option><option>04:00 PM</option>
+              <option value="07:00">07:00 AM</option><option value="07:30">07:30 AM</option>
+              <option value="08:00">08:00 AM</option><option value="08:30">08:30 AM</option>
+              <option value="09:00">09:00 AM</option><option value="09:30">09:30 AM</option>
+              <option value="10:00">10:00 AM</option><option value="10:30">10:30 AM</option>
+              <option value="11:00">11:00 AM</option><option value="11:30">11:30 AM</option>
+              <option value="12:00">12:00 PM</option><option value="12:30">12:30 PM</option>
+              <option value="13:00">01:00 PM</option><option value="13:30">01:30 PM</option>
+              <option value="14:00">02:00 PM</option><option value="14:30">02:30 PM</option>
+              <option value="15:00">03:00 PM</option><option value="15:30">03:30 PM</option>
+              <option value="16:00">04:00 PM</option><option value="16:30">04:30 PM</option>
+              <option value="17:00">05:00 PM</option>
+            </select>
+            <i class="ti ti-chevron-down sel-arrow"></i>
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Meeting Duration</label>
+          <div class="field-wrap sel-wrap">
+            <i class="ti ti-hourglass field-icon"></i>
+            <select id="provReschedDuration">
+              <option value="30">30 minutes</option>
+              <option value="60" selected>1 hour</option>
+              <option value="90">1.5 hours</option>
+              <option value="120">2 hours</option>
+            </select>
+            <i class="ti ti-chevron-down sel-arrow"></i>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Time Interval</label>
+          <div class="field-wrap sel-wrap">
+            <i class="ti ti-refresh field-icon"></i>
+            <select id="provReschedInterval">
+              <option value="none" selected>One-time slot</option>
+              <option value="weekly">Weekly (repeat)</option>
+              <option value="biweekly">Every 2 weeks</option>
             </select>
             <i class="ti ti-chevron-down sel-arrow"></i>
           </div>
@@ -649,6 +697,27 @@
   </div>
 </div>
 
+<!-- ══ RESOLVE MODAL ══ -->
+<div id="resolveModal" onclick="if(event.target===this)closeResolveModal()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:460px;padding:1.75rem;box-shadow:0 24px 80px rgba(15,23,42,0.22);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#1B5E20,#2E7D32);display:flex;align-items:center;justify-content:center;"><i class="ti ti-check" style="color:#fff;font-size:20px;"></i></div>
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#071E38;">Submit Resolution</div>
+        <div style="font-size:12.5px;color:var(--gray-400);">Report <strong id="resolveModalRef"></strong></div>
+      </div>
+    </div>
+    <p style="font-size:13.5px;color:#334155;margin-bottom:1rem;">The community member will be notified to verify whether the issue has actually been resolved. You can add resolution notes (optional).</p>
+    <input type="hidden" id="resolveModalApiId">
+    <label style="font-size:12.5px;font-weight:600;color:#071E38;display:block;margin-bottom:6px;">Resolution notes <span style="font-weight:400;color:var(--gray-400);">(optional)</span></label>
+    <textarea id="resolveNotes" rows="3" placeholder="Describe the steps taken to resolve this issue…" style="width:100%;padding:10px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13.5px;resize:vertical;box-sizing:border-box;"></textarea>
+    <div style="display:flex;gap:10px;margin-top:1.25rem;justify-content:flex-end;">
+      <button onclick="closeResolveModal()" style="padding:9px 20px;border:1.5px solid #CBD5E1;border-radius:9px;background:#fff;font-size:13.5px;font-weight:600;cursor:pointer;color:#475569;">Cancel</button>
+      <button onclick="_submitResolve()" style="padding:9px 20px;border:none;border-radius:9px;background:linear-gradient(135deg,#1B5E20,#2E7D32);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;"><i class="ti ti-check"></i> Submit Resolution</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ REPORT DETAIL MODAL ══ -->
 <div class="modal-overlay" id="reportDetailModal" onclick="if(event.target===this)closeReportDetail()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:900;align-items:center;justify-content:center;padding:1rem;">
   <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(15,23,42,0.22);">
@@ -734,8 +803,8 @@ let selectedAreas = ['national'];
 let unavailDates = [];
 
 const SVC_LABELS = { water_connection:'Water Connection', tank_delivery:'Tank Delivery', truck_delivery:'Water Truck', meter_support:'Meter Support', inspection:'Technical Inspection' };
-const STATUS_BADGE = { submitted:'badge-active','in-progress':'badge-moderate', resolved:'badge-resolved', reviewing:'badge-reviewing', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed', cancelled:'badge-cancelled', pending:'badge-pending', rescheduled:'badge-rescheduled', reschedule_requested:'badge-rescheduled' };
-const STATUS_LABEL = { submitted:'Submitted','in-progress':'In Progress', resolved:'Resolved', reviewing:'Under Review', approved:'Approved', rejected:'Rejected', completed:'Completed', cancelled:'Cancelled', pending:'Pending Approval', rescheduled:'Rescheduled', reschedule_requested:'Reschedule Requested' };
+const STATUS_BADGE = { submitted:'badge-active','in-progress':'badge-moderate', resolved:'badge-resolved', 'pending-verification':'badge-reviewing', reviewing:'badge-reviewing', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed', cancelled:'badge-cancelled', pending:'badge-pending', rescheduled:'badge-rescheduled', reschedule_requested:'badge-rescheduled' };
+const STATUS_LABEL = { submitted:'Submitted','in-progress':'In Progress', resolved:'Resolved', 'pending-verification':'Awaiting Verification', reviewing:'Under Review', approved:'Approved', rejected:'Rejected', completed:'Completed', cancelled:'Cancelled', pending:'Pending Approval', rescheduled:'Rescheduled', reschedule_requested:'Reschedule Requested' };
 const APPT_REASON_LABELS = { new_connection:'New Connection Inquiry', billing:'Billing Dispute', meter:'Meter Issue', infrastructure:'Service Complaint', quality:'Water Quality Concern', general:'General Consultation', other:'Other' };
 
 /* ── Helpers ── */
@@ -746,7 +815,7 @@ function saveAppts(d) { localStorage.setItem(APPT_KEY, JSON.stringify(d)); }
 function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'}); }
 
 /* ── API Integration ── */
-const API_BASE = 'http://127.0.0.1:8000/api/v1';
+const API_BASE = 'http://127.0.0.1:8001/api/v1';
 window._apiReports = []; window._apiAppts = []; window._apiSvcReqs = [];
 window._myProviderProfile = null;
 
@@ -828,7 +897,7 @@ function convertTo24h(timeStr) {
 function _normProvReport(r) {
   const cm = { CONTAMINATION:'Contamination', contamination:'Contamination', PIPE_BURST:'Pipe Burst', pipe_burst:'Pipe Burst', NO_SUPPLY:'No Water Supply', no_supply:'No Water Supply', LOW_PRESSURE:'Low Pressure', low_pressure:'Low Pressure', WATER_QUALITY:'Water Quality', water_quality:'Water Quality', BILLING:'Billing Issue', billing:'Billing Issue', METER:'Meter Issue', meter:'Meter Issue', OTHER:'Water Issue', other:'Water Issue' };
   const um = { HIGH:'urgent', MEDIUM:'moderate', LOW:'low', CRITICAL:'urgent', high:'urgent', medium:'moderate', low:'low', critical:'urgent' };
-  const sm = { open:'submitted', under_review:'in-progress', in_progress:'in-progress', resolved:'resolved', closed:'resolved', OPEN:'submitted', UNDER_REVIEW:'in-progress', IN_PROGRESS:'in-progress', RESOLVED:'resolved', CLOSED:'resolved' };
+  const sm = { open:'submitted', acknowledged:'in-progress', under_review:'in-progress', in_progress:'in-progress', resolution_submitted:'pending-verification', follow_up_required:'in-progress', management_review:'in-progress', verified:'resolved', resolved:'resolved', closed:'resolved', closed_unverified:'resolved', OPEN:'submitted', ACKNOWLEDGED:'in-progress', UNDER_REVIEW:'in-progress', IN_PROGRESS:'in-progress', RESOLUTION_SUBMITTED:'pending-verification', FOLLOW_UP_REQUIRED:'in-progress', MANAGEMENT_REVIEW:'in-progress', VERIFIED:'resolved', RESOLVED:'resolved', CLOSED:'resolved', CLOSED_UNVERIFIED:'resolved' };
   const rawIssue = r.title||(cm[r.category]||r.category);
   const isUssd = typeof rawIssue === 'string' && rawIssue.startsWith('USSD:');
   const issue = isUssd ? rawIssue.replace(/^USSD:\s*/i, '') : rawIssue;
@@ -1087,8 +1156,11 @@ function openReportDetail(rJson) {
     actions.push(`<a href="tel:${r.phone}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`);
     actions.push(`<a href="sms:${r.phone}" class="btn-sms" style="text-decoration:none;"><i class="ti ti-message"></i> SMS</a>`);
   }
-  if (r.status !== 'resolved') {
+  if (r.status !== 'resolved' && r.status !== 'pending-verification') {
     actions.push(`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}');closeReportDetail()"><i class="ti ti-check"></i> Mark Resolved</button>`);
+  }
+  if (r.status === 'pending-verification') {
+    actions.push(`<span style="padding:8px 14px;background:#F3E8FF;color:#7C3AED;border-radius:8px;font-size:13px;font-weight:600;"><i class="ti ti-clock"></i> Awaiting community verification</span>`);
   }
   if ((r.status==='submitted'||r.status==='open') && r.apiId) {
     actions.push(`<button class="btn-action warning" onclick="markReportInProgress('${r.ref}','${r.apiId}');closeReportDetail()"><i class="ti ti-loader-2"></i> In Progress</button>`);
@@ -1104,16 +1176,64 @@ function closeReportDetail() {
   document.body.style.overflow = '';
 }
 
+const _seenIds = { reports: new Set(), appts: new Set(), svcReqs: new Set() };
+let _initialLoadDone = false;
+
 async function loadApiData() {
   const [rd, ad, sd] = await Promise.all([
-    apiGet('/reports?size=100'),
-    apiGet('/appointments?size=100'),
-    apiGet('/service-requests?size=100'),
+    apiGet('/reports?size=200'),
+    apiGet('/appointments?size=200'),
+    apiGet('/service-requests?size=200'),
   ]);
   let changed = false;
-  if (rd && rd.items) { window._apiReports = rd.items.map(_normProvReport); changed = true; }
-  if (ad && ad.items) { window._apiAppts   = ad.items.map(_normProvAppt);   changed = true; }
-  if (sd && sd.items) { window._apiSvcReqs = sd.items.map(_normProvSvc);    changed = true; }
+  const newUssd = [];
+
+  if (rd && rd.items) {
+    window._apiReports = rd.items.map(_normProvReport);
+    changed = true;
+    rd.items.forEach(r => {
+      if (!_seenIds.reports.has(r.id)) {
+        _seenIds.reports.add(r.id);
+        if (_initialLoadDone) {
+          const isUssd = (r.title||'').startsWith('USSD:');
+          if (isUssd) newUssd.push(`📋 New USSD report: ${r.category||'issue'} — ${r.reference_number||''}`);
+        }
+      }
+    });
+  }
+  if (ad && ad.items) {
+    window._apiAppts = ad.items.map(_normProvAppt);
+    changed = true;
+    ad.items.forEach(a => {
+      if (!_seenIds.appts.has(a.id)) {
+        _seenIds.appts.add(a.id);
+        if (_initialLoadDone) {
+          const isUssd = (a.notes||'').startsWith('[USSD]');
+          if (isUssd) newUssd.push(`📅 New USSD appointment — ${a.reason||'visit'} on ${a.appointment_date||''}`);
+        }
+      }
+    });
+  }
+  if (sd && sd.items) {
+    window._apiSvcReqs = sd.items.map(_normProvSvc);
+    changed = true;
+    sd.items.forEach(s => {
+      if (!_seenIds.svcReqs.has(s.id)) {
+        _seenIds.svcReqs.add(s.id);
+        if (_initialLoadDone) {
+          const isUssd = (s.description||'').includes('via USSD');
+          if (isUssd) newUssd.push(`🔧 New USSD service request — ${s.request_type||''}`);
+        }
+      }
+    });
+  }
+
+  _initialLoadDone = true;
+
+  if (newUssd.length) {
+    newUssd.forEach((msg, i) => setTimeout(() => toast(msg, 'info'), i * 800));
+  }
+
   if (changed) {
     updateBadges();
     renderOverviewCards();
@@ -1298,34 +1418,86 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Restore saved availability settings
   loadAvailability();
   refreshSlotPreview();
-  // Fetch live data from API and poll every 30 s
+  // Fetch live data from API
   await loadApiData();
-  setInterval(loadApiData, 30000);
-  // Sync API notifications every 5 minutes
+  // Connect SSE for instant USSD push — falls back to 10 s polling if SSE fails
+  _connectSSE();
+  setInterval(loadApiData, 10000);
+  // Sync API notifications every 30 s
   _syncApiNotifs();
-  setInterval(_syncApiNotifs, 5 * 60 * 1000);
+  setInterval(_syncApiNotifs, 30000);
 });
+
+// ── Real-time USSD push via Server-Sent Events ────────────────────────────────
+let _sseSource = null;
+
+function _connectSSE() {
+  const token = localStorage.getItem('temba_token');
+  if (!token) return;
+
+  // Close any existing connection
+  if (_sseSource) { try { _sseSource.close(); } catch (_) {} _sseSource = null; }
+
+  const url = `${API_BASE}/events/stream?token=${encodeURIComponent(token)}`;
+  const es = new EventSource(url);
+  _sseSource = es;
+
+  es.onmessage = function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'connected') return; // initial handshake
+      // Instantly refresh dashboard data
+      loadApiData().then(() => {
+        const typeLabels = {
+          report: 'New USSD Report',
+          appointment: 'New USSD Appointment',
+          service_request: 'New USSD Service Request',
+        };
+        const label = typeLabels[data.type] || 'New USSD submission';
+        const detail = data.ref ? ` — Ref: ${data.ref}` : '';
+        toast(`${label}${detail}`, 'info');
+      });
+    } catch (_) {}
+  };
+
+  es.onerror = function() {
+    // On error, close and retry after 15 s (polling acts as fallback in the meantime)
+    try { es.close(); } catch (_) {}
+    _sseSource = null;
+    setTimeout(_connectSSE, 15000);
+  };
+}
 
 function updateBadges() {
   const myReqs    = getProviderSvcRequests();
   const myAppts   = getProviderAppts();
   const myReports = getProviderReports();
+  const _closedSet = new Set(['resolved','verified','pending-verification','rejected','cancelled','closed','completed']);
   const pendingSvc  = myReqs.filter(r => r.status === 'submitted').length;
   const pendingAppt = myAppts.filter(a => a.status === 'pending' || a.status === 'reschedule_requested').length;
-  const svcBadge  = document.getElementById('svcReqBadge');
-  const apptBadge = document.getElementById('apptMgmtBadge');
+  /* Active reports = not yet resolved/verified */
+  const activeReports = myReports.filter(r => !_closedSet.has(r.status)).length;
+
+  const svcBadge   = document.getElementById('svcReqBadge');
+  const apptBadge  = document.getElementById('apptMgmtBadge');
+  const inboxBadge = document.getElementById('inboxBadge');
 
   svcBadge.textContent  = pendingSvc;
   apptBadge.textContent = pendingAppt;
   svcBadge.style.display  = pendingSvc  ? 'flex' : 'none';
   apptBadge.style.display = pendingAppt ? 'flex' : 'none';
 
+  if (inboxBadge) {
+    inboxBadge.textContent = activeReports;
+    inboxBadge.style.display = activeReports ? 'flex' : 'none';
+  }
+
   document.getElementById('svcReqCount').textContent  = myReqs.length;
   document.getElementById('apptCount').textContent    = myAppts.length;
   const rc = document.getElementById('reportCount');
   if (rc) rc.textContent = myReports.length;
   const pc = document.getElementById('pendingCount');
-  if (pc) pc.textContent = pendingSvc + pendingAppt + myReports.filter(r => r.status === 'submitted').length;
+  if (pc) pc.textContent = pendingSvc + pendingAppt + activeReports;
 }
 
 function renderOverviewCards() {
@@ -1404,12 +1576,13 @@ function renderInbox(data, filter) {
     <td style="font-size:13px;">${r.loc}</td>
     <td style="font-size:13px;">${r.reporter}${r.phone?`<br><span style="font-size:11.5px;color:var(--gray-400);">${r.phone}</span>`:''}</td>
     <td style="font-size:12.5px;color:var(--gray-400);">${new Date(r.time).toLocaleDateString('en-RW',{day:'numeric',month:'short'})}</td>
-    <td><span style="font-size:12px;font-weight:700;color:${r.status==='resolved'?'var(--green)':r.status==='in-progress'||r.status==='in_progress'?'var(--orange)':'var(--blue)'};">${STATUS_LABEL[r.status]||r.status}</span></td>
+    <td><span style="font-size:12px;font-weight:700;color:${r.status==='resolved'?'var(--green)':r.status==='pending-verification'?'#7C3AED':r.status==='in-progress'||r.status==='in_progress'?'var(--orange)':'var(--blue)'};">${STATUS_LABEL[r.status]||r.status}</span></td>
     <td onclick="event.stopPropagation()">
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
         ${phoneHref?`<a href="tel:${phoneHref}" class="btn-call" style="text-decoration:none;" title="Call ${r.reporter}"><i class="ti ti-phone"></i></a>`:''}
         ${phoneHref?`<a href="sms:${phoneHref}" class="btn-sms" style="text-decoration:none;" title="SMS ${r.reporter}"><i class="ti ti-message"></i></a>`:''}
-        ${r.status!=='resolved'?`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}')"><i class="ti ti-check"></i> Resolve</button>`:''}
+        ${(r.status!=='resolved'&&r.status!=='pending-verification')?`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}')"><i class="ti ti-check"></i> Resolve</button>`:''}
+        ${r.status==='pending-verification'?`<span style="font-size:11px;color:#7C3AED;font-weight:600;"><i class="ti ti-clock"></i> Awaiting member verification</span>`:''}
         ${(r.status==='submitted'||r.status==='open')&&r.apiId?`<button class="btn-action warning" style="font-size:11.5px;" onclick="markReportInProgress('${r.ref}','${r.apiId}')"><i class="ti ti-loader-2"></i> In Progress</button>`:''}
       </div>
     </td>
@@ -1422,14 +1595,32 @@ function filterInbox(filter, btn) {
   renderInbox(getProviderReports(), filter);
 }
 
-async function resolveReport(ref, apiId) {
+function resolveReport(ref, apiId) {
+  /* Open the resolve-notes modal instead of resolving immediately */
+  document.getElementById('resolveModalRef').textContent = ref;
+  document.getElementById('resolveModalApiId').value = apiId || '';
+  document.getElementById('resolveNotes').value = '';
+  document.getElementById('resolveModal').style.display = 'flex';
+}
+async function _submitResolve() {
+  const apiId = document.getElementById('resolveModalApiId').value;
+  const notes = document.getElementById('resolveNotes').value.trim();
+  const ref   = document.getElementById('resolveModalRef').textContent;
+  closeResolveModal();
+  const payload = { status: 'resolution_submitted' };
+  if (notes) payload.resolution_notes = notes;
   if (apiId) {
-    const r = await apiPut(`/reports/${apiId}`, { status: 'resolved' });
-    if (r) { await loadApiData(); toast(`Report ${ref} resolved ✓`, 'success'); return; }
+    const r = await apiPut(`/reports/${apiId}`, payload);
+    if (r) {
+      await loadApiData();
+      toast(`Resolution submitted for ${ref} — community member will be notified to verify`, 'success');
+      return;
+    }
   }
-  const r = reports.find(x => x.ref === ref);
-  if (r) { r.status = 'resolved'; renderInbox(getProviderReports(), inboxFilter); }
-  toast(`Report ${ref} marked as resolved ✓`, 'success');
+  toast('Failed to submit resolution — please try again', 'error');
+}
+function closeResolveModal() {
+  document.getElementById('resolveModal').style.display = 'none';
 }
 
 async function markReportInProgress(ref, apiId) {
@@ -1579,7 +1770,7 @@ function renderProvApptList(filter) {
           <button class="btn-action warning" onclick="openProvReschedModal('${a.id}')"><i class="ti ti-calendar-event"></i> Reschedule</button>
           <button class="btn-action danger"  onclick="cancelApptProv('${a.id}')"><i class="ti ti-x"></i> Cancel</button>
         `:''}
-        <button class="btn-action secondary" onclick="toast('Contacting requester…','info')"><i class="ti ti-phone"></i> Contact</button>
+        ${a.phone ? `<a href="tel:${a.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;" title="Call ${a.reporter||''}"><i class="ti ti-phone"></i> Call</a><a href="sms:${a.phone.replace(/[\s\-]/g,'')}" class="btn-action secondary" style="text-decoration:none;" title="SMS ${a.reporter||''}"><i class="ti ti-message"></i> SMS</a>` : `<button class="btn-action secondary" disabled style="opacity:.45;cursor:default;"><i class="ti ti-phone"></i> No Phone</button>`}
       </div>
     </div>
   </div>`;
@@ -1590,6 +1781,48 @@ function filterProvAppts(filter, btn) {
   document.querySelectorAll('#panel-appointments .filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderProvApptList(filter);
+}
+
+async function lookupUssdAppt() {
+  const code = (document.getElementById('apptTrackInput').value || '').trim().toUpperCase();
+  const resultEl = document.getElementById('apptTrackResult');
+  if (!code) { resultEl.style.display = 'none'; return; }
+
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '<div style="padding:10px;font-size:13px;color:var(--gray-500);"><i class="ti ti-loader"></i> Searching...</div>';
+
+  const data = await apiGet(`/appointments/by-code/${code}`);
+  if (!data) {
+    resultEl.innerHTML = `<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;font-size:13px;color:#B91C1C;"><i class="ti ti-alert-circle"></i> No appointment found for tracking code <strong>${code}</strong>.</div>`;
+    return;
+  }
+  const a = _normProvAppt(data);
+  const statusColor = a.status==='approved'?'var(--green)':a.status==='rejected'?'var(--red)':a.status==='pending'?'var(--orange)':'var(--blue)';
+  resultEl.innerHTML = `
+    <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:14px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13.5px;font-weight:700;color:#5B21B6;"><i class="ti ti-device-mobile"></i> USSD Appointment Found</span>
+        <span style="font-size:12px;font-weight:700;color:${statusColor};text-transform:capitalize;">${a.status}</span>
+      </div>
+      <div style="font-size:13px;color:var(--navy);line-height:1.7;">
+        <strong>Tracking Code:</strong> ${code}<br>
+        <strong>Reason:</strong> ${APPT_REASON_LABELS[a.reason]||a.reason}<br>
+        <strong>Date/Time:</strong> ${a.date} at ${a.time}<br>
+        <strong>Reporter:</strong> ${a.reporter}${a.phone?' · '+a.phone:''}<br>
+        <strong>Notes:</strong> ${a.notes||'—'}
+      </div>
+      ${a.status==='pending'?`<div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="btn-action primary" onclick="approveAppt('${a.id}')"><i class="ti ti-check"></i> Approve</button>
+        <button class="btn-action danger" onclick="rejectAppt('${a.id}')"><i class="ti ti-x"></i> Reject</button>
+        <button class="btn-action secondary" onclick="openProvReschedModal('${a.id}')"><i class="ti ti-calendar-time"></i> Propose Time</button>
+      </div>`:''}
+    </div>`;
+  // Also add to the main list if not already there
+  if (!window._apiAppts.find(x => x.id === a.id)) {
+    window._apiAppts.unshift(a);
+    renderProvApptList('all');
+    updateBadges();
+  }
 }
 
 async function approveAppt(id) {
@@ -1691,15 +1924,25 @@ function openProvReschedModal(id) {
   document.getElementById('provReschedDate').value = '';
   document.getElementById('provReschedTime').value = '';
   document.getElementById('provReschedMsg').value = '';
+  const dur = document.getElementById('provReschedDuration');
+  if (dur) dur.value = '60';
+  const intv = document.getElementById('provReschedInterval');
+  if (intv) intv.value = 'none';
   document.getElementById('provReschedModal').classList.add('open');
 }
 function closeProvReschedModal() { document.getElementById('provReschedModal').classList.remove('open'); }
 
 async function submitProvResched() {
-  const id   = document.getElementById('provReschedApptId').value;
-  const date = document.getElementById('provReschedDate').value;
-  const time = document.getElementById('provReschedTime').value;
-  const msg  = document.getElementById('provReschedMsg').value.trim();
+  const id       = document.getElementById('provReschedApptId').value;
+  const date     = document.getElementById('provReschedDate').value;
+  const time     = document.getElementById('provReschedTime').value;
+  const duration = document.getElementById('provReschedDuration')?.value || '60';
+  const interval = document.getElementById('provReschedInterval')?.value || 'none';
+  const durLabel = duration === '30' ? '30 minutes' : duration === '90' ? '1.5 hours' : duration === '120' ? '2 hours' : '1 hour';
+  const intLabel = interval === 'weekly' ? ' (weekly repeat)' : interval === 'biweekly' ? ' (every 2 weeks)' : '';
+  const rawMsg   = document.getElementById('provReschedMsg').value.trim();
+  const durationNote = `Duration: ${durLabel}${intLabel}`;
+  const msg      = rawMsg ? `${rawMsg}\n${durationNote}` : durationNote;
   if (!date) { toast('Please select a proposed date','error'); return; }
   if (!time) { toast('Please select a proposed time','error'); return; }
 
@@ -1775,15 +2018,30 @@ function renderQuality() {
 
 /* ── Announcements ── */
 function renderPosted() {
-  document.getElementById('postedList').innerHTML = postedAnnouncements.length
-    ? postedAnnouncements.map(a => `
+  // Merge in-memory + persisted (filter to this provider)
+  const persisted = JSON.parse(localStorage.getItem(_PUB_ANNOUNCE_KEY || 'temba_pub_announcements') || '[]')
+    .filter(a => !CURRENT_PROVIDER || a.providerId === CURRENT_PROVIDER);
+  const merged = [...postedAnnouncements];
+  for (const p of persisted) {
+    if (!merged.some(m => m.postedAt === p.postedAt && m.title === p.title)) merged.push(p);
+  }
+  merged.sort((a, b) => (b.postedAt||'').localeCompare(a.postedAt||''));
+  const typeIcons = { interruption:'ti-alert-triangle', maintenance:'ti-tool', quality:'ti-flask', restoration:'ti-circle-check', general:'ti-speakerphone' };
+  const typeColors = { interruption:'var(--orange)', maintenance:'var(--blue)', quality:'var(--purple)', restoration:'var(--green)', general:'var(--blue)' };
+  document.getElementById('postedList').innerHTML = merged.length
+    ? merged.map(a => {
+        const icon  = typeIcons[a.type] || 'ti-speakerphone';
+        const color = typeColors[a.type] || 'var(--blue)';
+        const when  = a.postedAt ? new Date(a.postedAt).toLocaleString('en-RW',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : a.time || '';
+        return `
     <div class="alert-item" style="margin-bottom:10px;">
-      <div class="alert-icon" style="background:var(--sky-light);"><i class="ti ti-speakerphone" style="color:var(--blue);"></i></div>
-      <div>
+      <div class="alert-icon" style="background:var(--sky-light);"><i class="ti ${icon}" style="color:${color};"></i></div>
+      <div style="flex:1;min-width:0;">
         <div class="alert-title">${a.title}</div>
-        <div class="alert-meta">${a.type} · ${a.area} · ${a.time}</div>
+        <div class="alert-meta">${a.area||'All areas'} · ${when}</div>
+        ${a.message ? `<div style="font-size:12.5px;color:var(--gray-600);margin-top:4px;line-height:1.5;">${a.message}</div>` : ''}
       </div>
-    </div>`).join('')
+    </div>`}).join('')
     : '<div class="empty-state"><i class="ti ti-speakerphone"></i><p>No announcements posted yet.</p></div>';
 }
 
@@ -1793,11 +2051,20 @@ function toggleArea(el, area) {
   else selectedAreas = selectedAreas.filter(a => a !== area);
 }
 
+const _PUB_ANNOUNCE_KEY = 'temba_pub_announcements';
+
 function postAnnouncement() {
   const title = document.getElementById('announceTitle').value.trim();
   const msg   = document.getElementById('announceMsg').value.trim();
+  const type  = document.getElementById('announceType').value;
   if (!title || !msg) { toast('Please fill in title and message','error'); return; }
-  postedAnnouncements.unshift({ title, type:document.getElementById('announceType').value, area:selectedAreas.join(', '), time:'Just now' });
+  const entry = { title, type, area:selectedAreas.join(', '), message:msg, time:'Just now', postedAt:new Date().toISOString(), providerId:CURRENT_PROVIDER, unread:true };
+  postedAnnouncements.unshift(entry);
+  // Persist to shared key readable by community dashboard
+  const pubList = JSON.parse(localStorage.getItem(_PUB_ANNOUNCE_KEY) || '[]');
+  pubList.unshift(entry);
+  if (pubList.length > 100) pubList.length = 100;
+  localStorage.setItem(_PUB_ANNOUNCE_KEY, JSON.stringify(pubList));
   renderPosted();
   document.getElementById('announceTitle').value = '';
   document.getElementById('announceMsg').value = '';
@@ -2021,7 +2288,7 @@ function filterProvHistory(filter, btn) {
 
 function renderProvHistory() {
   const DONE_APPT = ['completed','cancelled','rejected'];
-  const DONE_REP  = ['resolved','rejected'];
+  const DONE_REP  = ['resolved','verified','pending-verification','rejected'];
   const DONE_SVC  = ['completed','rejected','cancelled'];
   const SVC_LBL   = { water_connection:'Water Connection', tank_delivery:'Tank Delivery', truck_delivery:'Water Truck', meter_support:'Meter Support', inspection:'Inspection' };
 
@@ -2040,8 +2307,9 @@ function renderProvHistory() {
   }
   if (_provHistFilter === 'all' || _provHistFilter === 'reports') {
     entries.push(...reps.map(r => ({
-      icon:'ti-flag', dotClass: r.status==='resolved'?'resolved report':'rejected report',
-      title:`Report — ${r.issue||r.category||'Water Issue'}`,
+      icon:'ti-flag',
+      dotClass: (r.status==='resolved'||r.status==='verified')?'resolved report':r.status==='pending-verification'?'pending report':'rejected report',
+      title:`Report — ${r.issue||r.category||'Water Issue'} <span style="font-size:11px;color:var(--gray-400);">(${r.ref})</span>`,
       meta:`${r.reporter||'Community Member'} · ${r.loc||r.district||'—'}`,
       status: r.status, time: r.time||r.created_at,
     })));
@@ -2056,8 +2324,8 @@ function renderProvHistory() {
   }
 
   entries.sort((a,b) => new Date(b.time||0) - new Date(a.time||0));
-  const statusColor = { completed:'#2E7D32', resolved:'#2E7D32', cancelled:'#94A3B8', rejected:'#C62828' };
-  const statusBg    = { completed:'#E8F5E9', resolved:'#E8F5E9', cancelled:'#F1F5F9', rejected:'#FFEBEE' };
+  const statusColor = { completed:'#2E7D32', resolved:'#2E7D32', verified:'#2E7D32', 'pending-verification':'#7C3AED', cancelled:'#94A3B8', rejected:'#C62828' };
+  const statusBg    = { completed:'#E8F5E9', resolved:'#E8F5E9', verified:'#E8F5E9', 'pending-verification':'#F3E8FF', cancelled:'#F1F5F9', rejected:'#FFEBEE' };
 
   document.getElementById('provHistoryList').innerHTML = entries.length
     ? entries.map(e => `
@@ -2139,6 +2407,13 @@ function markAllNotifsRead() {
   _renderNotifList();
 }
 
+function markSingleNotifRead(id) {
+  const list = getNotifs().map(n => n.id === id ? { ...n, read: true } : n);
+  saveNotifs(list);
+  updateNotifBadge();
+  _renderNotifList();
+}
+
 function _renderNotifList() {
   const list   = getNotifs();
   const el     = document.getElementById('notifList');
@@ -2154,14 +2429,18 @@ function _renderNotifList() {
     return;
   }
   el.innerHTML = list.map(n => `
-    <div class="notif-item ${n.read ? '' : 'unread'}">
+    <div class="notif-item ${n.read ? '' : 'unread'}" role="button" tabindex="0" style="cursor:pointer;"
+         onclick="markSingleNotifRead('${n.id}')"
+         onkeydown="if(event.key==='Enter')markSingleNotifRead('${n.id}')">
       <div class="notif-icon ${n.color || 'blue'}"><i class="ti ${n.icon || 'ti-bell'}"></i></div>
       <div style="flex:1;min-width:0;">
         <div class="notif-item-title">${n.title}</div>
         <div class="notif-item-body">${n.body}</div>
         <div class="notif-item-time"><i class="ti ti-clock" style="font-size:10px;margin-right:3px;"></i>${fmtDate(n.createdAt)}</div>
       </div>
-      ${n.read ? '' : '<div class="notif-unread-dot"></div>'}
+      ${n.read
+        ? '<i class="ti ti-check" style="color:var(--gray-300);font-size:14px;flex-shrink:0;align-self:center;"></i>'
+        : '<div class="notif-unread-dot"></div>'}
     </div>`).join('');
 }
 </script>

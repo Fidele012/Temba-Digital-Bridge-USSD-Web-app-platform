@@ -55,7 +55,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
-from app.services.notification_service import notify_user, send_sms_background
+from app.services.notification_service import notify_org, notify_user, send_sms_background
 from app.models.appointment import (
     Appointment,
     AppointmentReason,
@@ -1818,8 +1818,8 @@ async def _service_flow(
         report.sla_deadline = sla_deadline_for(_CAT_MAP[cat].value, report.created_at, priority_class=priority)
         log.info("ussd_report_created", report_id=str(report.id), ref=ref, phone=phoneNumber)
         try:
-            await notify_user(
-                db, user_id=provider.user_id,
+            await notify_org(
+                db, provider=provider,
                 notification_type="report_update",
                 title=f"New {_CAT_EN[cat]} report (USSD)",
                 body=(
@@ -1830,6 +1830,19 @@ async def _service_flow(
             )
         except Exception:
             log.warning("ussd_notify_failed", report_id=str(report.id))
+        # Push real-time SSE event to provider dashboard
+        try:
+            from app import events as _ev
+            asyncio.create_task(_ev.push(provider.organization_name, {
+                "type": "report",
+                "ref": ref,
+                "title": f"{_CAT_EN[cat]} report",
+                "urgency": _URG_EN[urg],
+                "reporter": user.full_name,
+                "phone": phoneNumber,
+            }))
+        except Exception:
+            pass
         # SMS confirmation to community member
         sms_to = _sms_phone(user, phoneNumber)
         sms_msg = (
@@ -2043,8 +2056,8 @@ async def _service_flow(
         await db.flush()
         log.info("ussd_appointment_created", appt_id=str(appt.id), phone=phoneNumber)
         try:
-            await notify_user(
-                db, user_id=provider.user_id,
+            await notify_org(
+                db, provider=provider,
                 notification_type="appointment_update",
                 title="New appointment request (USSD)",
                 body=(
@@ -2055,6 +2068,20 @@ async def _service_flow(
             )
         except Exception:
             log.warning("ussd_notify_failed", appt_id=str(appt.id))
+        # Push real-time SSE event to provider dashboard
+        try:
+            from app import events as _ev
+            asyncio.create_task(_ev.push(provider.organization_name, {
+                "type": "appointment",
+                "ref": _short_id(appt.id),
+                "reason": _reason_label,
+                "date": appt_date.strftime("%d %b %Y"),
+                "time": appt_time,
+                "reporter": user.full_name,
+                "phone": phoneNumber,
+            }))
+        except Exception:
+            pass
         # SMS confirmation to community member
         appt_ref = _short_id(appt.id)
         sms_to = _sms_phone(user, phoneNumber)
@@ -2177,8 +2204,8 @@ async def _service_flow(
         await db.flush()
         log.info("ussd_service_request_created", sr_id=str(sr.id), ref=svc_ref, phone=phoneNumber)
         try:
-            await notify_user(
-                db, user_id=provider.user_id,
+            await notify_org(
+                db, provider=provider,
                 notification_type="service_request_update",
                 title="New service request (USSD)",
                 body=(
@@ -2189,6 +2216,19 @@ async def _service_flow(
             )
         except Exception:
             log.warning("ussd_notify_failed", sr_id=str(sr.id))
+        # Push real-time SSE event to provider dashboard
+        try:
+            from app import events as _ev
+            asyncio.create_task(_ev.push(provider.organization_name, {
+                "type": "service_request",
+                "ref": svc_ref,
+                "service": _SVC_EN[svc],
+                "urgency": _SVC_URG_EN[urg],
+                "reporter": user.full_name,
+                "phone": phoneNumber,
+            }))
+        except Exception:
+            pass
         # SMS confirmation to community member
         sms_to = _sms_phone(user, phoneNumber)
         sms_msg = (

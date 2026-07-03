@@ -11,7 +11,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select  # func used for case-insensitive org match
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -70,7 +70,15 @@ async def list_service_requests(
         q = q.where(ServiceRequest.user_id == current_user.id)
     elif current_user.role == UserRole.PROVIDER:
         prov = await get_provider_for_user(current_user, db)
-        q = q.where(ServiceRequest.provider_id == prov.id) if prov else q.where(False)
+        if prov:
+            same_org = (await db.execute(
+                select(Provider.id).where(
+                    func.lower(Provider.organization_name) == func.lower(prov.organization_name)
+                )
+            )).scalars().all()
+            q = q.where(ServiceRequest.provider_id.in_(same_org))
+        else:
+            q = q.where(False)
 
     if status_filter:
         q = q.where(ServiceRequest.status == status_filter)

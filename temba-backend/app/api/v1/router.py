@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     analytics,
     appointments,
     auth,
+    events,
     notifications,
     providers,
     reports,
@@ -25,3 +26,4 @@ api_router.include_router(notifications.router)
 api_router.include_router(analytics.router)
 api_router.include_router(ussd.router)
 api_router.include_router(track.router)
+api_router.include_router(events.router)

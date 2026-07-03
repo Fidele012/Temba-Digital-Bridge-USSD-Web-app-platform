@@ -10,7 +10,7 @@
   'use strict';
 
   // ─── Config ──────────────────────────────────────────────────────────────────
-  const API = (window.API_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '');
+  const API = (window.API_BASE || 'http://127.0.0.1:8001').replace(/\/$/, '');
 
   // ─── Service category labels ─────────────────────────────────────────────────
   const SERVICE_LABELS = {

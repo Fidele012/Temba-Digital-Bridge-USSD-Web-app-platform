@@ -14,14 +14,14 @@ from typing import TYPE_CHECKING
 
 import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.notification import Notification, NotificationType
 
 if TYPE_CHECKING:
-    pass
+    from app.models.provider import Provider
 
 log = structlog.get_logger(__name__)
 
@@ -62,6 +62,43 @@ async def notify_user(
     db.add(notif)
     await db.flush()
     return notif
+
+
+async def notify_org(
+    db: AsyncSession,
+    *,
+    provider: "Provider",
+    notification_type: str,
+    title: str,
+    body: str,
+    reference_id: str | None = None,
+    reference_type: str | None = None,
+) -> None:
+    """Send a notification to ALL users linked to providers sharing the same
+    organization name (handles seeded-vs-web-registered provider duplicates)."""
+    from app.models.provider import Provider as _Provider  # avoid circular import
+
+    rows = (await db.execute(
+        select(_Provider).where(
+            func.lower(_Provider.organization_name) == func.lower(provider.organization_name)
+        )
+    )).scalars().all()
+
+    seen: set[uuid.UUID] = set()
+    for prov in rows:
+        if prov.user_id and prov.user_id not in seen:
+            seen.add(prov.user_id)
+            notif = Notification(
+                user_id=prov.user_id,
+                notification_type=NotificationType(notification_type),
+                title=title,
+                body=body,
+                reference_id=reference_id,
+                reference_type=reference_type,
+            )
+            db.add(notif)
+    if seen:
+        await db.flush()
 
 
 # ── Email ──────────────────────────────────────────────────────────────────────

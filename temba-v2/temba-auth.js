@@ -322,7 +322,7 @@ async function handleSubmit(type) {
   if (pw !== conf)                                       { showTembaToast('Passwords do not match'); return; }
   if (!terms?.checked)                                   { showTembaToast('Please accept the Terms of Use to continue'); return; }
 
-  const _API = 'http://127.0.0.1:8000/api/v1';
+  const _API = 'http://127.0.0.1:8001/api/v1';
   let token = null;
 
   /* Collect all registration data up-front */

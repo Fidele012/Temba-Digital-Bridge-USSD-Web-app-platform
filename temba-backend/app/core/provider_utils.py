@@ -20,12 +20,15 @@ async def get_provider_for_user(user: User, db: AsyncSession) -> Provider | None
     if prov:
         return prov
 
-    staff_row = (
-        await db.execute(select(ProviderStaff).where(ProviderStaff.user_id == user.id))
+    # Select only provider_id to avoid the enum column mapping issue
+    staff_provider_id = (
+        await db.execute(
+            select(ProviderStaff.provider_id).where(ProviderStaff.user_id == user.id)
+        )
     ).scalar_one_or_none()
-    if staff_row:
+    if staff_provider_id:
         return (
-            await db.execute(select(Provider).where(Provider.id == staff_row.provider_id))
+            await db.execute(select(Provider).where(Provider.id == staff_provider_id))
         ).scalar_one_or_none()
 
     return None

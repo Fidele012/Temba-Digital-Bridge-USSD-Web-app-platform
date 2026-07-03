@@ -64,8 +64,8 @@
       <span class="s-badge" id="apptBadge" style="display:none;"></span>
     </a>
     <a href="#" class="sidebar-item" onclick="showPanel('alerts',this)">
-      <i class="ti ti-bell" aria-hidden="true"></i> <span data-i18n="dash_alerts">Alerts</span>
-      <span class="s-badge" id="alertBadge">2</span>
+      <i class="ti ti-speakerphone" aria-hidden="true"></i> <span data-i18n="dash_alerts">Alerts &amp; Announcements</span>
+      <span class="s-badge" id="alertBadge" style="display:none;">0</span>
     </a>
     <a href="#" class="sidebar-item" onclick="showPanel('water-quality',this)">
       <i class="ti ti-flask" aria-hidden="true"></i> <span data-i18n="dash_quality">Water Quality</span>
@@ -98,21 +98,25 @@
       </div>
 
       <div class="stat-grid">
-        <div class="stat-card">
+        <div class="stat-card stat-card-link" role="button" tabindex="0" title="View all reports" onclick="_navToPanel('my-reports','all')" onkeydown="if(event.key==='Enter')_navToPanel('my-reports','all')">
           <div class="stat-icon blue"><i class="ti ti-flag" aria-hidden="true"></i></div>
-          <div><div class="stat-num" id="statTotal">3</div><div class="stat-lbl" data-i18n="stat_total_reports">Total Reports</div></div>
+          <div><div class="stat-num" id="statTotal">0</div><div class="stat-lbl" data-i18n="stat_total_reports">Total Reports</div></div>
+          <i class="ti ti-chevron-right stat-card-arrow" aria-hidden="true"></i>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card-link" role="button" tabindex="0" title="View active reports" onclick="_navToPanel('my-reports','submitted')" onkeydown="if(event.key==='Enter')_navToPanel('my-reports','submitted')">
           <div class="stat-icon orange"><i class="ti ti-loader-2" aria-hidden="true"></i></div>
-          <div><div class="stat-num" id="statActive">2</div><div class="stat-lbl" data-i18n="stat_active_reports">Active Reports</div></div>
+          <div><div class="stat-num" id="statActive">0</div><div class="stat-lbl" data-i18n="stat_active_reports">Active Reports</div></div>
+          <i class="ti ti-chevron-right stat-card-arrow" aria-hidden="true"></i>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card-link" role="button" tabindex="0" title="View service requests" onclick="_navToPanel('service-requests',null)" onkeydown="if(event.key==='Enter')_navToPanel('service-requests',null)">
           <div class="stat-icon purple"><i class="ti ti-tool" aria-hidden="true"></i></div>
           <div><div class="stat-num" id="statRequests">0</div><div class="stat-lbl" data-i18n="stat_service_requests">Service Requests</div></div>
+          <i class="ti ti-chevron-right stat-card-arrow" aria-hidden="true"></i>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card-link" role="button" tabindex="0" title="View appointments" onclick="_navToPanel('appointments',null)" onkeydown="if(event.key==='Enter')_navToPanel('appointments',null)">
           <div class="stat-icon green"><i class="ti ti-calendar" aria-hidden="true"></i></div>
           <div><div class="stat-num" id="statAppts">0</div><div class="stat-lbl" data-i18n="stat_appointments_lbl">Appointments</div></div>
+          <i class="ti ti-chevron-right stat-card-arrow" aria-hidden="true"></i>
         </div>
       </div>
 
@@ -181,6 +185,7 @@
         <div><h1 data-i18n="my_reports_title">My Reports</h1><p data-i18n="my_reports_sub">All water and sanitation issues you have submitted.</p></div>
         <a href="report.html" class="btn-nav-cta" style="text-decoration:none;"><i class="ti ti-plus" aria-hidden="true"></i> <span data-i18n="dash_new_report">New Report</span></a>
       </div>
+      <div id="reportVerifyBanner"></div>
       <div class="filter-bar">
         <button class="filter-btn active" onclick="filterReports('all',this)" data-i18n="filter_all">All</button>
         <button class="filter-btn" onclick="filterReports('submitted',this)" data-i18n="filter_submitted">Submitted</button>
@@ -412,28 +417,62 @@
 
       <!-- Fallback: free-form time (shown when provider has no availability configured) -->
       <div id="slotFallbackSection" style="display:none;">
-        <div class="field">
-          <label class="field-label"><span data-i18n="appt_pref_time">Preferred Time</span> <span class="req">*</span></label>
-          <div class="field-wrap sel-wrap">
-            <i class="ti ti-clock field-icon" aria-hidden="true"></i>
-            <select id="apptTimeSelect">
-              <option value="" disabled selected data-i18n="appt_select_time">Select time</option>
-              <option value="08:00 AM">08:00 AM</option>
-              <option value="09:00 AM">09:00 AM</option>
-              <option value="10:00 AM">10:00 AM</option>
-              <option value="11:00 AM">11:00 AM</option>
-              <option value="12:00 PM">12:00 PM</option>
-              <option value="01:00 PM">01:00 PM</option>
-              <option value="02:00 PM">02:00 PM</option>
-              <option value="03:00 PM">03:00 PM</option>
-              <option value="04:00 PM">04:00 PM</option>
-            </select>
-            <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label"><span data-i18n="appt_pref_time">Preferred Time</span> <span class="req">*</span></label>
+            <div class="field-wrap sel-wrap">
+              <i class="ti ti-clock field-icon" aria-hidden="true"></i>
+              <select id="apptTimeSelect">
+                <option value="" disabled selected data-i18n="appt_select_time">Select time</option>
+                <option value="07:00">07:00 AM</option><option value="07:30">07:30 AM</option>
+                <option value="08:00">08:00 AM</option><option value="08:30">08:30 AM</option>
+                <option value="09:00">09:00 AM</option><option value="09:30">09:30 AM</option>
+                <option value="10:00">10:00 AM</option><option value="10:30">10:30 AM</option>
+                <option value="11:00">11:00 AM</option><option value="11:30">11:30 AM</option>
+                <option value="12:00">12:00 PM</option><option value="12:30">12:30 PM</option>
+                <option value="13:00">01:00 PM</option><option value="13:30">01:30 PM</option>
+                <option value="14:00">02:00 PM</option><option value="14:30">02:30 PM</option>
+                <option value="15:00">03:00 PM</option><option value="15:30">03:30 PM</option>
+                <option value="16:00">04:00 PM</option><option value="16:30">04:30 PM</option>
+                <option value="17:00">05:00 PM</option>
+              </select>
+              <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Duration</label>
+            <div class="field-wrap sel-wrap">
+              <i class="ti ti-hourglass field-icon" aria-hidden="true"></i>
+              <select id="apptDuration">
+                <option value="30">30 minutes</option>
+                <option value="60" selected>1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+              <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+            </div>
           </div>
         </div>
         <div class="info-box" style="margin-bottom:0;">
           <i class="ti ti-info-circle" aria-hidden="true"></i>
           <span data-i18n="appt_no_avail_hint">This provider hasn't published their availability yet. Your preferred time will be sent as a request for the provider to confirm.</span>
+        </div>
+      </div>
+
+      <!-- Duration field (shown when slot picker is used) -->
+      <div id="slotDurationSection" style="display:none;">
+        <div class="field">
+          <label class="field-label">Appointment Duration</label>
+          <div class="field-wrap sel-wrap">
+            <i class="ti ti-hourglass field-icon" aria-hidden="true"></i>
+            <select id="apptDurationSlot">
+              <option value="30">30 minutes</option>
+              <option value="60" selected>1 hour</option>
+              <option value="90">1.5 hours</option>
+              <option value="120">2 hours</option>
+            </select>
+            <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+          </div>
         </div>
       </div>
 
@@ -573,6 +612,49 @@
       <button class="btn-primary" style="width:auto;height:42px;padding:0 24px;margin-top:0;" onclick="submitResched()">
         <i class="ti ti-calendar-event"></i> <span data-i18n="resched_submit">Request Reschedule</span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROVIDER DETAIL MODAL ── -->
+<div class="modal-overlay" id="providerDetailModal" onclick="if(event.target===this)closeProviderDetail()">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:var(--sky-pale);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--blue);"><i class="ti ti-building"></i></div>
+        <div><div class="modal-title" id="pdName">Provider</div><div style="font-size:12px;color:var(--gray-400)" id="pdType"></div></div>
+      </div>
+      <button class="modal-close" onclick="closeProviderDetail()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="padding-top:0;">
+      <div id="pdCoverage" style="font-size:13px;color:var(--gray-400);margin-bottom:12px;display:flex;align-items:center;gap:6px;"><i class="ti ti-map-pin" style="color:var(--sky);"></i><span></span></div>
+      <div id="pdServices" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+      <div style="background:var(--gray-50);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><i class="ti ti-phone" style="color:var(--green);font-size:16px;"></i><span id="pdPhone"></span></div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><i class="ti ti-mail" style="color:var(--blue);font-size:16px;"></i><span id="pdEmail"></span></div>
+      </div>
+      <div id="pdRating" style="display:none;background:#FFF8E1;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:8px;color:#795548;"><i class="ti ti-star-filled" style="color:#FFC107;"></i><span></span></div>
+    </div>
+    <div class="modal-footer" id="pdFooter"></div>
+  </div>
+</div>
+
+<!-- ── ALERT DETAIL MODAL ── -->
+<div class="modal-overlay" id="alertDetailModal" onclick="if(event.target===this)closeAlertDetail()">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div id="adIcon" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;"></div>
+        <div class="modal-title" id="adTitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeAlertDetail()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="padding-top:8px;">
+      <p id="adDesc" style="font-size:14px;color:var(--gray-600);line-height:1.6;margin-bottom:14px;"></p>
+      <div style="font-size:12px;color:var(--gray-400);display:flex;align-items:center;gap:6px;"><i class="ti ti-building"></i><span id="adProvider"></span><span>·</span><span id="adTime"></span></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeAlertDetail()">Close</button>
     </div>
   </div>
 </div>
@@ -777,17 +859,69 @@ if (!_s.loggedIn) window.location.href = 'signin.html';
 if (_s.loggedIn && _s.role === 'provider') window.location.href = 'dashboard-provider.html';
 
 /* ── Storage keys — namespaced per user so accounts don't share data ── */
-const _userKey = (_s.email || 'guest').toLowerCase().replace(/[^a-z0-9]/g, '_');
-const SVC_KEY  = `temba_svc_${_userKey}`;
-const APPT_KEY = `temba_appts_${_userKey}`;
+const _userKey    = (_s.email || 'guest').toLowerCase().replace(/[^a-z0-9]/g, '_');
+const REPORT_KEY  = `temba_reports_${_userKey}`;
+const SVC_KEY     = `temba_svc_${_userKey}`;
+const APPT_KEY    = `temba_appts_${_userKey}`;
+function getReports()    { return JSON.parse(localStorage.getItem(REPORT_KEY) || '[]'); }
+function saveReports(d)  { localStorage.setItem(REPORT_KEY, JSON.stringify(d)); }
 
 /* ── Alerts / Announcements ── */
+const _ANNOUNCE_TYPE_MAP = { interruption:'warning', maintenance:'info', quality:'warning', restoration:'success', general:'info' };
+const ALERTS_READ_KEY = `temba_alerts_read_${_userKey}`;
+function _getReadAlerts() { return new Set(JSON.parse(localStorage.getItem(ALERTS_READ_KEY) || '[]')); }
+function _alertId(a) { return (a.title + '|' + a.provider).toLowerCase().replace(/\s+/g,'_'); }
+function markAlertRead(id) {
+  const r = _getReadAlerts(); r.add(id);
+  localStorage.setItem(ALERTS_READ_KEY, JSON.stringify([...r]));
+  renderAlerts();
+  document.getElementById('overviewAlerts') && (document.getElementById('overviewAlerts').innerHTML = getAlertsData().slice(0,3).map(alertItemHTML).join(''));
+}
+function markAllAlertsRead() {
+  const all = getAlertsData();
+  const r = _getReadAlerts();
+  all.forEach(a => r.add(_alertId(a)));
+  localStorage.setItem(ALERTS_READ_KEY, JSON.stringify([...r]));
+  renderAlerts();
+}
+function openAlertDetail(id) {
+  const a = getAlertsData().find(x => _alertId(x) === id);
+  if (!a) return;
+  markAlertRead(id);
+  const iconsBg = { warning:'#FFF3E0', info:'#E3F2FD', success:'#E8F5E9' };
+  const iconsCl = { warning:'var(--orange)', info:'var(--blue)', success:'var(--green)' };
+  const iconsTi = { warning:'ti-alert-triangle', info:'ti-info-circle', success:'ti-circle-check' };
+  const adIcon = document.getElementById('adIcon');
+  adIcon.style.background = iconsBg[a.type] || '#E3F2FD';
+  adIcon.innerHTML = `<i class="ti ${iconsTi[a.type]||'ti-info-circle'}" style="color:${iconsCl[a.type]||'var(--blue)'}"></i>`;
+  document.getElementById('adTitle').textContent = a.title;
+  document.getElementById('adDesc').textContent  = a.desc;
+  document.getElementById('adProvider').textContent = a.provider;
+  document.getElementById('adTime').textContent  = a.time;
+  document.getElementById('alertDetailModal').style.display = 'flex';
+}
+function closeAlertDetail() { document.getElementById('alertDetailModal').style.display = 'none'; }
+
 function getAlertsData() {
-  return [
-    { type:'warning', title:t('alert_1_title'), desc:t('alert_1_desc'), provider:'WASAC',     time:t('alert_1_time'), unread:true  },
-    { type:'info',    title:t('alert_2_title'), desc:t('alert_2_desc'), provider:'Pro Water', time:t('alert_2_time'), unread:true  },
-    { type:'success', title:t('alert_3_title'), desc:t('alert_3_desc'), provider:'IRIBA',     time:t('alert_3_time'), unread:false },
-  ];
+  const readSet = _getReadAlerts();
+  const provAnnouncements = JSON.parse(localStorage.getItem('temba_pub_announcements') || '[]').map(a => {
+    const al = {
+      type: _ANNOUNCE_TYPE_MAP[a.type] || 'info',
+      title: a.title,
+      desc: a.message || '',
+      provider: a.providerId || 'Water Provider',
+      time: a.postedAt ? new Date(a.postedAt).toLocaleString('en-RW', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Recently',
+    };
+    al.id = _alertId(al);
+    al.unread = !readSet.has(al.id);
+    return al;
+  });
+  const staticAlerts = [
+    { type:'warning', title:t('alert_1_title'), desc:t('alert_1_desc'), provider:'WASAC',     time:t('alert_1_time') },
+    { type:'info',    title:t('alert_2_title'), desc:t('alert_2_desc'), provider:'Pro Water', time:t('alert_2_time') },
+    { type:'success', title:t('alert_3_title'), desc:t('alert_3_desc'), provider:'IRIBA',     time:t('alert_3_time') },
+  ].map(a => { a.id = _alertId(a); a.unread = !readSet.has(a.id); return a; });
+  return provAnnouncements.length ? [...provAnnouncements, ...staticAlerts] : staticAlerts;
 }
 function getQualityData() {
   return [
@@ -845,7 +979,7 @@ function uid() { return 'id_' + Date.now() + '_' + Math.floor(Math.random()*9999
 function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'}); }
 
 /* ── API Integration ── */
-const API_BASE = 'http://127.0.0.1:8000/api/v1';
+const API_BASE = 'http://127.0.0.1:8001/api/v1';
 window._apiReports = []; window._apiAppts = []; window._apiSvcReqs = [];
 window._apiProviders = [];
 
@@ -927,7 +1061,10 @@ function _normReport(r) {
   const um = { HIGH:'urgent', MEDIUM:'moderate', LOW:'low', high:'urgent', medium:'moderate', low:'low' };
   const pc = r.priority_class || 'P3';
   const refNum = r.reference_number || ('#'+String(r.id).slice(0,8).toUpperCase());
-  return { ref:refNum, issue:cm[r.category]||r.category, urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.district,r.province].filter(Boolean).join(' - ')||'Rwanda', provider:r.provider_name||(r.provider&&r.provider.organization_name)||'WASAC', status:(r.status||'submitted').toLowerCase().replace(/_/g,'-'), time:r.created_at, fromApi:true, apiId:r.id };
+  const rawStatus = (r.status || 'submitted').toLowerCase();
+  const statusMap = { open:'submitted', acknowledged:'in-progress', under_review:'in-progress', in_progress:'in-progress', resolution_submitted:'pending-verification', follow_up_required:'in-progress', management_review:'in-progress', verified:'resolved', resolved:'resolved', closed:'resolved', closed_unverified:'resolved' };
+  const normStatus = statusMap[rawStatus] || rawStatus.replace(/_/g,'-');
+  return { ref:refNum, issue:cm[r.category]||r.category, urgency:um[r.urgency]||'moderate', priority:pc, loc:[r.district,r.province].filter(Boolean).join(' - ')||'Rwanda', province:r.province||null, district:r.district||null, sector:r.sector||null, cell:r.cell||null, submittedBy:r.user_name||null, provider:r.provider_name||(r.provider&&r.provider.organization_name)||'WASAC', status:normStatus, time:r.created_at, fromApi:true, apiId:r.id };
 }
 function _normAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
@@ -939,9 +1076,8 @@ function _normSvc(s) {
 }
 
 function getAllReports() {
-  const local = JSON.parse(sessionStorage.getItem('temba_reports') || '[]');
   const apiIds = new Set(window._apiReports.map(r => r.apiId));
-  return [...window._apiReports, ...local.filter(r => !r.fromApi)];
+  return [...window._apiReports, ...getReports().filter(r => !r.fromApi && !apiIds.has(r.apiId))];
 }
 function getAllSvcReqs() { return [...window._apiSvcReqs, ...getSvcRequests().filter(r => !r.fromApi)]; }
 function _provPhone(nameOrId) {
@@ -951,25 +1087,48 @@ function _provPhone(nameOrId) {
 function getAllAppts()   { return [...window._apiAppts,   ...getAppts().filter(a => !a.fromApi)]; }
 
 async function loadApiData() {
+  const token = localStorage.getItem('temba_token');
+  if (!token) {
+    /* No API token — session may have expired. Show prompt and work offline. */
+    const existing = document.getElementById('_sessionExpiredBanner');
+    if (!existing) {
+      const banner = document.createElement('div');
+      banner.id = '_sessionExpiredBanner';
+      banner.style.cssText = 'background:#FFF3CD;border:1px solid #FFC107;border-radius:8px;padding:10px 16px;margin:0 0 12px;font-size:13px;display:flex;align-items:center;gap:10px;';
+      banner.innerHTML = '<i class="ti ti-alert-triangle" style="color:#856404;"></i><span>Your session token has expired. <a href="signin.html" style="color:#0d6efd;font-weight:600;">Sign in again</a> to see your latest reports from the server.</span>';
+      const panel = document.getElementById('panel-overview');
+      if (panel) panel.prepend(banner);
+    }
+    _refreshAll();
+    return;
+  }
   const [rd, ad, sd] = await Promise.all([
     apiGet('/reports?size=100'),
     apiGet('/appointments?size=100'),
     apiGet('/service-requests?size=100'),
   ]);
-  let changed = false;
-  if (rd && rd.items) { window._apiReports = rd.items.map(_normReport); changed = true; }
-  if (ad && ad.items) { window._apiAppts   = ad.items.map(_normAppt);   changed = true; }
-  if (sd && sd.items) { window._apiSvcReqs = sd.items.map(_normSvc);    changed = true; }
-  if (changed) _refreshAll();
+  if (rd && rd.items) {
+    window._apiReports = rd.items.map(_normReport);
+    _syncReportVerifyFromApi(rd.items);
+  }
+  if (ad && ad.items) window._apiAppts   = ad.items.map(_normAppt);
+  if (sd && sd.items) window._apiSvcReqs = sd.items.map(_normSvc);
+  /* Always refresh — even if all APIs failed, localStorage data must render */
+  _refreshAll();
 }
 
+const _CLOSED_STATUSES = new Set(['resolved','verified','closed','closed_unverified']);
 function _refreshAll() {
   const all = getAllReports();
+  const activeCnt = all.filter(r => !_CLOSED_STATUSES.has(r.status)).length;
   document.getElementById('statTotal').textContent   = all.length;
-  document.getElementById('statActive').textContent  = all.filter(r=>r.status!=='resolved').length;
-  document.getElementById('activeBadge').textContent = all.filter(r=>r.status!=='resolved').length;
+  document.getElementById('statActive').textContent  = activeCnt;
+  const ab = document.getElementById('activeBadge');
+  if (activeCnt > 0) { ab.textContent = activeCnt; ab.style.display = 'flex'; }
+  else ab.style.display = 'none';
   _updateSvcBadgeAll(); _updateApptBadgeAll();
   renderOverview(all); renderReportsList(all,'all'); renderSvcList('all'); renderApptList('all');
+  renderVerifyBanners();
 }
 function _updateSvcBadgeAll() {
   const all = getAllSvcReqs();
@@ -1031,12 +1190,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   const gr = h < 12 ? t('greeting_morning') : h < 17 ? t('greeting_afternoon') : t('greeting_evening');
   document.getElementById('greetingText').textContent = `${gr}, ${name}`;
 
-  const sr = JSON.parse(sessionStorage.getItem('temba_reports') || '[]');
-  const allReports = [...sr];
+  /* Show locally-cached data immediately while API loads */
+  const allReports = getAllReports();
+  const _closedStatuses = new Set(['resolved','verified','closed','closed_unverified']);
+  const _activeCnt = allReports.filter(r => !_closedStatuses.has(r.status)).length;
 
-  document.getElementById('statTotal').textContent    = allReports.length;
-  document.getElementById('statActive').textContent   = allReports.filter(r => r.status !== 'resolved').length;
-  const _activeCnt = allReports.filter(r => r.status !== 'resolved').length;
+  document.getElementById('statTotal').textContent  = allReports.length;
+  document.getElementById('statActive').textContent = _activeCnt;
   const _activeBadge = document.getElementById('activeBadge');
   if (_activeCnt > 0) { _activeBadge.textContent = _activeCnt; _activeBadge.style.display = 'flex'; }
   else _activeBadge.style.display = 'none';
@@ -1098,32 +1258,37 @@ function renderOverview(all) {
 
   const reqs = getAllSvcReqs().slice(0,2);
   document.getElementById('overviewRequests').innerHTML = reqs.length
-    ? reqs.map(r => `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-200);">
+    ? reqs.map(r => `<div class="stat-card-link" role="button" tabindex="0" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-200);cursor:pointer;border-radius:6px;" onclick="_navToPanel('service-requests',null)" onkeydown="if(event.key==='Enter')_navToPanel('service-requests',null)">
         <div class="request-icon ${SVC_ICON_CLASS[r.type]||'water-conn'}" style="width:34px;height:34px;border-radius:8px;font-size:15px;"><i class="ti ${SVC_ICONS[r.type]||'ti-tool'}"></i></div>
         <div style="flex:1;"><div style="font-size:13.5px;font-weight:700;color:var(--navy);">${_svcLabel(r.type)}</div><div style="font-size:12px;color:var(--gray-400);">${r.provider} · ${fmtDate(r.createdAt)}</div></div>
         <span class="badge ${STATUS_BADGE[r.status]||'badge-active'}">${_statusLabel(r.status)}</span>
+        <i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:14px;"></i>
       </div>`).join('')
     : `<div class="empty-state"><i class="ti ti-tool"></i><p>${t('empty_no_svc_requests')}</p></div>`;
 
   const appts = getAllAppts().filter(a => a.status !== 'cancelled' && a.status !== 'completed' && a.status !== 'rejected').slice(0,2);
   document.getElementById('overviewAppts').innerHTML = appts.length
-    ? appts.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-200);">
+    ? appts.map(a => `<div class="stat-card-link" role="button" tabindex="0" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-200);cursor:pointer;border-radius:6px;" onclick="_navToPanel('appointments',null)" onkeydown="if(event.key==='Enter')_navToPanel('appointments',null)">
         <div style="width:34px;height:34px;border-radius:8px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--green);"><i class="ti ti-calendar"></i></div>
         <div style="flex:1;"><div style="font-size:13.5px;font-weight:700;color:var(--navy);">${_apptReasonLabel(a.reason)}</div><div style="font-size:12px;color:var(--gray-400);">${a.provider} · ${a.date}</div></div>
         <span class="badge ${STATUS_BADGE[a.status]||'badge-pending'}">${_statusLabel(a.status)}</span>
+        <i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:14px;"></i>
       </div>`).join('')
     : `<div class="empty-state"><i class="ti ti-calendar"></i><p>${t('empty_no_upcoming_appts')}</p></div>`;
 }
 
 function reportItemHTML(r) {
-  return `<div class="report-item" onclick="window.location.href='report-detail.html?ref=${r.ref}'">
+  return `<div class="report-item" role="button" tabindex="0" style="cursor:pointer;" onclick="window.location.href='report-detail.html?ref=${r.ref}'" onkeydown="if(event.key==='Enter')window.location.href='report-detail.html?ref=${r.ref}'">
     <div class="ri-bar" style="background:${URGENCY_COLOR[r.urgency]||'var(--blue)'}"></div>
     <div class="ri-body">
       <div class="ri-title">${r.issue}</div>
       <div class="ri-meta">${r.loc} · ${r.provider}</div>
       <div class="ri-ref">${r.ref}</div>
     </div>
-    <span class="badge ${STATUS_BADGE[r.status]||'badge-active'}">${_statusLabel(r.status)}</span>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span class="badge ${STATUS_BADGE[r.status]||'badge-active'}">${_statusLabel(r.status)}</span>
+      <i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:13px;"></i>
+    </div>
   </div>`;
 }
 
@@ -1131,20 +1296,26 @@ function alertItemHTML(a) {
   const icons = { warning:'ti-alert-triangle', info:'ti-info-circle', success:'ti-circle-check' };
   const colors = { warning:'var(--orange-light)', info:'var(--sky-light)', success:'var(--green-light)' };
   const ic     = { warning:'var(--orange)', info:'var(--blue)', success:'var(--green)' };
-  return `<div class="alert-item ${a.unread?'unread':''}">
+  const id = a.id || _alertId(a);
+  return `<div class="alert-item ${a.unread?'unread':''}" role="button" tabindex="0" style="cursor:pointer;" onclick="openAlertDetail('${id}')" onkeydown="if(event.key==='Enter')openAlertDetail('${id}')">
     <div class="alert-icon" style="background:${colors[a.type]};"><i class="ti ${icons[a.type]}" style="color:${ic[a.type]};" aria-hidden="true"></i></div>
-    <div>
+    <div style="flex:1;min-width:0;">
       <div class="alert-title">${a.title}</div>
       <div class="alert-desc">${a.desc}</div>
       <div class="alert-meta">${a.provider} · ${a.time}</div>
     </div>
+    ${a.unread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:4px;"></div>':'<i class="ti ti-check" style="color:var(--gray-300);font-size:14px;flex-shrink:0;"></i>'}
   </div>`;
 }
 
 function renderAlerts() {
   const alertsData = getAlertsData();
-  document.getElementById('alertsList').innerHTML = alertsData.map(alertItemHTML).join('');
-  document.getElementById('alertBadge').textContent = alertsData.filter(a => a.unread).length;
+  const unreadCnt = alertsData.filter(a => a.unread).length;
+  document.getElementById('alertsList').innerHTML = alertsData.map(alertItemHTML).join('')
+    + (alertsData.length ? `<div style="text-align:center;padding:12px 0 0;"><button class="btn-secondary" style="font-size:12px;height:30px;padding:0 16px;" onclick="markAllAlertsRead()"><i class="ti ti-checks"></i> Mark all as read</button></div>` : '');
+  const badge = document.getElementById('alertBadge');
+  badge.textContent = unreadCnt;
+  badge.style.display = unreadCnt ? 'flex' : 'none';
 }
 function renderArea() {
   document.getElementById('areaFeed').innerHTML = getAreaData().map(r => `
@@ -1174,7 +1345,7 @@ function renderProviderCards() {
   })) : providersData.map(p => ({ ...p, id: null }));
 
   document.getElementById('providerCards').innerHTML = source.map(p => `
-  <div class="provider-card">
+  <div class="provider-card stat-card-link" role="button" tabindex="0" onclick="openProviderDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})" onkeydown="if(event.key==='Enter')this.click()" style="cursor:pointer;">
     <div class="pc-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
     <div style="flex:1;">
       <div class="pc-name">${p.name}</div>
@@ -1184,17 +1355,37 @@ function renderProviderCards() {
       </div>
       <div class="pc-row"><i class="ti ti-phone" aria-hidden="true"></i>${p.phone&&p.phone!=='—'?p.phone:`<em style="color:var(--gray-400);font-style:italic;font-size:12px;">${t('provider_no_phone')}</em>`}</div>
       <div class="pc-row"><i class="ti ti-mail" aria-hidden="true"></i>${p.email}</div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" onclick="event.stopPropagation()">
         ${p.phone&&p.phone!=='—'
           ?`<a href="tel:${p.phone.replace(/[\s\-]/g,'')}" class="btn-call" style="text-decoration:none;font-size:13px;padding:7px 15px;"><i class="ti ti-phone"></i> <span data-i18n="btn_call">Call</span></a>
             <a href="sms:${p.phone.replace(/[\s\-]/g,'')}&body=Hello%20${encodeURIComponent(p.name)},%20I%20am%20contacting%20you%20via%20Temba." class="btn-sms" style="text-decoration:none;font-size:13px;padding:7px 15px;"><i class="ti ti-message"></i> <span data-i18n="btn_sms">SMS</span></a>`
           :`<span style="font-size:12px;color:var(--gray-400);padding:7px 0;"><i class="ti ti-info-circle"></i> ${t('provider_no_contact')}</span>`}
-        ${p.id ? `<button class="btn-action primary" onclick="openApptModalFor('${p.id}')"><i class="ti ti-calendar-plus"></i> ${t('btn_book_appt')}</button>` : ''}
+        ${p.id ? `<button class="btn-action primary" onclick="event.stopPropagation();openApptModalFor('${p.id}')"><i class="ti ti-calendar-plus"></i> ${t('btn_book_appt')}</button>` : ''}
       </div>
     </div>
+    <i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:18px;align-self:center;flex-shrink:0;"></i>
   </div>`).join('');
   applyTranslations();
 }
+
+function openProviderDetail(p) {
+  document.getElementById('pdName').textContent    = p.name;
+  document.getElementById('pdType').textContent    = p.type || 'Water Service Provider';
+  document.getElementById('pdCoverage').querySelector('span').textContent = p.coverage || 'Rwanda';
+  document.getElementById('pdServices').innerHTML  = (p.services||[]).map(s=>`<span style="background:var(--sky-pale);color:var(--blue);font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;">${s.replace(/_/g,' ')}</span>`).join('') || '<em style="color:var(--gray-400);font-size:12px;">No services listed</em>';
+  document.getElementById('pdPhone').innerHTML     = p.phone&&p.phone!=='—'?`<a href="tel:${p.phone.replace(/[\s\-]/g,'')}" style="color:var(--navy);text-decoration:none;">${p.phone}</a>`:`<em style="color:var(--gray-400);">Not listed</em>`;
+  document.getElementById('pdEmail').innerHTML     = p.email&&p.email!=='—'?`<a href="mailto:${p.email}" style="color:var(--blue);text-decoration:none;">${p.email}</a>`:`<em style="color:var(--gray-400);">Not listed</em>`;
+  const ratingEl = document.getElementById('pdRating');
+  ratingEl.style.display = p.avg_rating ? 'flex' : 'none';
+  if (p.avg_rating) ratingEl.querySelector('span').textContent = `${p.avg_rating.toFixed(1)} / 5 · ${p.total_ratings || 0} rating${p.total_ratings!==1?'s':''}`;
+  document.getElementById('pdFooter').innerHTML = `
+    ${p.phone&&p.phone!=='—'?`<a href="tel:${p.phone.replace(/[\s\-]/g,'')}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`:''}
+    ${p.phone&&p.phone!=='—'?`<a href="sms:${p.phone.replace(/[\s\-]/g,'')}&body=Hello%20${encodeURIComponent(p.name)},%20I%20am%20contacting%20you%20via%20Temba." class="btn-sms" style="text-decoration:none;"><i class="ti ti-message"></i> SMS</a>`:''}
+    ${p.id?`<button class="btn-primary" style="width:auto;height:42px;padding:0 20px;margin-top:0;" onclick="closeProviderDetail();openApptModalFor('${p.id}')"><i class="ti ti-calendar-plus"></i> Book Appointment</button>`:''}
+    <button class="btn-secondary" onclick="closeProviderDetail()">Close</button>`;
+  document.getElementById('providerDetailModal').style.display = 'flex';
+}
+function closeProviderDetail() { document.getElementById('providerDetailModal').style.display = 'none'; }
 
 /* ── SLA accountability helper ── */
 const _SLA_H = {
@@ -1222,7 +1413,9 @@ function renderReportsList(all, filter) {
   const list = filter === 'all' ? all : all.filter(r => r.status === filter);
   document.getElementById('reportsList').innerHTML = list.length
     ? list.map(r => `
-    <div class="card" style="margin-bottom:1rem;">
+    <div class="card stat-card-link" style="margin-bottom:1rem;cursor:pointer;" role="button" tabindex="0"
+         onclick="window.location.href='report-detail.html?ref=${r.ref}'"
+         onkeydown="if(event.key==='Enter')window.location.href='report-detail.html?ref=${r.ref}'">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
@@ -1233,12 +1426,15 @@ function renderReportsList(all, filter) {
           </div>
           <div style="font-size:13px;color:var(--gray-400);">${r.ref} · ${r.provider} · ${fmtDate(r.time)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE[r.status]||'badge-active'}">${_statusLabel(r.status)}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge ${STATUS_BADGE[r.status]||'badge-active'}">${_statusLabel(r.status)}</span>
+          <i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:16px;flex-shrink:0;"></i>
+        </div>
       </div>
       <div style="font-size:13px;color:var(--gray-600);margin-top:6px;display:flex;align-items:center;gap:5px;">
         <i class="ti ti-map-pin" style="color:var(--sky);"></i>${r.loc}
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;" onclick="event.stopPropagation()">
         <a href="report-detail.html?ref=${r.ref}" class="btn-sms" style="text-decoration:none;"><i class="ti ti-eye"></i> ${t('btn_view_details')}</a>
         ${r.status!=='resolved'?(ph=>ph?`<a href="tel:${ph}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'' )(_provPhone(r.provider)):''}
       </div>
@@ -1250,6 +1446,18 @@ function filterReports(filter, btn) {
   document.querySelectorAll('#panel-my-reports .filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderReportsList(getAllReports(), filter);
+}
+
+/* Navigate to a panel and optionally set a report filter */
+function _navToPanel(panelId, reportFilter) {
+  const sideEl = document.querySelector(`.sidebar-item[onclick*="'${panelId}'"]`);
+  showPanel(panelId, sideEl);
+  if (reportFilter !== null && reportFilter !== undefined && panelId === 'my-reports') {
+    const btn = document.querySelector(`#panel-my-reports .filter-btn[onclick*="'${reportFilter}'"]`);
+    document.querySelectorAll('#panel-my-reports .filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderReportsList(getAllReports(), reportFilter);
+  }
 }
 
 /* ── SERVICE REQUESTS ── */
@@ -1405,27 +1613,42 @@ function renderApptList(filter) {
     const hasReschNotice = a.status === 'rescheduled' && a.proposedDate;
     return `
   <div class="appt-card appt-${a.status}">
-    <div class="appt-header">
+    <div class="appt-header stat-card-link" role="button" tabindex="0" style="cursor:pointer;border-radius:8px;padding:4px;margin:-4px;transition:background 0.15s;"
+         onclick="_apptToggleDetail(this.closest('.appt-card'))"
+         onkeydown="if(event.key==='Enter')_apptToggleDetail(this.closest('.appt-card'))">
       <div>
         <div class="appt-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${_apptReasonLabel(a.reason)} ${_slaBadge('appointment', a.createdAt, a.status)}</div>
         <div class="appt-provider"><i class="ti ti-building" style="color:var(--blue);font-size:13px;"></i> ${a.provider} &nbsp;·&nbsp; ${({'in-person':t('appt_type_inperson'),phone:t('appt_type_phone'),online:t('appt_type_online')}[a.meetingType]||t('appt_type_inperson'))}</div>
       </div>
-      <span class="badge ${STATUS_BADGE[a.status]||'badge-pending'}">${_statusLabel(a.status)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="badge ${STATUS_BADGE[a.status]||'badge-pending'}">${_statusLabel(a.status)}</span>
+        <i class="ti ti-chevron-down appt-toggle-icon" style="color:var(--gray-400);font-size:16px;transition:transform 0.2s;"></i>
+      </div>
     </div>
-    <div class="appt-detail">
-      <div class="appt-detail-item"><i class="ti ti-calendar"></i> ${a.date||'—'}</div>
-      <div class="appt-detail-item"><i class="ti ti-clock"></i> ${a.time||'—'}</div>
-      <div class="appt-detail-item"><i class="ti ti-calendar-plus"></i> ${t('appt_booked_on')} ${fmtDate(a.createdAt)}</div>
-    </div>
-    ${a.notes?`<div class="appt-note">"${a.notes}"</div>`:''}
-    ${hasReschNotice?`<div class="appt-reschedule-notice"><i class="ti ti-calendar-event"></i> ${t('appt_resched_notice')} <strong>${a.proposedDate} at ${a.proposedTime}</strong> — <a href="#" onclick="acceptResched('${a.id}');return false;" style="color:var(--green);font-weight:700;">${t('btn_accept')}</a> or <a href="#" onclick="rejectResched('${a.id}');return false;" style="color:var(--red);font-weight:700;">${t('btn_decline')}</a></div>`:''}
-    <div class="appt-detail" style="gap:8px;">
-      ${canModify?`<button class="btn-action warning" onclick="openReschedModal('${a.id}')"><i class="ti ti-calendar-event"></i> ${t('btn_reschedule')}</button>`:''}
-      ${canModify?`<button class="btn-action danger" onclick="cancelAppt('${a.id}')"><i class="ti ti-x"></i> ${t('btn_cancel')}</button>`:''}
-      ${(ph=>ph?`<a href="tel:${ph}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'' )(_provPhone(a.provider))}
+    <div class="appt-body-detail" style="display:none;">
+      <div class="appt-detail">
+        <div class="appt-detail-item"><i class="ti ti-calendar"></i> ${a.date||'—'}</div>
+        <div class="appt-detail-item"><i class="ti ti-clock"></i> ${a.time||'—'}</div>
+        <div class="appt-detail-item"><i class="ti ti-calendar-plus"></i> ${t('appt_booked_on')} ${fmtDate(a.createdAt)}</div>
+      </div>
+      ${(()=>{const _lines=(a.notes||'').split('\n').filter(l=>l&&!l.startsWith('Duration:')&&!l.startsWith('Reason:'));const _dur=(a.notes||'').split('\n').find(l=>l.startsWith('Duration:'));return (_lines.length?`<div class="appt-note">${_lines.join(' · ')}</div>`:'') + (_dur?`<div class="appt-detail" style="margin-top:4px;"><div class="appt-detail-item"><i class="ti ti-hourglass"></i> ${_dur}</div></div>`:'');})()}
+      ${hasReschNotice?`<div class="appt-reschedule-notice"><i class="ti ti-calendar-event"></i> ${t('appt_resched_notice')} <strong>${a.proposedDate} at ${a.proposedTime}</strong> — <a href="#" onclick="acceptResched('${a.id}');return false;" style="color:var(--green);font-weight:700;">${t('btn_accept')}</a> or <a href="#" onclick="rejectResched('${a.id}');return false;" style="color:var(--red);font-weight:700;">${t('btn_decline')}</a></div>`:''}
+      <div class="appt-detail" style="gap:8px;" onclick="event.stopPropagation()">
+        ${canModify?`<button class="btn-action warning" onclick="openReschedModal('${a.id}')"><i class="ti ti-calendar-event"></i> ${t('btn_reschedule')}</button>`:''}
+        ${canModify?`<button class="btn-action danger" onclick="cancelAppt('${a.id}')"><i class="ti ti-x"></i> ${t('btn_cancel')}</button>`:''}
+        ${(ph=>ph?`<a href="tel:${ph}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'' )(_provPhone(a.provider))}
+      </div>
     </div>
   </div>`;
   }).join('');
+}
+
+function _apptToggleDetail(card) {
+  const body = card.querySelector('.appt-body-detail');
+  const icon = card.querySelector('.appt-toggle-icon');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (icon) icon.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
 function filterAppts(filter, btn) {
@@ -1475,6 +1698,8 @@ function _provBookedKey(provName) {
 function _resetSlotPicker() {
   document.getElementById('slotPickerSection').style.display  = 'none';
   document.getElementById('slotFallbackSection').style.display = 'none';
+  const durSlot = document.getElementById('slotDurationSection');
+  if (durSlot) durSlot.style.display = 'none';
   document.getElementById('slotPickerGrid').innerHTML = '';
   document.getElementById('apptSelectedSlot').value  = '';
   document.getElementById('slotPickerMsg').textContent = '';
@@ -1507,6 +1732,8 @@ function onApptDateChange() {
     /* Provider hasn't published availability — show free-form fallback */
     slotSec.style.display     = 'none';
     fallbackSec.style.display = 'block';
+    const durSlot = document.getElementById('slotDurationSection');
+    if (durSlot) durSlot.style.display = 'none';
     return;
   }
 
@@ -1523,6 +1750,8 @@ function onApptDateChange() {
 
   fallbackSec.style.display = 'none';
   slotSec.style.display     = 'block';
+  const durSlot = document.getElementById('slotDurationSection');
+  if (durSlot) durSlot.style.display = 'block';
 
   const available = slots.filter(s => !s.isPast && s.available > 0);
   if (!slots.length) {
@@ -1618,9 +1847,15 @@ async function submitAppt() {
   const reasonLabel  = reason === 'other' && otherReasonDetail
     ? otherReasonDetail
     : ({ water_connection:'New Water Connection', billing:'Billing Dispute', meter_reading:'Meter Issue', pipe_repair:'Pipe Repair', inspection:'Water Quality Inspection', consultation:'General Consultation', other:'Appointment' }[reason] || reason);
+  // Duration from whichever field is visible
+  const durVal = document.getElementById('slotDurationSection')?.style.display !== 'none'
+    ? (document.getElementById('apptDurationSlot')?.value || '60')
+    : (document.getElementById('apptDuration')?.value || '60');
+  const durLabel = durVal === '30' ? '30 minutes' : durVal === '90' ? '1.5 hours' : durVal === '120' ? '2 hours' : '1 hour';
+  const durationNote = `Duration: ${durLabel}`;
   const combinedNotes = reason === 'other' && otherReasonDetail
-    ? (notes ? `Reason: ${otherReasonDetail}\n${notes}` : `Reason: ${otherReasonDetail}`)
-    : notes || null;
+    ? (notes ? `Reason: ${otherReasonDetail}\n${notes}\n${durationNote}` : `Reason: ${otherReasonDetail}\n${durationNote}`)
+    : (notes ? `${notes}\n${durationNote}` : durationNote);
 
   const apiResult = await apiPost('/appointments', {
     provider_id: providerId,
@@ -2068,6 +2303,7 @@ function renderHistory() {
   if (_historyFilter === 'all' || _historyFilter === 'reports') {
     entries.push(...reps.map(r => ({
       type: 'report',
+      ref: r.ref,
       icon: 'ti-flag',
       dotClass: r.status === 'resolved' ? 'resolved report' : 'cancelled report',
       title: `${t('hist_type_report')} — ${r.issue}`,
@@ -2094,15 +2330,23 @@ function renderHistory() {
   const statusBg    = { completed:'#E8F5E9', resolved:'#E8F5E9', cancelled:'#F1F5F9', rejected:'#FFEBEE' };
 
   document.getElementById('historyList').innerHTML = entries.length
-    ? entries.map(e => `
-      <div class="history-entry">
-        <div class="history-dot ${e.dotClass}"><i class="ti ${e.icon}"></i></div>
-        <div style="flex:1;min-width:0;">
-          <div class="history-title">${e.title}</div>
-          <div class="history-meta">${e.meta} · ${fmtDate(e.time)}</div>
-        </div>
-        <span class="history-status" style="background:${statusBg[e.status]||'#F1F5F9'};color:${statusColor[e.status]||'#94A3B8'};">${_statusLabel(e.status)}</span>
-      </div>`).join('')
+    ? entries.map(e => {
+        const dest = e.type==='report' && e.ref ? `window.location.href='report-detail.html?ref=${e.ref}'`
+                   : e.type==='appt'   ? `_navToPanel('appointments',null)`
+                   : e.type==='svc'    ? `_navToPanel('service-requests',null)` : '';
+        return `<div class="history-entry stat-card-link" role="button" tabindex="0" style="cursor:pointer;"
+                  ${dest?`onclick="${dest}" onkeydown="if(event.key==='Enter'){${dest}}"`:''}>
+          <div class="history-dot ${e.dotClass}"><i class="ti ${e.icon}"></i></div>
+          <div style="flex:1;min-width:0;">
+            <div class="history-title">${e.title}</div>
+            <div class="history-meta">${e.meta} · ${fmtDate(e.time)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="history-status" style="background:${statusBg[e.status]||'#F1F5F9'};color:${statusColor[e.status]||'#94A3B8'};">${_statusLabel(e.status)}</span>
+            ${dest?`<i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:15px;flex-shrink:0;"></i>`:''}
+          </div>
+        </div>`;
+      }).join('')
     : `<div class="empty-state"><i class="ti ti-history"></i><p>${t('empty_no_history')}</p></div>`;
 }
 
@@ -2117,13 +2361,32 @@ let _selectedStar = 0;
 function getPendingVerify() { return JSON.parse(localStorage.getItem(_VERIFY_KEY) || '[]'); }
 function savePendingVerify(list) { localStorage.setItem(_VERIFY_KEY, JSON.stringify(list)); }
 
+function _syncReportVerifyFromApi(rawReports) {
+  /* Build verify items from API reports whose status is resolution_submitted */
+  const pendingFromApi = rawReports
+    .filter(r => (r.status || '').toLowerCase() === 'resolution_submitted')
+    .map(r => ({
+      id: r.id,
+      type: 'report',
+      label: r.reference_number || r.title || 'Water Report',
+      providerName: r.provider_name || (r.provider && r.provider.organization_name) || 'Your provider',
+      completedAt: r.resolution_submitted_at || r.updated_at || r.created_at,
+    }));
+  /* Merge: keep non-report items from localStorage, replace report items with API data */
+  const stored = getPendingVerify();
+  const nonReports = stored.filter(i => i.type !== 'report');
+  savePendingVerify([...nonReports, ...pendingFromApi]);
+  renderVerifyBanners();
+}
+
 function renderVerifyBanners() {
   const items = getPendingVerify();
-  const apptItems = items.filter(i => i.type === 'appointment');
-  const svcItems  = items.filter(i => i.type === 'service_request');
+  const reportItems = items.filter(i => i.type === 'report');
+  const apptItems   = items.filter(i => i.type === 'appointment');
+  const svcItems    = items.filter(i => i.type === 'service_request');
 
   const _bannerHtml = (i) => `
-    <div class="verify-banner" id="vb_${i.id}">
+    <div class="verify-banner" id="vb_${i.id}" style="margin-bottom:10px;">
       <div class="verify-banner-icon"><i class="ti ti-circle-check"></i></div>
       <div style="flex:1;">
         <div class="verify-banner-title">${t('verify_was_resolved')} — ${i.label}</div>
@@ -2136,10 +2399,12 @@ function renderVerifyBanners() {
       </div>
     </div>`;
 
-  const apptEl = document.getElementById('apptVerifyBanner');
-  const svcEl  = document.getElementById('svcVerifyBanner');
-  if (apptEl) apptEl.innerHTML = apptItems.map(_bannerHtml).join('');
-  if (svcEl)  svcEl.innerHTML  = svcItems.map(_bannerHtml).join('');
+  const reportEl = document.getElementById('reportVerifyBanner');
+  const apptEl   = document.getElementById('apptVerifyBanner');
+  const svcEl    = document.getElementById('svcVerifyBanner');
+  if (reportEl) reportEl.innerHTML = reportItems.map(_bannerHtml).join('');
+  if (apptEl)   apptEl.innerHTML   = apptItems.map(_bannerHtml).join('');
+  if (svcEl)    svcEl.innerHTML    = svcItems.map(_bannerHtml).join('');
 }
 
 function verifyItem(id, type, verdict) {
@@ -2170,20 +2435,23 @@ function verifyItem(id, type, verdict) {
     openRatingModal(item.label, item.providerName);
     _pushNotif({ type:'verified_resolved', icon:'ti-circle-check', color:'green', title:'Resolution Confirmed', body:`You confirmed that your ${item.label} with ${item.providerName} was resolved. Thank you for your feedback!` });
     if (item.providerName) _pushProvNotif(item.providerName, { type:'verified_resolved', icon:'ti-circle-check', color:'green', title:'Resolution Confirmed by Member', body:`The community member confirmed that their ${item.label} was successfully resolved.` });
+    toast('Thank you! Issue marked as confirmed resolved.', 'success');
   } else if (verdict === 'partial') {
-    _reopenItem(id, type, 'in-progress');
+    if (type !== 'report') _reopenItem(id, type, 'in-progress');
     _pushNotif({ type:'verify_partial', icon:'ti-adjustments', color:'orange', title:'Marked as Partially Resolved', body:`Your ${item.label} with ${item.providerName} has been reopened as still partially unresolved.` });
     if (item.providerName) _pushProvNotif(item.providerName, { type:'verify_partial', icon:'ti-adjustments', color:'orange', title:'Member Reported Partial Resolution', body:`The community member indicated that their ${item.label} was only partially resolved. Please follow up.` });
-    toast('Marked as partially resolved — case reopened for follow-up.', 'info');
+    toast('Marked as partially resolved — provider has been notified to follow up.', 'info');
   } else {
-    _reopenItem(id, type, 'in-progress');
-    _pushNotif({ type:'verify_disputed', icon:'ti-alert-triangle', color:'red', title:'Resolution Disputed', body:`Your ${item.label} with ${item.providerName} has been reopened because you indicated it was not resolved.` });
+    if (type !== 'report') _reopenItem(id, type, 'in-progress');
+    _pushNotif({ type:'verify_disputed', icon:'ti-alert-triangle', color:'red', title:'Resolution Disputed — Case Reopened', body:`Your ${item.label} with ${item.providerName} has been reopened because you indicated it was not resolved. The provider has been notified.` });
     if (item.providerName) _pushProvNotif(item.providerName, { type:'verify_disputed', icon:'ti-alert-triangle', color:'red', title:'⚠ Member Disputes Resolution', body:`The community member reported that their ${item.label} was NOT resolved. This case has been reopened — immediate follow-up required.` });
-    toast('Case reopened — provider has been notified.', 'error');
+    toast('Case reopened — the provider has been notified.', 'error');
   }
   renderVerifyBanners();
   renderApptList('all');
   renderSvcList('all');
+  /* Reload API data after a brief delay to reflect the new status */
+  if (type === 'report') setTimeout(loadApiData, 1500);
 }
 
 function _reopenItem(id, type, newStatus) {

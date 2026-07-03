@@ -166,7 +166,7 @@ async def get_my_stats(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider profile not found")
 
     pid = provider.id
-    _RESOLVED_REPORT = {ReportStatus.RESOLVED, ReportStatus.CLOSED}
+    _RESOLVED_REPORT = {ReportStatus.RESOLVED, ReportStatus.CLOSED, ReportStatus.VERIFIED, ReportStatus.CLOSED_UNVERIFIED}
     _PENDING_APPT = {AppointmentStatus.PENDING, AppointmentStatus.APPROVED}
 
     total_reports = (await db.execute(select(func.count()).where(Report.provider_id == pid))).scalar_one()

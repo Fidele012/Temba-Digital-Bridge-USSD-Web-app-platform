@@ -14,7 +14,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import cast, func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -99,16 +99,31 @@ async def list_appointments(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
     status_filter: AppointmentStatus | None = None,
+    tracking_code: str | None = None,
 ) -> dict:
     q = select(Appointment)
     if current_user.role == UserRole.COMMUNITY:
         q = q.where(Appointment.user_id == current_user.id)
     elif current_user.role == UserRole.PROVIDER:
         prov = await _get_provider_for_user(current_user, db)
-        q = q.where(Appointment.provider_id == prov.id) if prov else q.where(False)
+        if prov:
+            # Include appointments from all providers sharing the same org name
+            # (handles seeded vs web-registered provider duplicate scenario)
+            same_org_provs = (await db.execute(
+                select(Provider.id).where(
+                    func.lower(Provider.organization_name) == func.lower(prov.organization_name)
+                )
+            )).scalars().all()
+            q = q.where(Appointment.provider_id.in_(same_org_provs))
+        else:
+            q = q.where(False)
 
     if status_filter:
         q = q.where(Appointment.status == status_filter)
+
+    if tracking_code:
+        code = tracking_code.strip().upper()
+        q = q.where(func.upper(cast(Appointment.id, String)).like(f"{code}%"))
 
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     result = await db.execute(_with_relations(q).order_by(Appointment.created_at.desc()).offset(params.offset).limit(params.size))
@@ -119,6 +134,34 @@ async def list_appointments(
         "size": params.size,
         "pages": -(-total // params.size),
     }
+
+
+@router.get("/by-code/{tracking_code}", response_model=AppointmentPublic)
+async def get_appointment_by_tracking_code(
+    tracking_code: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Appointment:
+    """Look up an appointment by its 8-character tracking code (USSD reference)."""
+    code = tracking_code.strip().upper()
+    q = _with_relations(
+        select(Appointment).where(func.upper(cast(Appointment.id, String)).like(f"{code}%"))
+    )
+    appt = (await db.execute(q)).scalar_one_or_none()
+    if not appt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+
+    if current_user.role == UserRole.COMMUNITY and appt.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if current_user.role == UserRole.PROVIDER:
+        prov = await _get_provider_for_user(current_user, db)
+        if prov and appt.provider_id != prov.id:
+            # Allow if same org name (seeded vs web-registered duplicate) — case-insensitive
+            appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
+            prov_org = (prov.organization_name or "").lower()
+            if appt_org != prov_org:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return appt
 
 
 @router.get("/{appt_id}", response_model=AppointmentPublic)

@@ -84,7 +84,11 @@
           <div class="dg-item"><div class="dg-label">Urgency</div><div class="dg-val" id="dUrgency"></div></div>
           <div class="dg-item"><div class="dg-label">Submitted</div><div class="dg-val" id="dTime">—</div></div>
           <div class="dg-item"><div class="dg-label">Provider</div><div class="dg-val" id="dProvider">—</div></div>
-          <div class="dg-item dg-full"><div class="dg-label">Location</div><div class="dg-val" id="dLocation">—</div></div>
+          <div class="dg-item dg-full"><div class="dg-label">Submitted By</div><div class="dg-val" id="dSubmittedBy">—</div></div>
+          <div class="dg-item"><div class="dg-label">Province</div><div class="dg-val" id="dProvince">—</div></div>
+          <div class="dg-item"><div class="dg-label">District</div><div class="dg-val" id="dDistrict">—</div></div>
+          <div class="dg-item"><div class="dg-label">Sector</div><div class="dg-val" id="dSector">—</div></div>
+          <div class="dg-item"><div class="dg-label">Cell</div><div class="dg-val" id="dCell">—</div></div>
         </div>
       </div>
 
@@ -147,9 +151,9 @@ if(!_s.loggedIn) window.location.href='signin.html';
 window.addEventListener('scroll',()=>document.getElementById('mainNav').classList.toggle('shadow',window.scrollY>8));
 
 const DEMO={
-  '#TDB-4291':{ref:'#TDB-4291',issue:'Broken Pipe',urgency:'urgent',loc:'Kimisagara → Nyarugenge → Kigali',provider:'WASAC',status:'in-progress',time:'2025-06-10T08:12:00Z'},
-  '#TDB-4250':{ref:'#TDB-4250',issue:'No Water Supply',urgency:'moderate',loc:'Gasabo cell → Gasabo → Kigali',provider:'Pro Water Rwanda',status:'submitted',time:'2025-06-09T14:30:00Z'},
-  '#TDB-4199':{ref:'#TDB-4199',issue:'Contamination',urgency:'urgent',loc:'Kicukiro → Kicukiro → Kigali',provider:'IRIBA Water Group',status:'resolved',time:'2025-06-08T09:00:00Z'},
+  '#TDB-4291':{ref:'#TDB-4291',issue:'Broken Pipe',urgency:'urgent',loc:'Kimisagara → Nyarugenge → Kigali',province:'Kigali City',district:'Nyarugenge',sector:'Kimisagara',cell:'Kimisagara',submittedBy:'Demo User',provider:'WASAC',status:'in-progress',time:'2025-06-10T08:12:00Z'},
+  '#TDB-4250':{ref:'#TDB-4250',issue:'No Water Supply',urgency:'moderate',loc:'Gasabo cell → Gasabo → Kigali',province:'Kigali City',district:'Gasabo',sector:'Gasabo',cell:'Gasabo',submittedBy:'Demo User',provider:'Pro Water Rwanda',status:'submitted',time:'2025-06-09T14:30:00Z'},
+  '#TDB-4199':{ref:'#TDB-4199',issue:'Contamination',urgency:'urgent',loc:'Kicukiro → Kicukiro → Kigali',province:'Kigali City',district:'Kicukiro',sector:'Kicukiro',cell:'Kicukiro',submittedBy:'Demo User',provider:'IRIBA Water Group',status:'resolved',time:'2025-06-08T09:00:00Z'},
 };
 const TIMELINES={
   submitted:[{title:'Report Submitted',desc:'Received by Temba.',color:'var(--sky)',icon:'ti-send',done:true},{title:'Awaiting Assignment',desc:'Will be assigned shortly.',color:'var(--gray-300)',icon:'ti-building',done:false},{title:'Work In Progress',desc:'Team will be dispatched.',color:'var(--gray-300)',icon:'ti-tool',done:false},{title:'Resolved',desc:'You will be notified when complete.',color:'var(--gray-300)',icon:'ti-circle-check',done:false}],
@@ -162,13 +166,45 @@ const STATUS_META={
   resolved:{title:'Resolved ✓',desc:'This issue has been fully resolved.',bg:'var(--green-light)',badgeCls:'badge-resolved',badgeTxt:'Resolved',icon:'ti-circle-check'},
 };
 let currentReport=null;
+const API_BASE='http://127.0.0.1:8001/api/v1';
 
-document.addEventListener('DOMContentLoaded',()=>{
+async function _fetchReportByRef(ref) {
+  const token=localStorage.getItem('temba_token');
+  if (!token) return null;
+  try {
+    const r=await fetch(`${API_BASE}/reports?size=200`,{headers:{Authorization:`Bearer ${token}`}});
+    if (!r.ok) return null;
+    const data=await r.json();
+    const cm={CONTAMINATION:'Contamination',contamination:'Contamination',PIPE_BURST:'Pipe Burst',pipe_burst:'Pipe Burst',NO_SUPPLY:'No Water Supply',no_supply:'No Water Supply',LOW_PRESSURE:'Low Pressure',low_pressure:'Low Pressure',OTHER:'Water Issue',other:'Water Issue'};
+    const um={HIGH:'urgent',MEDIUM:'moderate',LOW:'low',high:'urgent',medium:'moderate',low:'low'};
+    const sm={open:'submitted',under_review:'in-progress',in_progress:'in-progress',resolved:'resolved',closed:'resolved',OPEN:'submitted',UNDER_REVIEW:'in-progress',IN_PROGRESS:'in-progress',RESOLVED:'resolved',CLOSED:'resolved'};
+    const item=(data.items||[]).find(x=>x.reference_number===ref);
+    if (!item) return null;
+    return {
+      ref:item.reference_number||ref,
+      issue:cm[item.category]||item.category,
+      urgency:um[item.urgency]||'moderate',
+      loc:[item.district,item.province].filter(Boolean).join(', ')||'Rwanda',
+      province:item.province||null,district:item.district||null,sector:item.sector||null,cell:item.cell||null,
+      submittedBy:item.user_name||null,
+      provider:item.provider_name||'WASAC',
+      status:sm[item.status]||'submitted',
+      time:item.created_at,
+      fromApi:true,apiId:item.id
+    };
+  } catch { return null; }
+}
+
+const _rKey = `temba_reports_${(_s.email||'guest').toLowerCase().replace(/[^a-z0-9]/g,'_')}`;
+document.addEventListener('DOMContentLoaded',async ()=>{
   const params=new URLSearchParams(window.location.search);
   const ref=params.get('ref')||'#TDB-4291';
-  const session=JSON.parse(sessionStorage.getItem('temba_reports')||'[]');
+  const session=JSON.parse(localStorage.getItem(_rKey)||'[]');
   const fromSession=session.find(r=>r.ref===ref);
-  currentReport=fromSession?{...fromSession}:(DEMO[ref]||DEMO['#TDB-4291']);
+  if (fromSession) { currentReport={...fromSession}; render(currentReport); return; }
+  // Try API lookup (supports USSD-generated reference numbers like RPT-YYYYMMDD-XXXX)
+  const apiReport=await _fetchReportByRef(ref);
+  currentReport=apiReport||(DEMO[ref]||DEMO['#TDB-4291']);
   render(currentReport);
 });
 
@@ -178,9 +214,18 @@ function render(r){
   document.getElementById('pageSub').textContent=`${r.issue} — ${r.loc||''}`;
   document.getElementById('refDisplay').textContent=r.ref;
   document.getElementById('dIssue').textContent=r.issue;
-  document.getElementById('dLocation').textContent=r.loc||'—';
   document.getElementById('dProvider').textContent=r.provider;
   document.getElementById('sideProvName').textContent=r.provider;
+
+  // Submitted by
+  document.getElementById('dSubmittedBy').textContent=r.submittedBy||_s.name||'—';
+
+  // Location breakdown
+  document.getElementById('dProvince').textContent=r.province||'—';
+  document.getElementById('dDistrict').textContent=r.district||'—';
+  document.getElementById('dSector').textContent=r.sector||'—';
+  document.getElementById('dCell').textContent=r.cell||'—';
+
   const _allProvs = JSON.parse(localStorage.getItem('temba_providers_cache')||'[]');
   const _prov = _allProvs.find(p=>p.organization_name===r.provider)||{};
   const _ph = (_prov.phone||'').replace(/[\s\-]/g,'');
@@ -235,9 +280,9 @@ function resolveReport(){
   updateBanner('resolved'); renderTimeline('resolved');
   document.getElementById('resolveBtn').style.display='none';
   if(currentReport){
-    const s=JSON.parse(sessionStorage.getItem('temba_reports')||'[]');
+    const s=JSON.parse(localStorage.getItem(_rKey)||'[]');
     const idx=s.findIndex(r=>r.ref===currentReport.ref);
-    if(idx>-1){s[idx].status='resolved';sessionStorage.setItem('temba_reports',JSON.stringify(s));}
+    if(idx>-1){s[idx].status='resolved';localStorage.setItem(_rKey,JSON.stringify(s));}
   }
   toast('Report marked as resolved!','success');
 }

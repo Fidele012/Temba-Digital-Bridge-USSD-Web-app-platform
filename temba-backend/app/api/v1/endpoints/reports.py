@@ -92,7 +92,12 @@ async def list_reports(
     elif current_user.role == UserRole.PROVIDER:
         prov = await get_provider_for_user(current_user, db)
         if prov:
-            q = q.where(Report.provider_id == prov.id)
+            same_org = (await db.execute(
+                select(Provider.id).where(
+                    func.lower(Provider.organization_name) == func.lower(prov.organization_name)
+                )
+            )).scalars().all()
+            q = q.where(Report.provider_id.in_(same_org))
         else:
             q = q.where(False)
 
@@ -167,12 +172,23 @@ async def update_report(
     await write_audit(db, request, "report.update", "report", str(report_id), actor=current_user)
 
     if body.status:
+        ref = report.reference_number or str(report_id)[:8]
+        if body.status == ReportStatus.RESOLUTION_SUBMITTED:
+            notif_title = f"Your issue {ref} has been marked as resolved"
+            notif_body = (
+                "The water provider has submitted a resolution for your report. "
+                "Please open your dashboard to confirm whether the issue has actually been resolved. "
+                "If not resolved, you can reopen the case."
+            )
+        else:
+            notif_title = f"Report {ref} updated"
+            notif_body = f"Your report status changed to: {body.status.value.replace('_', ' ').title()}"
         await notify_user(
             db,
             user_id=report.user_id,
             notification_type="report_update",
-            title=f"Report #{str(report_id)[:8]} updated",
-            body=f"Your report status changed to: {body.status.value.replace('_', ' ').title()}",
+            title=notif_title,
+            body=notif_body,
             reference_id=str(report_id),
             reference_type="report",
         )

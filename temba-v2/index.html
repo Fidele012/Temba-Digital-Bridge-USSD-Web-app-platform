@@ -887,7 +887,7 @@ const revealObs = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
 
-const TRACK_API = 'http://127.0.0.1:8000/api/v1/track';
+const TRACK_API = 'http://127.0.0.1:8001/api/v1/track';
 
 async function trackIssue() {
   const input = document.getElementById('trackInput');
