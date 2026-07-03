@@ -1678,15 +1678,35 @@ async function submitSvcRequest() {
   toast('Service request submitted successfully!', 'success');
 }
 
-function cancelSvcRequest(id) {
-  if (!confirm('Cancel this service request?')) return;
+async function cancelSvcRequest(id) {
+  if (!confirm('Cancel this service request? This cannot be undone.')) return;
+  const item = getAllSvcReqs().find(r => r.id === id);
+  const token = localStorage.getItem('temba_token');
+  if (item && item.fromApi && token) {
+    try {
+      const resp = await fetch(`${API_BASE}/service-requests/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resp.ok || resp.status === 204) {
+        // Update in-memory API list immediately so badge shows 'Cancelled'
+        window._apiSvcReqs = (window._apiSvcReqs || []).map(r =>
+          r.id === id ? { ...r, status: 'cancelled' } : r
+        );
+        _updateSvcBadgeAll();
+        renderSvcList('all');
+        toast('Service request cancelled.', 'info');
+        return;
+      }
+    } catch (_) {}
+  }
+  // Fallback: local-only item (or offline)
   const all = getSvcRequests();
   const r = all.find(x => x.id === id);
-  if (r) r.status = 'cancelled';
-  saveSvcRequests(all);
+  if (r) { r.status = 'cancelled'; saveSvcRequests(all); }
+  _updateSvcBadgeAll();
   renderSvcList('all');
-  updateSvcBadge();
-  toast('Request cancelled','info');
+  toast('Service request cancelled.', 'info');
 }
 
 /* ── APPOINTMENTS ── */
