@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str                   # async (asyncpg)
     DATABASE_URL_SYNC: str              # sync (for Alembic)
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def ensure_asyncpg_scheme(cls, v: str) -> str:
+        return v.replace("postgres://", "postgresql+asyncpg://", 1).replace(
+            "postgresql://", "postgresql+asyncpg://", 1
+        )
+
     # ── Redis ──────────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
