@@ -1105,23 +1105,45 @@ const REASON_MAP = {
 const MEETING_MAP = { 'in-person':'in_person', phone:'phone_call', 'site-visit':'site_visit' };
 
 async function loadProviders() {
-  const data = await apiGet('/providers?size=50');
-  if (data && data.items && data.items.length) {
-    window._apiProviders = data.items;
-    localStorage.setItem('temba_providers_cache', JSON.stringify(data.items));
-    _populateProviderSelects();
-    renderProviderCards();
+  try {
+    // Use plain fetch — /providers is a public endpoint, no auth needed
+    const r = await fetch(API_BASE + '/providers?size=50');
+    const data = r.ok ? await r.json() : null;
+    if (data && data.items && data.items.length) {
+      window._apiProviders = data.items;
+      localStorage.setItem('temba_providers_cache', JSON.stringify(data.items));
+      _populateProviderSelects();
+      renderProviderCards();
+      return;
+    }
+  } catch (_) {}
+  // Fallback: restore from cache or use built-in list
+  const cached = localStorage.getItem('temba_providers_cache');
+  if (cached) {
+    try {
+      const items = JSON.parse(cached);
+      if (items && items.length) {
+        window._apiProviders = items;
+        _populateProviderSelects();
+        renderProviderCards();
+        return;
+      }
+    } catch (_) {}
   }
+  // Last resort: populate selects from hardcoded list so they're never empty
+  _populateProviderSelects();
+  renderProviderCards();
 }
 
 function _populateProviderSelects() {
+  const source = window._apiProviders.length
+    ? window._apiProviders.map(p => ({ id: p.id, name: p.organization_name }))
+    : providersData.map(p => ({ id: '', name: p.name }));
   ['svcProvider','apptProvider'].forEach(selId => {
     const sel = document.getElementById(selId);
     if (!sel) return;
     sel.innerHTML = `<option value="" disabled selected>${t('appt_select_provider')}</option>`;
-    window._apiProviders.forEach(p => {
-      sel.appendChild(new Option(p.organization_name, p.id));
-    });
+    source.forEach(p => sel.appendChild(new Option(p.name, p.id)));
   });
 }
 
@@ -1661,7 +1683,7 @@ function filterSvc(filter, btn) {
 function openSvcModal() {
   selectedSvcType = '';
   document.querySelectorAll('.svc-type-card').forEach(c => c.classList.remove('selected'));
-  if (window._apiProviders.length) _populateProviderSelects();
+  if (!window._apiProviders.length) loadProviders(); else _populateProviderSelects();
   document.getElementById('svcProvider').value = '';
   document.querySelector('input[name="svcUrgency"][value="low"]').checked = true;
   document.getElementById('svcLocation').value = '';
@@ -1950,7 +1972,7 @@ function selectSlot(el, time) {
 }
 
 function openApptModal() {
-  if (window._apiProviders.length) _populateProviderSelects();
+  if (!window._apiProviders.length) loadProviders(); else _populateProviderSelects();
   document.getElementById('apptProvider').value = '';
   document.getElementById('apptReason').value = '';
   document.getElementById('apptDate').value = '';
