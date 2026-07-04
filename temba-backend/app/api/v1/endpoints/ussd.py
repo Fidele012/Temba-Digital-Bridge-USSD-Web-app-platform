@@ -55,7 +55,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
-from app.services.notification_service import notify_org, notify_user, send_sms_background
+from app.services.notification_service import notify_org, notify_org_background, notify_user, send_sms_background
 from app.models.appointment import (
     Appointment,
     AppointmentReason,
@@ -1816,20 +1816,18 @@ async def _service_flow(
         db.add(report)
         await db.flush()
         report.sla_deadline = sla_deadline_for(_CAT_MAP[cat].value, report.created_at, priority_class=priority)
+        await db.commit()
         log.info("ussd_report_created", report_id=str(report.id), ref=ref, phone=phoneNumber)
-        try:
-            await notify_org(
-                db, provider=provider,
-                notification_type="report_update",
-                title=f"New {_CAT_EN[cat]} report (USSD)",
-                body=(
-                    f"{user.full_name} ({phoneNumber}) reported a {_CAT_EN[cat].lower()} issue. "
-                    f"Urgency: {_URG_EN[urg]}. Location: {_loc}. Ref: {ref}."
-                ),
-                reference_id=str(report.id), reference_type="report",
-            )
-        except Exception:
-            log.warning("ussd_notify_failed", report_id=str(report.id))
+        asyncio.create_task(notify_org_background(
+            provider.organization_name,
+            notification_type="report_update",
+            title=f"New {_CAT_EN[cat]} report (USSD)",
+            body=(
+                f"{user.full_name} ({phoneNumber}) reported a {_CAT_EN[cat].lower()} issue. "
+                f"Urgency: {_URG_EN[urg]}. Location: {_loc}. Ref: {ref}."
+            ),
+            reference_id=str(report.id), reference_type="report",
+        ))
         # Push real-time SSE event to provider dashboard
         try:
             from app import events as _ev
@@ -2054,20 +2052,18 @@ async def _service_flow(
         )
         db.add(appt)
         await db.flush()
+        await db.commit()
         log.info("ussd_appointment_created", appt_id=str(appt.id), phone=phoneNumber)
-        try:
-            await notify_org(
-                db, provider=provider,
-                notification_type="appointment_update",
-                title="New appointment request (USSD)",
-                body=(
-                    f"{user.full_name} ({phoneNumber}) booked a {_reason_label.lower()} appointment "
-                    f"for {appt_date.strftime('%d %b %Y')} at {appt_time}. Location: {_appt_loc}."
-                ),
-                reference_id=str(appt.id), reference_type="appointment",
-            )
-        except Exception:
-            log.warning("ussd_notify_failed", appt_id=str(appt.id))
+        asyncio.create_task(notify_org_background(
+            provider.organization_name,
+            notification_type="appointment_update",
+            title="New appointment request (USSD)",
+            body=(
+                f"{user.full_name} ({phoneNumber}) booked a {_reason_label.lower()} appointment "
+                f"for {appt_date.strftime('%d %b %Y')} at {appt_time}. Location: {_appt_loc}."
+            ),
+            reference_id=str(appt.id), reference_type="appointment",
+        ))
         # Push real-time SSE event to provider dashboard
         try:
             from app import events as _ev
@@ -2202,20 +2198,18 @@ async def _service_flow(
         )
         db.add(sr)
         await db.flush()
+        await db.commit()
         log.info("ussd_service_request_created", sr_id=str(sr.id), ref=svc_ref, phone=phoneNumber)
-        try:
-            await notify_org(
-                db, provider=provider,
-                notification_type="service_request_update",
-                title="New service request (USSD)",
-                body=(
-                    f"{user.full_name} ({phoneNumber}) submitted a {_SVC_EN[svc].lower()} request. "
-                    f"Urgency: {_SVC_URG_EN[urg]}. Location: {_svc_loc}. Ref: {svc_ref}."
-                ),
-                reference_id=str(sr.id), reference_type="service_request",
-            )
-        except Exception:
-            log.warning("ussd_notify_failed", sr_id=str(sr.id))
+        asyncio.create_task(notify_org_background(
+            provider.organization_name,
+            notification_type="service_request_update",
+            title="New service request (USSD)",
+            body=(
+                f"{user.full_name} ({phoneNumber}) submitted a {_SVC_EN[svc].lower()} request. "
+                f"Urgency: {_SVC_URG_EN[urg]}. Location: {_svc_loc}. Ref: {svc_ref}."
+            ),
+            reference_id=str(sr.id), reference_type="service_request",
+        ))
         # Push real-time SSE event to provider dashboard
         try:
             from app import events as _ev

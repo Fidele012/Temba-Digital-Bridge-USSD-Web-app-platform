@@ -101,6 +101,45 @@ async def notify_org(
         await db.flush()
 
 
+async def notify_org_background(
+    org_name: str,
+    *,
+    notification_type: str,
+    title: str,
+    body: str,
+    reference_id: str | None = None,
+    reference_type: str | None = None,
+) -> None:
+    """Fire-and-forget variant of notify_org that opens its own DB session.
+    Safe to use with asyncio.create_task — does not share the request session."""
+    from app.db.session import AsyncSessionLocal
+    from app.models.provider import Provider as _Provider
+
+    try:
+        async with AsyncSessionLocal() as bg_db:
+            rows = (await bg_db.execute(
+                select(_Provider).where(
+                    func.lower(_Provider.organization_name) == func.lower(org_name)
+                )
+            )).scalars().all()
+            seen: set[uuid.UUID] = set()
+            for prov in rows:
+                if prov.user_id and prov.user_id not in seen:
+                    seen.add(prov.user_id)
+                    bg_db.add(Notification(
+                        user_id=prov.user_id,
+                        notification_type=NotificationType(notification_type),
+                        title=title,
+                        body=body,
+                        reference_id=reference_id,
+                        reference_type=reference_type,
+                    ))
+            if seen:
+                await bg_db.commit()
+    except Exception:
+        log.warning("notify_org_background_failed", org=org_name)
+
+
 # ── Email ──────────────────────────────────────────────────────────────────────
 
 def send_email_background(to: str, subject: str, template: str, context: dict) -> None:
