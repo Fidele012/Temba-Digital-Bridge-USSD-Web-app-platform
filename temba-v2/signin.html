@@ -100,9 +100,13 @@
 
 <div id="temba-toast"></div>
 <script src="temba-auth.js"></script>
+<script src="temba-server.js"></script>
 <script>
+/* Safety net: if temba-server.js failed to load, fall back to plain fetch */
+if (typeof _serverFetch === 'undefined') window._serverFetch = (url, opts) => fetch(url, opts);
+
 const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
-  ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api.onrender.com/api/v1';
+  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
 
 /* Track which tab the user selected — enforced during sign-in */
 let _signinRole = 'community';
@@ -158,7 +162,7 @@ async function handleSignin(e) {
 
   /* ── Try live API first ── */
   try {
-    const loginResp = await fetch(`${API_BASE}/auth/login`, {
+    const loginResp = await _serverFetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pw })
@@ -166,35 +170,27 @@ async function handleSignin(e) {
 
     if (!loginResp.ok) {
       if (loginResp.status === 401) {
-        /* API rejected — account may only exist locally (registered while offline).
-           Check local store: if password matches AND role matches selected tab, re-register + retry. */
+        /* API is up and confirmed the credentials are wrong.
+           Only try local fallback for accounts registered while offline
+           (they won't exist in the API yet). */
         const acct = _getLocalAccount(email);
         if (acct) {
           const typedHash = await _hashPw(pw);
           if (typedHash !== acct.passwordHash) {
-            _siError('Incorrect password. Please check your credentials and try again.');
+            /* Both API and local say wrong password — definitive failure */
+            _siError('Incorrect email or password. Please try again.');
             return;
           }
-          /* Password matches — validate role against selected tab before proceeding */
-          if (acct.role !== _signinRole) {
-            _roleMismatchError(acct.role);
-            return;
-          }
-          /* Try to push account to API (registered offline) */
+          /* Password matches locally — account was registered offline. Try to sync it to API. */
+          if (acct.role !== _signinRole) { _roleMismatchError(acct.role); return; }
           try {
-            const reReg = await fetch(`${API_BASE}/auth/register`, {
+            const reReg = await _serverFetch(`${API_BASE}/auth/register`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: acct.email,
-                password: pw,
-                full_name: acct.name,
-                role: acct.role,
-                phone: acct.phone || null,
-              })
+              body: JSON.stringify({ email: acct.email, password: pw, full_name: acct.name, role: acct.role, phone: acct.phone || null })
             });
             if (reReg.ok || reReg.status === 409) {
-              const retry = await fetch(`${API_BASE}/auth/login`, {
+              const retry = await _serverFetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password: pw })
@@ -202,10 +198,10 @@ async function handleSignin(e) {
               if (retry.ok) tokenData = await retry.json();
             }
           } catch (_) { /* network dropped — fall through to local sign-in */ }
-
           if (!tokenData) { usedLocalAuth = true; localAccount = acct; }
         } else {
-          _siError('No account found with this email. Please sign up first.');
+          /* API is reachable and says 401 — credentials are simply wrong */
+          _siError('Incorrect email or password. Please try again.');
           return;
         }
       } else {
@@ -223,7 +219,9 @@ async function handleSignin(e) {
     /* ── API unreachable — verify against local credential store ── */
     const acct = _getLocalAccount(email);
     if (!acct) {
-      _siError('No account found with this email. Please sign up first.');
+      /* Server is down and no offline account exists for this email.
+         Show a message that clearly distinguishes "server down" from "wrong password". */
+      _siError('Cannot reach the server. If you registered on this device before, try again — otherwise check your connection.');
       return;
     }
     const typedHash = await _hashPw(pw);
@@ -231,11 +229,7 @@ async function handleSignin(e) {
       _siError('Incorrect password. Please check your credentials and try again.');
       return;
     }
-    /* Validate role matches selected tab */
-    if (acct.role !== _signinRole) {
-      _roleMismatchError(acct.role);
-      return;
-    }
+    if (acct.role !== _signinRole) { _roleMismatchError(acct.role); return; }
     usedLocalAuth = true;
     localAccount  = acct;
   }

@@ -167,7 +167,7 @@ const STATUS_META={
 };
 let currentReport=null;
 const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
-  ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api.onrender.com/api/v1';
+  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
 
 async function _fetchReportByRef(ref) {
   const token=localStorage.getItem('temba_token');

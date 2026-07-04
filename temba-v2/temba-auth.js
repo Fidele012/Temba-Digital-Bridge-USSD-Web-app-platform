@@ -323,7 +323,7 @@ async function handleSubmit(type) {
   if (!terms?.checked)                                   { showTembaToast('Please accept the Terms of Use to continue'); return; }
 
   const _API = ['localhost','127.0.0.1'].includes(window.location.hostname)
-    ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api.onrender.com/api/v1';
+    ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
   let token = null;
 
   /* Collect all registration data up-front */
@@ -361,8 +361,9 @@ async function handleSubmit(type) {
   const lang = document.getElementById(isCom ? 'cLang' : 'pLang')?.value || 'en';
 
   try {
+    const _fetch = (typeof window !== 'undefined' && window._serverFetch) ? window._serverFetch : fetch;
     if (isCom) {
-      const r = await fetch(`${_API}/auth/register`, {
+      const r = await _fetch(`${_API}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pw, full_name: fullName, role: 'community', phone })
       });
@@ -370,14 +371,14 @@ async function handleSubmit(type) {
         const e = await r.json().catch(() => ({}));
         showTembaToast(_errMsg(e, 'Registration failed. Please try again.'), 'error'); return;
       }
-      const lr = await fetch(`${_API}/auth/login`, {
+      const lr = await _fetch(`${_API}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pw })
       });
-      if (lr.ok) { const td = await lr.json(); token = td.access_token; localStorage.setItem('temba_token', token); }
+      if (lr.ok) { const td = await lr.json(); token = td.access_token; localStorage.setItem('temba_token', token); if (td.refresh_token) localStorage.setItem('temba_refresh_token', td.refresh_token); }
 
     } else {
-      const rr = await fetch(`${_API}/auth/register`, {
+      const rr = await _fetch(`${_API}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pw, full_name: fullName, role: 'provider' })
       });
@@ -385,7 +386,7 @@ async function handleSubmit(type) {
         const e = await rr.json().catch(() => ({}));
         showTembaToast(_errMsg(e, 'Registration failed. Please try again.'), 'error'); return;
       }
-      const lr = await fetch(`${_API}/auth/login`, {
+      const lr = await _fetch(`${_API}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pw })
       });
@@ -393,6 +394,7 @@ async function handleSubmit(type) {
         const td = await lr.json();
         token = td.access_token;
         localStorage.setItem('temba_token', token);
+        if (td.refresh_token) localStorage.setItem('temba_refresh_token', td.refresh_token);
         const isNational = !coverage || coverage.toLowerCase().includes('national') || coverage.toLowerCase().includes('all');
         const serviceAreas = isNational
           ? ['Kigali City','Northern Province','Southern Province','Eastern Province','Western Province'].map(p => ({ province: p }))
@@ -406,7 +408,7 @@ async function handleSubmit(type) {
         const supPhoneNum  = document.getElementById('pSupPhone')?.value || '';
         const supPhone = supPhoneNum ? supPhoneCode + supPhoneNum.replace(/\s+/g, '') : '';
 
-        await fetch(`${_API}/providers/register`, {
+        await _fetch(`${_API}/providers/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({

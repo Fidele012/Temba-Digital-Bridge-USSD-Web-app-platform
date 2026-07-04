@@ -657,8 +657,10 @@
 
 <div id="temba-toast"></div>
 <script src="rwanda_data.js"></script>
+<script src="temba-server.js"></script>
 <script src="temba-auth.js"></script>
 <script>
+if (typeof _serverFetch === 'undefined') window._serverFetch = (url, opts) => fetch(url, opts);
 /* ── Password strength meter ── */
 function checkStrength(pw, fillId, lblId) {
   fillId = fillId || 'cStrFill';

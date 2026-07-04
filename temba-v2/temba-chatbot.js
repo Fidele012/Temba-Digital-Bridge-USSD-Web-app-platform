@@ -10,7 +10,7 @@
   'use strict';
 
   // ─── Config ──────────────────────────────────────────────────────────────────
-  const _localBase = window.API_BASE || 'http://127.0.0.1:8001';
+  const _localBase = window.API_BASE || 'http://127.0.0.1:8000';
   const _prodBase = 'https://temba-api.onrender.com';
   const API = (['localhost','127.0.0.1'].includes(window.location.hostname) ? _localBase : _prodBase).replace(/\/$/, '');
 

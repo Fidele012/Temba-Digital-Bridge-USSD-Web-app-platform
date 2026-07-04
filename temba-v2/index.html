@@ -888,7 +888,7 @@ const revealObs = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
 
 const TRACK_API = ['localhost','127.0.0.1'].includes(window.location.hostname)
-  ? 'http://127.0.0.1:8001/api/v1/track' : 'https://temba-api.onrender.com/api/v1/track';
+  ? 'http://127.0.0.1:8000/api/v1/track' : 'https://temba-api.onrender.com/api/v1/track';
 
 async function trackIssue() {
   const input = document.getElementById('trackInput');
