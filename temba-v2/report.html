@@ -499,12 +499,18 @@ function selectIssue(el, key) {
 }
 
 /* Provider */
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function selectProvider(el, idOrKey, name) {
   document.querySelectorAll('.prov-opt').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   rState.provider = name;
-  // idOrKey is UUID if loaded from API, legacy string key otherwise
-  rState.providerId = (idOrKey && idOrKey.includes('-')) ? idOrKey : null;
+  if (_UUID_RE.test(idOrKey)) {
+    rState.providerId = idOrKey;
+  } else {
+    // fallback selection — look up real UUID from API-loaded providers by name
+    const found = window._reportProviders.find(p => p.organization_name === name);
+    rState.providerId = found ? found.id : null;
+  }
 }
 
 /* Location cascade */

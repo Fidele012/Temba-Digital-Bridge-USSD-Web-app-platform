@@ -1661,6 +1661,7 @@ function filterSvc(filter, btn) {
 function openSvcModal() {
   selectedSvcType = '';
   document.querySelectorAll('.svc-type-card').forEach(c => c.classList.remove('selected'));
+  if (window._apiProviders.length) _populateProviderSelects();
   document.getElementById('svcProvider').value = '';
   document.querySelector('input[name="svcUrgency"][value="low"]').checked = true;
   document.getElementById('svcLocation').value = '';
@@ -1949,6 +1950,7 @@ function selectSlot(el, time) {
 }
 
 function openApptModal() {
+  if (window._apiProviders.length) _populateProviderSelects();
   document.getElementById('apptProvider').value = '';
   document.getElementById('apptReason').value = '';
   document.getElementById('apptDate').value = '';

@@ -1342,6 +1342,8 @@ async function loadApiData() {
   let changed = false;
   const newUssd = [];
 
+  const newItems = [];
+
   if (rd && rd.items) {
     window._apiReports = rd.items.map(_normProvReport);
     changed = true;
@@ -1350,7 +1352,9 @@ async function loadApiData() {
         _seenIds.reports.add(r.id);
         if (_initialLoadDone) {
           const isUssd = (r.title||'').startsWith('USSD:');
-          if (isUssd) newUssd.push(`📋 New USSD report: ${r.category||'issue'} — ${r.reference_number||''}`);
+          const channel = isUssd ? 'USSD' : 'Web';
+          const cat = r.category ? r.category.replace(/_/g,' ') : 'issue';
+          newItems.push({ msg: `📋 New ${channel} report: ${cat} — ${r.reference_number||''}`, type: 'report', id: r.id, ref: r.reference_number||'', cat, channel });
         }
       }
     });
@@ -1363,7 +1367,8 @@ async function loadApiData() {
         _seenIds.appts.add(a.id);
         if (_initialLoadDone) {
           const isUssd = (a.notes||'').startsWith('[USSD]');
-          if (isUssd) newUssd.push(`📅 New USSD appointment — ${a.reason||'visit'} on ${a.appointment_date||''}`);
+          const channel = isUssd ? 'USSD' : 'Web';
+          newItems.push({ msg: `📅 New ${channel} appointment — ${a.reason||'visit'} on ${a.appointment_date||''}`, type: 'appt', id: a.id });
         }
       }
     });
@@ -1376,7 +1381,9 @@ async function loadApiData() {
         _seenIds.svcReqs.add(s.id);
         if (_initialLoadDone) {
           const isUssd = (s.description||'').includes('via USSD');
-          if (isUssd) newUssd.push(`🔧 New USSD service request — ${s.request_type||''}`);
+          const channel = isUssd ? 'USSD' : 'Web';
+          const svcType = (s.request_type||'service').replace(/_/g,' ');
+          newItems.push({ msg: `🔧 New ${channel} service request — ${svcType}`, type: 'svc', id: s.id });
         }
       }
     });
@@ -1384,8 +1391,14 @@ async function loadApiData() {
 
   _initialLoadDone = true;
 
-  if (newUssd.length) {
-    newUssd.forEach((msg, i) => setTimeout(() => toast(msg, 'info'), i * 800));
+  if (newItems.length) {
+    // Show toast for each new item
+    newItems.forEach((item, i) => setTimeout(() => toast(item.msg, 'info'), i * 800));
+    // Also push to notification drawer
+    newItems.forEach(item => {
+      const iconMap = { report:'ti-inbox', appt:'ti-calendar', svc:'ti-tool' };
+      _pushNotif({ type:'new_submission', icon: iconMap[item.type]||'ti-bell', color:'blue', title: item.msg.replace(/^[📋📅🔧]\s*/,''), body: 'Tap to view in your inbox.' });
+    });
   }
 
   if (changed) {
