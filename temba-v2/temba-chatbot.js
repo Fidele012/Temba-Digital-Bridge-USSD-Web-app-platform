@@ -87,7 +87,7 @@
 
   async function loadProviders() {
     try {
-      const res = await fetch(`${API}/api/v1/providers?limit=50`);
+      const res = await fetch(`${API}/api/v1/providers?size=50`);
       if (!res.ok) return;
       const data = await res.json();
       PROVIDERS = (data.items || []).filter(p => p.status === 'approved' || !p.status);
