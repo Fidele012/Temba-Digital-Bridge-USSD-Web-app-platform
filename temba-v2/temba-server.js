@@ -28,7 +28,7 @@
     if (!_banner) return;
     _banner.style.background = '#B71C1C';
     _banner.innerHTML =
-      '⚠️ Server did not respond in time (Render free tier). ' +
+      '⚠️ Server did not respond. ' +
       '<a href="javascript:location.reload()" style="color:#fff;text-decoration:underline;font-weight:700;">Click to try again</a> — it should work on the next attempt.';
   }
 
