@@ -1734,7 +1734,7 @@ const T = {
     sidebar_main:             'Nyamukuru',
     sidebar_operations:       'Ibikorwa',
     sidebar_community_section:'Iterambere ry\'Abaturage',
-    sidebar_community_label:  'UTURAGE',
+    sidebar_community_label:  'UMUTURAGE',
     sidebar_member_portal:    'Urubuga rw\'Umuturage',
 
     /* Overview stat labels */
