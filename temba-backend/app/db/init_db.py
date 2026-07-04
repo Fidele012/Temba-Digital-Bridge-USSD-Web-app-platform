@@ -1,6 +1,6 @@
 """Create the first admin user and seed demo water providers on startup if they don't exist."""
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -126,3 +126,15 @@ async def init_db(db: AsyncSession) -> None:
 
         await db.commit()
         log.info("Seeded provider", org=p["organization_name"])
+
+    # Approve any providers still in PENDING status (auto-approve model)
+    result = await db.execute(
+        update(Provider)
+        .where(Provider.status == ProviderStatus.PENDING)
+        .values(status=ProviderStatus.APPROVED)
+        .returning(Provider.id)
+    )
+    approved_ids = result.fetchall()
+    if approved_ids:
+        await db.commit()
+        log.info("Auto-approved pending providers", count=len(approved_ids))

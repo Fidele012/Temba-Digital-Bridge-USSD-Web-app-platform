@@ -92,7 +92,7 @@ async def register_provider(
         website=body.website,
         phone=body.phone,
         email=body.email,
-        status=ProviderStatus.PENDING,
+        status=ProviderStatus.APPROVED,
         sla_response_hours=body.sla_response_hours,
         sla_resolution_hours=body.sla_resolution_hours,
         officer_name=body.officer.name,
@@ -140,7 +140,7 @@ async def register_provider(
             "registered_email": current_user.email,
         },
     )
-    log.info("provider_registered_pending", provider_id=str(provider.id), org=body.organization_name)
+    log.info("provider_registered_approved", provider_id=str(provider.id), org=body.organization_name)
 
     return provider
 
