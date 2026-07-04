@@ -1003,38 +1003,85 @@ const API_BASE = _IS_LOCAL ? 'http://127.0.0.1:8001/api/v1' : 'https://temba-api
 window._apiReports = []; window._apiAppts = []; window._apiSvcReqs = [];
 window._apiProviders = [];
 
-async function apiGet(path) {
-  const token = localStorage.getItem('temba_token');
+async function _refreshAccessToken() {
+  const rt = localStorage.getItem('temba_refresh_token');
+  if (!rt) return false;
+  try {
+    const r = await fetch(API_BASE + '/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt }),
+    });
+    if (!r.ok) { localStorage.removeItem('temba_refresh_token'); return false; }
+    const d = await r.json();
+    localStorage.setItem('temba_token', d.access_token);
+    if (d.refresh_token) localStorage.setItem('temba_refresh_token', d.refresh_token);
+    return true;
+  } catch { return false; }
+}
+
+async function apiGet(path, _retry = false) {
+  let token = localStorage.getItem('temba_token');
+  if (!token && !_retry) {
+    const ok = await _refreshAccessToken();
+    if (ok) return apiGet(path, true);
+    return null;
+  }
   if (!token) return null;
   try {
     const r = await fetch(API_BASE + path, { headers: { Authorization: `Bearer ${token}` } });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
+    if (r.status === 401 && !_retry) {
+      localStorage.removeItem('temba_token');
+      const ok = await _refreshAccessToken();
+      if (ok) return apiGet(path, true);
+      return null;
+    }
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
 
-async function apiPost(path, body) {
-  const token = localStorage.getItem('temba_token');
+async function apiPost(path, body, _retry = false) {
+  let token = localStorage.getItem('temba_token');
+  if (!token && !_retry) {
+    const ok = await _refreshAccessToken();
+    if (ok) return apiPost(path, body, true);
+    return null;
+  }
   if (!token) return null;
   try {
     const r = await fetch(API_BASE + path, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
+    if (r.status === 401 && !_retry) {
+      localStorage.removeItem('temba_token');
+      const ok = await _refreshAccessToken();
+      if (ok) return apiPost(path, body, true);
+      return null;
+    }
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
 
-async function apiPut(path, body) {
-  const token = localStorage.getItem('temba_token');
+async function apiPut(path, body, _retry = false) {
+  let token = localStorage.getItem('temba_token');
+  if (!token && !_retry) {
+    const ok = await _refreshAccessToken();
+    if (ok) return apiPut(path, body, true);
+    return null;
+  }
   if (!token) return null;
   try {
     const r = await fetch(API_BASE + path, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
+    if (r.status === 401 && !_retry) {
+      localStorage.removeItem('temba_token');
+      const ok = await _refreshAccessToken();
+      if (ok) return apiPut(path, body, true);
+      return null;
+    }
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
@@ -1109,20 +1156,16 @@ function _provPhone(nameOrId) {
 function getAllAppts()   { const d = getDismissedAppts(); return [...window._apiAppts, ...getAppts().filter(a => !a.fromApi)].filter(a => !d.has(String(a.id))); }
 
 async function loadApiData() {
-  const token = localStorage.getItem('temba_token');
+  let token = localStorage.getItem('temba_token');
   if (!token) {
-    /* No API token — session may have expired. Show prompt and work offline. */
-    const existing = document.getElementById('_sessionExpiredBanner');
-    if (!existing) {
-      const banner = document.createElement('div');
-      banner.id = '_sessionExpiredBanner';
-      banner.style.cssText = 'background:#FFF3CD;border:1px solid #FFC107;border-radius:8px;padding:10px 16px;margin:0 0 12px;font-size:13px;display:flex;align-items:center;gap:10px;';
-      banner.innerHTML = '<i class="ti ti-alert-triangle" style="color:#856404;"></i><span>Your session token has expired. <a href="signin.html" style="color:#0d6efd;font-weight:600;">Sign in again</a> to see your latest reports from the server.</span>';
-      const panel = document.getElementById('panel-overview');
-      if (panel) panel.prepend(banner);
+    const refreshed = await _refreshAccessToken();
+    if (!refreshed) {
+      /* Both access and refresh tokens gone — force re-login */
+      localStorage.setItem('temba_session', JSON.stringify({ loggedIn: false }));
+      window.location.href = 'signin.html';
+      return;
     }
-    _refreshAll();
-    return;
+    token = localStorage.getItem('temba_token');
   }
   const [rd, ad, sd] = await Promise.all([
     apiGet('/reports?size=100'),

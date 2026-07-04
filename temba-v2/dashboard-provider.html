@@ -954,38 +954,85 @@ async function saveSlaContacts() {
   }
 }
 
-async function apiGet(path) {
-  const token = localStorage.getItem('temba_token');
+async function _refreshAccessToken() {
+  const rt = localStorage.getItem('temba_refresh_token');
+  if (!rt) return false;
+  try {
+    const r = await fetch(API_BASE + '/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt }),
+    });
+    if (!r.ok) { localStorage.removeItem('temba_refresh_token'); return false; }
+    const d = await r.json();
+    localStorage.setItem('temba_token', d.access_token);
+    if (d.refresh_token) localStorage.setItem('temba_refresh_token', d.refresh_token);
+    return true;
+  } catch { return false; }
+}
+
+async function apiGet(path, _retry = false) {
+  let token = localStorage.getItem('temba_token');
+  if (!token && !_retry) {
+    const ok = await _refreshAccessToken();
+    if (ok) return apiGet(path, true);
+    return null;
+  }
   if (!token) return null;
   try {
     const r = await fetch(API_BASE + path, { headers: { Authorization: `Bearer ${token}` } });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
+    if (r.status === 401 && !_retry) {
+      localStorage.removeItem('temba_token');
+      const ok = await _refreshAccessToken();
+      if (ok) return apiGet(path, true);
+      return null;
+    }
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
 
-async function apiPost(path, body) {
-  const token = localStorage.getItem('temba_token');
+async function apiPost(path, body, _retry = false) {
+  let token = localStorage.getItem('temba_token');
+  if (!token && !_retry) {
+    const ok = await _refreshAccessToken();
+    if (ok) return apiPost(path, body, true);
+    return null;
+  }
   if (!token) return null;
   try {
     const r = await fetch(API_BASE + path, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
+    if (r.status === 401 && !_retry) {
+      localStorage.removeItem('temba_token');
+      const ok = await _refreshAccessToken();
+      if (ok) return apiPost(path, body, true);
+      return null;
+    }
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
 
-async function apiPut(path, body) {
-  const token = localStorage.getItem('temba_token');
+async function apiPut(path, body, _retry = false) {
+  let token = localStorage.getItem('temba_token');
+  if (!token && !_retry) {
+    const ok = await _refreshAccessToken();
+    if (ok) return apiPut(path, body, true);
+    return null;
+  }
   if (!token) return null;
   try {
     const r = await fetch(API_BASE + path, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
+    if (r.status === 401 && !_retry) {
+      localStorage.removeItem('temba_token');
+      const ok = await _refreshAccessToken();
+      if (ok) return apiPut(path, body, true);
+      return null;
+    }
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }

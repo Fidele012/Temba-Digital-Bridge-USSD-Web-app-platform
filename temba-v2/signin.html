@@ -277,6 +277,7 @@ async function handleSignin(e) {
 
   /* ── API auth path — load real profile ── */
   localStorage.setItem('temba_token', tokenData.access_token);
+  if (tokenData.refresh_token) localStorage.setItem('temba_refresh_token', tokenData.refresh_token);
 
   let me = {};
   try {
