@@ -253,6 +253,11 @@
               <div><div style="font-weight:700;font-size:14px;color:var(--navy);">Pro Water Rwanda</div><div style="font-size:12.5px;color:var(--gray-400);">Commercial water services</div></div>
               <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
             </div>
+            <div class="prov-opt" onclick="selectProvider(this,'temba-digital','Temba Digital Bridge')">
+              <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
+              <div><div style="font-weight:700;font-size:14px;color:var(--navy);">Temba Digital Bridge</div><div style="font-size:12.5px;color:var(--gray-400);">Digital water services — Kigali City</div></div>
+              <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+            </div>
             <div class="prov-opt" onclick="selectProvider(this,'unsure','Unsure — route automatically')">
               <div class="prov-icon" style="background:var(--gray-200);"><i class="ti ti-help-circle" style="color:var(--gray-600);" aria-hidden="true"></i></div>
               <div><div style="font-weight:700;font-size:14px;color:var(--navy);">I'm not sure</div><div style="font-size:12.5px;color:var(--gray-400);">Temba will route to the right provider</div></div>
@@ -432,12 +437,17 @@ async function loadReportProviders() {
   window._reportProviders = data.items;
   const list = document.getElementById('providerList');
   if (!list) return;
-  list.innerHTML = data.items.map((p, i) => `
+  list.innerHTML = data.items.map((p, i) => {
+    const areas = (p.service_areas||[]).map(a=>a.province).filter(Boolean);
+    const coverage = areas.length ? areas.join(', ') : 'Rwanda';
+    const cats = (p.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') || 'Water services';
+    return `
     <div class="prov-opt${i===0?' active':''}" onclick="selectProvider(this,'${p.id}','${p.organization_name.replace(/'/g,"\\'")}')">
       <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
-      <div><div style="font-weight:700;font-size:14px;color:var(--navy);">${p.organization_name}</div><div style="font-size:12.5px;color:var(--gray-400);">${p.service_area||'Rwanda'}</div></div>
+      <div><div style="font-weight:700;font-size:14px;color:var(--navy);">${p.organization_name}</div><div style="font-size:12.5px;color:var(--gray-400);">${cats} — ${coverage}</div></div>
       <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
-    </div>`).join('') + `
+    </div>`;
+  }).join('') + `
     <div class="prov-opt" onclick="selectProvider(this,'','I\\'m not sure — route automatically')">
       <div class="prov-icon" style="background:var(--gray-200);"><i class="ti ti-help-circle" style="color:var(--gray-600);" aria-hidden="true"></i></div>
       <div><div style="font-weight:700;font-size:14px;color:var(--navy);">I'm not sure</div><div style="font-size:12.5px;color:var(--gray-400);">Temba will route to the right provider</div></div>

@@ -39,8 +39,8 @@
         </p>
         <div style="margin-bottom:1.5rem;">
           <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Registered Providers</div>
-          <div>
-            ${['WASAC','Water Access Rwanda','IRIBA Water Group','Aquasan Limited','Pro Water Rwanda'].map(p =>
+          <div id="about-provider-pills">
+            ${['WASAC','Water Access Rwanda','IRIBA Water Group','Aquasan Limited','Pro Water Rwanda','Temba Digital Bridge'].map(p =>
               `<span style="display:inline-flex;align-items:center;gap:6px;background:#F0FAFF;border:1px solid #B3E5FC;border-radius:20px;padding:5px 14px;font-size:12.5px;font-weight:600;color:#1565C0;margin:3px;">
                 <i class="ti ti-building"></i> ${p}
               </span>`).join('')}
@@ -73,6 +73,14 @@
   window.openAboutModal = function () {
     const m = document.getElementById('temba-about-modal');
     const b = document.getElementById('temba-about-box');
+    // Refresh provider pills from live API data if available
+    const pills = document.getElementById('about-provider-pills');
+    if (pills && window._apiProviders && window._apiProviders.length) {
+      pills.innerHTML = window._apiProviders.map(p =>
+        `<span style="display:inline-flex;align-items:center;gap:6px;background:#F0FAFF;border:1px solid #B3E5FC;border-radius:20px;padding:5px 14px;font-size:12.5px;font-weight:600;color:#1565C0;margin:3px;">
+          <i class="ti ti-building"></i> ${p.organization_name}
+        </span>`).join('');
+    }
     m.style.pointerEvents = 'all';
     m.style.opacity = '1';
     b.style.transform = 'none';
