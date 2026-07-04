@@ -21,7 +21,7 @@
     }
     _banner.innerHTML =
       '<span style="display:inline-block;animation:spin 1s linear infinite;font-size:16px">⏳</span>' +
-      ` Connecting to server&hellip; this takes up to 60 s on first use. Please wait. (${attempt}/${max})`;
+      ` Connecting to server&hellip; this takes up to 2 minutes on first use. Please wait. (${attempt}/${max})`;
   }
 
   function _showError() {
@@ -50,7 +50,7 @@
     const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     if (isLocal) return fetch(url, options);
 
-    const MAX_RETRIES = 6;   /* 6 × 10 s = 60 s total — only for Render cold starts */
+    const MAX_RETRIES = 12;  /* 12 × 10 s = 120 s total — Render free tier can take up to 2 min */
     const DELAY_MS    = 10000;
 
     for (let i = 0; i <= MAX_RETRIES; i++) {

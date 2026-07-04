@@ -38,10 +38,10 @@
     <form id="signinForm" onsubmit="handleSignin(event)">
 
       <div class="field">
-        <label class="field-label"><span data-i18n="lbl_phone_or_email">Phone Number or Email</span> <span class="req">*</span></label>
+        <label class="field-label"><span>Email Address</span> <span class="req">*</span></label>
         <div class="field-wrap">
-          <i class="ti ti-user field-icon" aria-hidden="true"></i>
-          <input type="text" id="siIdentifier" data-i18n-placeholder="ph_phone_or_email" placeholder="e.g. +250 788 123 456 or jean@example.com" autocomplete="username" />
+          <i class="ti ti-mail field-icon" aria-hidden="true"></i>
+          <input type="email" id="siIdentifier" placeholder="e.g. jean@example.com" autocomplete="username" />
         </div>
       </div>
 
@@ -119,7 +119,7 @@ function setRole(role) {
   const id = document.getElementById('siIdentifier');
   if (id) id.placeholder = role === 'provider'
     ? 'Organisation admin email'
-    : 'e.g. +250 788 123 456 or jean@example.com';
+    : 'e.g. jean@example.com';
 }
 
 function _siError(msg) {
@@ -153,6 +153,10 @@ async function handleSignin(e) {
 
   if (!email || !pw) {
     _siError('Please enter your email and password.');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    _siError('Please enter a valid email address (e.g. jean@example.com). Phone numbers are not supported for sign-in.');
     return;
   }
 
