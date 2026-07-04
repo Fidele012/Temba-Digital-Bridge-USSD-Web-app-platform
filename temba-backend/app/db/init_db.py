@@ -48,6 +48,18 @@ _SEED_PROVIDERS = [
         "service_categories": ["truck_delivery", "water_storage", "water_supply"],
         "provinces":         ["Kigali City", "Eastern Province", "Southern Province"],
     },
+    {
+        "email":             "fidelemessielimaestro@gmail.com",
+        "full_name":         "Bikorimana Jean",
+        "organization_name": "Temba Digital Bridge",
+        "description":       "Digital water services platform connecting communities with water providers across Kigali.",
+        "phone":             "+250790147995",
+        "org_phone":         "+250790147995",
+        "org_email":         "f.ndihokubw1@alustudent.com",
+        "website":           None,
+        "service_categories": ["water_supply", "sanitation", "meter_services"],
+        "provinces":         ["Kigali City"],
+    },
 ]
 
 
