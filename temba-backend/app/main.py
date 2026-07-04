@@ -18,7 +18,6 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -79,9 +78,6 @@ app.add_middleware(SlowAPIMiddleware)
 
 # GZip
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-# Trusted hosts
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS + ["*"] if not settings.is_production else settings.ALLOWED_HOSTS)
 
 # CORS
 app.add_middleware(
