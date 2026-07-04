@@ -2110,7 +2110,7 @@ async function completeAppt(id) {
   const commEmail = a0?.bookedBy || a0?.user_email || '';
   const verifyEntry = { id, type: 'appointment', label: APPT_REASON_LABELS[a0?.reason] || a0?.reason || 'Appointment', providerName: CURRENT_PROVIDER };
 
-  const r = await apiPut(`/appointments/${id}/status`, { status: 'completed' });
+  const r = await apiPut(`/appointments/${id}/status`, { status: 'resolution_submitted' });
   if (r) {
     await loadApiData();
     _pushNotif({ type:'appointment_completed', icon:'ti-circle-check', color:'green', title:'Appointment Completed', body:`Appointment with ${a0?.reporter || 'community member'} on ${a0?.date || ''} marked as completed.` });
@@ -2119,7 +2119,7 @@ async function completeAppt(id) {
     toast('Appointment marked as completed. Community member will verify.', 'success'); return;
   }
   const all = getAppts(); const a = all.find(x => x.id === id);
-  if (a) a.status = 'completed'; saveAppts(all);
+  if (a) a.status = 'resolution_submitted'; saveAppts(all);
   _pushNotif({ type:'appointment_completed', icon:'ti-circle-check', color:'green', title:'Appointment Completed', body:`Appointment with ${a?.reporter || 'community member'} on ${a?.date || ''} marked as completed.` });
   _pushCommNotif(a?.bookedBy || '', { type:'appointment_completed', icon:'ti-circle-check', color:'teal', title:'Appointment Completed — Please Verify', body:`${CURRENT_PROVIDER} marked your appointment on ${a?.date || ''} as completed. Please open your Appointments panel to confirm.` });
   _writePendingVerify(a?.bookedBy || '', verifyEntry);

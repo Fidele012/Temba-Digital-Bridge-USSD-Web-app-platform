@@ -1235,7 +1235,7 @@ async function loadApiData() {
     window._apiReports = rd.items.map(_normReport);
     _syncReportVerifyFromApi(rd.items);
   }
-  if (ad && ad.items) window._apiAppts   = ad.items.map(_normAppt);
+  if (ad && ad.items) { window._apiAppts = ad.items.map(_normAppt); _syncApptVerifyFromApi(ad.items); }
   if (sd && sd.items) { window._apiSvcReqs = sd.items.map(_normSvc); _syncSvcVerifyFromApi(sd.items); }
   /* Always refresh — even if all APIs failed, localStorage data must render */
   _refreshAll();
@@ -1257,12 +1257,15 @@ function _refreshAll() {
   const pendingVerify = all.filter(r => r.status === 'pending-verification');
   const allSvc = getAllSvcReqs();
   const pendingSvc = allSvc.filter(r => r.status === 'resolution_submitted');
-  const totalPending = pendingVerify.length + pendingSvc.length;
+  const pendingApptVerify = getAllAppts().filter(a => a.status === 'resolution_submitted');
+  const totalPending = pendingVerify.length + pendingSvc.length + pendingApptVerify.length;
   const va = document.getElementById('overviewVerifyAlert');
   if (va) {
     if (totalPending > 0) {
-      const firstName = pendingVerify[0] || pendingSvc[0];
-      const label = pendingVerify.length > 0 ? pendingVerify[0].issue : _svcLabel(pendingSvc[0].type);
+      const firstName = pendingVerify[0] || pendingSvc[0] || pendingApptVerify[0];
+      const label = pendingVerify.length > 0 ? pendingVerify[0].issue
+        : pendingSvc.length > 0 ? _svcLabel(pendingSvc[0].type)
+        : (APPT_REASON_LABELS[pendingApptVerify[0].reason] || 'Appointment');
       document.getElementById('overviewVerifyTitle').textContent =
         totalPending === 1
           ? `Action needed: "${label}" has been marked as resolved`
@@ -2642,6 +2645,22 @@ function _syncSvcVerifyFromApi(rawSvcReqs) {
   const stored = getPendingVerify();
   const nonSvc = stored.filter(i => i.type !== 'service_request');
   savePendingVerify([...nonSvc, ...pendingFromApi]);
+  renderVerifyBanners();
+}
+
+function _syncApptVerifyFromApi(rawAppts) {
+  const pendingFromApi = rawAppts
+    .filter(a => (a.status || '').toLowerCase() === 'resolution_submitted')
+    .map(a => ({
+      id: a.id,
+      type: 'appointment',
+      label: APPT_REASON_LABELS[(a.reason || 'consultation').toLowerCase()] || (a.reason || 'Appointment'),
+      providerName: a.provider_name || (a.provider && a.provider.organization_name) || 'Your provider',
+      completedAt: a.resolution_submitted_at || a.updated_at || a.created_at,
+    }));
+  const stored = getPendingVerify();
+  const nonAppts = stored.filter(i => i.type !== 'appointment');
+  savePendingVerify([...nonAppts, ...pendingFromApi]);
   renderVerifyBanners();
 }
 
