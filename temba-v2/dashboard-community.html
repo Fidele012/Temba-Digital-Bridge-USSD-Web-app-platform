@@ -1136,15 +1136,23 @@ async function loadProviders() {
 }
 
 function _populateProviderSelects() {
-  // Use real UUIDs from API when available; fall back to provider name as value
   const source = window._apiProviders.length
     ? window._apiProviders.map(p => ({ id: p.id, name: p.organization_name }))
     : providersData.map(p => ({ id: p.name, name: p.name }));
   ['svcProvider','apptProvider'].forEach(selId => {
     const sel = document.getElementById(selId);
     if (!sel) return;
+    // Save selection by display name before wiping options (API may load mid-selection)
+    const prevName = sel.selectedIndex > 0 ? (sel.options[sel.selectedIndex]?.text || '') : '';
     sel.innerHTML = `<option value="" disabled selected>${t('appt_select_provider')}</option>`;
     source.forEach(p => sel.appendChild(new Option(p.name, p.id)));
+    // Restore previous selection after rebuild
+    if (prevName) {
+      const match = source.find(p =>
+        p.name === prevName || p.name.toLowerCase() === prevName.toLowerCase()
+      );
+      if (match) sel.value = match.id;
+    }
   });
 }
 
