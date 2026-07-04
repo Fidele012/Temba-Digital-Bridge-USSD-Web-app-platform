@@ -2,8 +2,8 @@
 
 > A bilingual (English / Kinyarwanda) civic-tech platform that connects Rwandan communities to water service providers through a responsive web interface and a USSD feature-phone channel — so every citizen, regardless of smartphone access, can report water issues, book appointments, and track resolutions in real time.
 
-![Tests](https://img.shields.io/badge/tests-55%2F55%20passing-2E7D32?style=flat-square)
-![Coverage](https://img.shields.io/badge/coverage-57%25-0097A7?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-96%2F96%20passing-2E7D32?style=flat-square)
+![Coverage](https://img.shields.io/badge/coverage-65%25-0097A7?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-1565C0?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/licence-ALU%20Capstone-0A2540?style=flat-square)
@@ -300,38 +300,54 @@ A full technical walkthrough demonstrating the complete Temba Digital Bridge sys
 
 ## 8. Testing
 
-The full test suite runs **55 tests across 7 modules** and passes in under 64 seconds with zero failures.
+The full test suite runs **96 tests across 12 modules** covering 8 distinct testing strategies required by the project rubric.
 
 ```bash
 cd temba-backend
 pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 ```
 
-### Results: 55/55 passed — 57% coverage — 63.53s
+### Results: 96/96 passed — ~65% coverage
 
 | Suite | Tests | Focus |
 | --- | --- | --- |
+| `test_unit.py` | 18 | Pure unit tests — `classify_priority`, `sla_deadline_for`, bcrypt, JWT |
+| `test_system.py` | 5 | End-to-end journeys: register → report → track → verify |
+| `test_functional.py` | 9 | FR-labelled tests for FR1, FR5–FR8, FR11, FR15, FR16 |
+| `test_regression.py` | 7 | Regression suite — each major feature addition re-verified |
+| `test_performance.py` | 5 | Response time benchmarks, concurrent users, bulk inserts |
 | `test_auth.py` | 6 | Registration, login, JWT, password change |
 | `test_reports.py` | 3 | Report creation, data isolation, access control |
 | `test_appointments.py` | 2 | Book → approve flow, reschedule |
 | `test_service_requests.py` | 3 | Create, list own, provider status update |
 | `test_security.py` | 11 | JWT boundary, RBAC, input validation, SQL injection |
-| `test_edge_cases.py` | 12 | Boundary values, coordinates, all enums, Unicode names |
+| `test_edge_cases.py` | 20 | Boundary values, large data, special chars, empty fields |
 | `test_ussd.py` | 18 | Full bilingual USSD flows via AT callback simulation |
 
 ### Testing Strategies
 
-**1. Integration Testing (14 tests):** Full HTTP request → response through FastAPI, testing real endpoint behaviour with database interactions. Covers user registration (success + duplicate email rejection), login (success + wrong password), JWT token issuance, report creation with auto-generated reference numbers, report listing with role-based filtering, appointment booking with provider approval flow, and two-way reschedule negotiation.
+**1. Unit Testing (18 tests — `test_unit.py`):** Pure function tests with no database or network. Covers `classify_priority` matrix (contamination always P1, pipe_burst+critical→P1, etc.), `sla_deadline_for` with exact hour calculations (P1=4h, P2=24h, P3=72h), bcrypt salt uniqueness (two hashes of the same password always differ), naive datetime timezone handling, and JWT token creation + expiry.
 
-**2. Security Testing (11 tests):** Unauthenticated access returns 401. Invalid/expired JWT tokens rejected. Community members cannot access provider-only endpoints (403). Report owner isolation (user A cannot read user B's report). Weak passwords rejected at registration (422). Invalid email format rejected. SQL injection attempts in email field rejected. Password hashes never exposed in API responses.
+**2. Integration Testing (14 tests):** Full HTTP request → response through FastAPI, testing real endpoint behaviour with database interactions. Covers user registration (success + duplicate email rejection), login (success + wrong password), JWT token issuance, report creation with auto-generated reference numbers, appointment booking with provider approval flow, and two-way reschedule negotiation.
 
-**3. Boundary Value Testing (4 tests):** Report title at exact minimum length (5 chars) accepted. Title one character below minimum rejected. Valid GPS coordinates accepted. Invalid latitude (999.0) rejected.
+**3. System Testing (5 tests — `test_system.py`):** Complete end-to-end user journeys from registration to resolution. `test_full_community_report_journey` exercises register → login → submit report → verify reference code (RPT- prefix) → public track without token. `test_full_appointment_journey` books with `site_visit` meeting type → provider approves → community sees "approved".
 
-**4. Different Data Values (6 tests):** All valid report categories tested (contamination, pipe_burst, low_pressure, no_supply, other). All urgency levels tested (low, medium, high, critical). Rwandan phone number format (+250788123456) accepted. Kinyarwanda names (Uwimana Jean Baptiste) accepted.
+**4. Functional Testing (9 tests — `test_functional.py`):** Tests labelled by Functional Requirement ID. FR7 verifies reference number format (RPT-YYYYMMDD-XXXX). FR15 confirms all three meeting types preserved. FR16 changes password and logs in with the new credentials to verify.
 
-**5. USSD Channel Testing (18 tests):** Welcome screen rendering. English and Kinyarwanda language selection. Exit command. Unregistered phone number handling. Wrong PIN rejection. Correct PIN → main menu display. Full report flow (category → urgency → provider → confirm → reference code). Report tracking. Appointment booking flow. Service request flow. Kinyarwanda full report flow.
+**5. Regression Testing (7 tests — `test_regression.py`):** After each major feature was added (priority classification, ratings, USSD expansion, meeting_type fix, ProviderStaff), this suite re-runs a baseline to confirm no existing behaviour was broken.
 
-**6. Error Handling:** Nonexistent report returns 403/404. Nonexistent endpoint returns 404. Health check returns `{"status": "ok"}`.
+**6. Security Testing (11 tests — `test_security.py`):** Unauthenticated access returns 401. Invalid/expired JWT tokens rejected. Community members cannot access provider-only endpoints (403). Report owner isolation (user A cannot read user B's report). SQL injection attempts in email field rejected. Password hashes never exposed in API responses.
+
+**7. Performance Testing (5 tests — `test_performance.py`):** Health check responds in under 200ms. Login responds in under 500ms. 10 concurrent report submissions complete without errors. Bulk insert of 50 reports completes in under 30 seconds. Report listing after bulk insert responds in under 1 second.
+
+**8. Different Data Values (20 tests — `test_edge_cases.py`):**
+- **Normal values:** Valid categories, urgency levels, Rwandan phone numbers, Kinyarwanda names
+- **Boundary values:** Title at exact 255-char maximum accepted; 256 chars rejected (422)
+- **Invalid values:** Invalid latitude (999.0) rejected; invalid email format rejected; weak password rejected
+- **Empty values:** Empty full name rejected; report missing required fields rejected; service request description below minimum rejected
+- **Large values:** 5,000-character description accepted without 500 error
+- **Special characters:** `pH < 6.5 & turbidity > 10 NTU. Contact: info@wasac.rw #urgent` stored as-is
+- **SQL injection:** `'; DROP TABLE users; --` in email field rejected at input validation layer
 
 ### Dashboard Synchronisation Testing
 
@@ -880,13 +896,13 @@ RATE_LIMIT_AUTH_PER_MINUTE=10
 
 ## 12. Deployment Plan
 
-Temba Digital Bridge is deployed as two separate parts: the **frontend** on Vercel and the **backend** on a persistent cloud server.
+Temba Digital Bridge is deployed as two separate parts: the **frontend** on Vercel and the **backend** on Render.
 
 ---
 
 ### 12.1 Frontend — Vercel
 
-The `temba-v2/` folder is a static site (HTML + CSS + JS) and deploys to Vercel in minutes.
+The `temba-v2/` folder is a static site (HTML + CSS + JS) deployed to Vercel.
 
 #### Step 1 — Push the project to GitHub
 
@@ -908,59 +924,36 @@ git push origin main
    - **Output Directory**: `.`
 5. Click **Deploy**
 
-Vercel will give you a public URL like `https://temba-digital-bridge.vercel.app`.
-
-#### Step 3 — Update the API base URL
-
-Before deploying, find and replace across all files in `temba-v2/`:
-
-```text
-http://127.0.0.1:8000
-```
-
-Replace with your production backend URL:
-
-```text
-https://your-backend-url.up.railway.app
-```
+The live frontend URL is: **`https://temba-digital-bridge-ussd-web-app-p.vercel.app`**
 
 ---
 
-### 12.2 Backend — Railway
+### 12.2 Backend — Render
 
-#### Step 1 — Sign up at Railway
+The backend is deployed via a Render Blueprint (`render.yaml` at the repo root), which provisions the API, PostgreSQL database, and Redis in one step.
 
-Go to [railway.app](https://railway.app) and sign up with GitHub.
+#### Step 1 — Sign up at Render
 
-#### Step 2 — Create a new project
+Go to [render.com](https://render.com) and sign up with GitHub.
 
-Click **New Project → Deploy from GitHub repo** → select `Temba-Digital-Bridge-USSD-Web-app-platform`. Set the **Root Directory** to `temba-backend`.
+#### Step 2 — Deploy the Blueprint
 
-#### Step 3 — Add services
+1. Click **New → Blueprint**
+2. Connect your `Temba-Digital-Bridge-USSD-Web-app-platform` repository
+3. Render detects `render.yaml` at the repo root automatically
+4. Fill in the secret environment variables when prompted:
+   - `AT_API_KEY` — your Africa's Talking sandbox API key
+   - `SMTP_USER` — Gmail address for transactional emails
+   - `SMTP_PASSWORD` — Gmail App Password (16-character code from Google Account → Security → App Passwords)
+   - `EMAILS_FROM_EMAIL` — same Gmail address
+   - `FIRST_ADMIN_PASSWORD` — initial password for `admin@temba.rw`
+5. Click **Apply**
 
-In the Railway project dashboard, click `+` and add:
+Render creates: the `temba-api` web service, `temba-db` PostgreSQL database, and `temba-redis` Redis instance. On first deploy, `alembic upgrade head` runs automatically before Uvicorn starts.
 
-- **PostgreSQL** → Database → PostgreSQL
-- **Redis** → Database → Redis
+#### Step 3 — Run the seed script once (if providers are missing)
 
-#### Step 4 — Set environment variables
-
-In Railway → your API service → Variables, add all values from Section 11. Use Railway's reference syntax:
-
-```text
-DATABASE_URL=postgresql+asyncpg://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
-REDIS_URL=redis://${{Redis.REDIS_URL}}
-CELERY_BROKER_URL=redis://${{Redis.REDIS_URL}}/1
-CELERY_RESULT_BACKEND=redis://${{Redis.REDIS_URL}}/2
-```
-
-#### Step 5 — Deploy
-
-Railway detects the `Dockerfile` in `temba-backend/` and builds automatically. The Dockerfile runs `alembic upgrade head` before starting Uvicorn, so migrations apply on every deploy.
-
-#### Step 6 — Run the seed script once
-
-In Railway → your service → Shell tab:
+In Render → `temba-api` service → **Shell** tab:
 
 ```bash
 python seed_providers.py
@@ -970,9 +963,9 @@ python seed_providers.py
 
 ### 12.3 USSD in Production
 
-For production, register your Railway backend URL in the Africa's Talking dashboard:
+Register the live backend URL in the Africa's Talking dashboard under your USSD service callback:
 
-- **USSD Callback URL**: `https://temba-backend.up.railway.app/api/v1/ussd/callback`
+- **USSD Callback URL**: `https://temba-api.onrender.com/api/v1/ussd/callback`
 
 ---
 
@@ -980,12 +973,12 @@ For production, register your Railway backend URL in the Africa's Talking dashbo
 
 | Service | Platform | URL |
 | --- | --- | --- |
-| Frontend | Vercel | `https://temba-digital-bridge.vercel.app` |
-| Backend API | Railway | `https://temba-backend.up.railway.app` |
-| API Docs (Swagger) | Railway | `https://temba-backend.up.railway.app/docs` |
+| Frontend | Vercel | `https://temba-digital-bridge-ussd-web-app-p.vercel.app` |
+| Backend API | Render | `https://temba-api.onrender.com` |
+| API Docs (Swagger) | Render | `https://temba-api.onrender.com/docs` |
 | USSD Channel | Africa's Talking | `*384*36640#` |
-| Database | Railway (PostgreSQL 16) | internal |
-| Cache / Queue | Railway (Redis 7) | internal |
+| Database | Render (PostgreSQL 16) | internal |
+| Cache / Queue | Render (Redis 7) | internal |
 
 ---
 
@@ -994,8 +987,8 @@ For production, register your Railway backend URL in the Africa's Talking dashbo
 The full interactive API documentation is auto-generated by FastAPI:
 
 ```text
-http://localhost:8000/docs                       (local)
-https://temba-backend.up.railway.app/docs        (production)
+http://localhost:8000/docs                   (local)
+https://temba-api.onrender.com/docs          (production)
 ```
 
 ### Key Endpoints
