@@ -17,6 +17,9 @@
       <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
     </a>
     <div class="nav-actions">
+      <button class="dash-mob-ham" onclick="toggleMobSidebar()" aria-label="Open navigation menu" title="Navigation">
+        <i class="ti ti-menu-2"></i>
+      </button>
       <div style="display:flex;align-items:center;gap:4px;font-size:13px;">
         <button data-lang-btn="en" onclick="setLang('en');rerenderDashboard()" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;">EN</button>
         <span style="color:var(--gray-200);">|</span>
@@ -33,10 +36,17 @@
   </div>
 </nav>
 
+<!-- Mobile sidebar overlay -->
+<div class="mob-sidebar-overlay" id="mobSidebarOverlay" onclick="closeMobSidebar()"></div>
+
 <div class="dash-layout">
 
   <!-- SIDEBAR -->
-  <aside class="dash-sidebar">
+  <aside class="dash-sidebar" id="dashSidebar">
+    <!-- Mobile close button -->
+    <div class="mob-sidebar-close">
+      <button onclick="closeMobSidebar()" aria-label="Close menu"><i class="ti ti-x"></i></button>
+    </div>
     <!-- Community badge -->
     <div style="padding:0.5rem 1rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;">
       <div style="display:flex;align-items:center;gap:12px;">
@@ -2254,6 +2264,23 @@ function showPanel(id, linkEl) {
     linkEl.classList.add('active');
   }
   if (id === 'history') renderHistory();
+  closeMobSidebar();
+}
+
+function toggleMobSidebar() {
+  const sidebar = document.getElementById('dashSidebar');
+  const overlay = document.getElementById('mobSidebarOverlay');
+  const isOpen  = sidebar.classList.contains('mob-open');
+  if (isOpen) { closeMobSidebar(); } else {
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+function closeMobSidebar() {
+  document.getElementById('dashSidebar')?.classList.remove('mob-open');
+  document.getElementById('mobSidebarOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 function renderGreeting() {

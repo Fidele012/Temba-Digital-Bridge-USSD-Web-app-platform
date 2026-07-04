@@ -203,8 +203,8 @@ async function handleSignin(e) {
           } catch (_) { /* network dropped — fall through to local sign-in */ }
           if (!tokenData) { usedLocalAuth = true; localAccount = acct; }
         } else {
-          /* API is reachable and says 401 — credentials are simply wrong */
-          _siError('Incorrect email or password. Please try again.');
+          /* API is reachable and says 401 — either wrong password or account doesn't exist */
+          _siError('Incorrect email or password. If you recently signed up, please register again — your previous sign-up may not have been saved to the server.');
           return;
         }
       } else {

@@ -437,7 +437,12 @@ async function handleSubmit(type) {
       }
     }
   } catch (_) {
-    // API unreachable — credentials saved locally below, sign-in will work offline
+    /* API unreachable — save locally. Warn the user so they know their account
+       is device-only until they sign in again when online (auto-sync happens on login). */
+    showTembaToast(
+      'No internet connection — your account was saved on this device. Sign in once you\'re back online to activate it on all devices.',
+      'warning'
+    );
   }
 
   /* Always save credentials locally so sign-in works even when server is offline */
@@ -521,9 +526,10 @@ function err(id, msg) {
 function showTembaToast(msg, type = 'error') {
   const t = document.getElementById('temba-toast');
   if (!t) return;
-  t.style.background = type === 'success' ? '#2E7D32' : '#C62828';
+  t.style.background = type === 'success' ? '#2E7D32' : type === 'warning' ? '#E65100' : '#C62828';
   t.textContent = msg;
   t.style.opacity = '1';
+  t.style.maxWidth = type === 'warning' ? '380px' : '320px';
   clearTimeout(t._tm);
-  t._tm = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  t._tm = setTimeout(() => { t.style.opacity = '0'; }, type === 'warning' ? 6000 : 3000);
 }

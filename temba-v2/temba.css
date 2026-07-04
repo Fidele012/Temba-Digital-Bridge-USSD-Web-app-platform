@@ -610,7 +610,6 @@ input, select, textarea { font-family: var(--font); }
   .provider-cards { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
-  .dash-sidebar { display: none; }
   .two-col { grid-template-columns: 1fr; }
   .field-row { grid-template-columns: 1fr; }
 }
@@ -621,7 +620,10 @@ input, select, textarea { font-family: var(--font); }
   .auth-title { font-size: 22px; }
   .dash-main { padding: 1.25rem; }
   .nav-hamburger { display: block; }
-  .nav-links, .nav-actions .btn-ghost, .nav-actions .btn-nav-cta { display: none; }
+  /* hide landing-page nav links and CTA; keep Sign Out visible on dashboards */
+  .nav-links, .nav-actions .btn-nav-cta { display: none; }
+  /* only hide btn-ghost on the landing page (has .landing-nav class) */
+  .landing-nav .nav-actions .btn-ghost { display: none; }
 }
 
 /* ══════════════════════════════════════
@@ -1550,3 +1552,92 @@ html[data-theme="dark"] .dm-invert .dm-value { color: #D8EAFF !important; }
 .success-screen { padding: 2.5rem 0.5rem; }
 .success-screen h2 { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; }
 .success-screen p  { font-size: 15px; }
+
+/* ═════════════════════════════════════════
+   MOBILE NAVIGATION — Slide-in sidebar drawer
+   Works on every screen ≤860px (phone + tablet)
+   ═════════════════════════════════════════ */
+
+/* Hamburger toggle button — lives inside nav-actions, hidden on desktop */
+.dash-mob-ham {
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 9px;
+  color: rgba(255,255,255,0.9);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px 9px;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dash-mob-ham:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.4); }
+
+/* Dim overlay that covers the main content when sidebar is open */
+.mob-sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(6,21,37,0.58);
+  z-index: 299;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  cursor: pointer;
+  transition: opacity 0.28s;
+}
+.mob-sidebar-overlay.open { display: block; }
+
+/* Mobile sidebar drawer — slide in from left */
+@media (max-width: 860px) {
+  .dash-mob-ham { display: flex; }
+
+  .dash-sidebar {
+    position: fixed !important;
+    left: 0; top: 0; bottom: 0;
+    width: 260px;
+    height: 100dvh;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto;
+    /* keep the sticky-top offset gone when fixed */
+    padding-top: 1rem;
+  }
+  .dash-sidebar.mob-open {
+    transform: translateX(0) !important;
+    box-shadow: 6px 0 44px rgba(6,21,37,0.55);
+  }
+
+  /* Close X button inside sidebar */
+  .mob-sidebar-close {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 1rem 0.75rem; margin-bottom: 0;
+  }
+  .mob-sidebar-close button {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; color: rgba(255,255,255,0.7); font-size: 18px;
+    cursor: pointer; padding: 5px 9px; font-family: var(--font);
+    transition: background 0.15s;
+  }
+  .mob-sidebar-close button:hover { background: rgba(255,255,255,0.16); }
+
+  .dash-main { padding: 1.25rem; }
+  .stat-grid  { grid-template-columns: repeat(2,1fr); }
+}
+
+/* Extra-small phones (≤430px) */
+@media (max-width: 430px) {
+  .auth-card   { padding: 1.75rem 1.25rem; }
+  .dash-main   { padding: 1rem; }
+  .stat-num    { font-size: 22px; }
+  .stat-grid   { grid-template-columns: repeat(2,1fr); gap: 0.75rem; }
+  .panel-hero  { padding: 1.25rem; border-radius: var(--radius-md); }
+  .panel-hero h1 { font-size: 18px; }
+  .auth-title  { font-size: 20px; }
+  .auth-card::before { display: none; }
+}
+
+/* Hide mob-sidebar-close button on desktop */
+@media (min-width: 861px) {
+  .mob-sidebar-close { display: none; }
+}
