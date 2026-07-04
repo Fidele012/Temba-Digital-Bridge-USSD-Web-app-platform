@@ -391,7 +391,7 @@ if (!_s.loggedIn) window.location.href = 'signin.html';
 window.addEventListener('scroll',()=>document.getElementById('mainNav').classList.toggle('shadow',window.scrollY>8));
 
 const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
-  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
+  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api-production.up.railway.app/api/v1';
 
 async function apiGet(path) {
   const token = localStorage.getItem('temba_token');

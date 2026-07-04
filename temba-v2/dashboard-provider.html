@@ -888,7 +888,7 @@ function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'nu
 
 /* ── API Integration ── */
 const _IS_LOCAL = ['localhost','127.0.0.1'].includes(window.location.hostname);
-const API_BASE = _IS_LOCAL ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
+const API_BASE = _IS_LOCAL ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api-production.up.railway.app/api/v1';
 window._apiReports = []; window._apiAppts = []; window._apiSvcReqs = [];
 window._myProviderProfile = null;
 

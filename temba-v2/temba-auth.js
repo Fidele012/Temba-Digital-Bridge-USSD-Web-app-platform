@@ -323,7 +323,7 @@ async function handleSubmit(type) {
   if (!terms?.checked)                                   { showTembaToast('Please accept the Terms of Use to continue'); return; }
 
   const _API = ['localhost','127.0.0.1'].includes(window.location.hostname)
-    ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
+    ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api-production.up.railway.app/api/v1';
   let token = null;
 
   /* Collect all registration data up-front */

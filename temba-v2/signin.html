@@ -106,7 +106,7 @@
 if (typeof _serverFetch === 'undefined') window._serverFetch = (url, opts) => fetch(url, opts);
 
 const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
-  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api.onrender.com/api/v1';
+  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api-production.up.railway.app/api/v1';
 
 /* Track which tab the user selected — enforced during sign-in */
 let _signinRole = 'community';
