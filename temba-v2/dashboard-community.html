@@ -1136,15 +1136,28 @@ async function loadProviders() {
 }
 
 function _populateProviderSelects() {
+  // Use real UUIDs from API when available; fall back to provider name as value
   const source = window._apiProviders.length
     ? window._apiProviders.map(p => ({ id: p.id, name: p.organization_name }))
-    : providersData.map(p => ({ id: '', name: p.name }));
+    : providersData.map(p => ({ id: p.name, name: p.name }));
   ['svcProvider','apptProvider'].forEach(selId => {
     const sel = document.getElementById(selId);
     if (!sel) return;
     sel.innerHTML = `<option value="" disabled selected>${t('appt_select_provider')}</option>`;
     source.forEach(p => sel.appendChild(new Option(p.name, p.id)));
   });
+}
+
+/* Resolve a provider select value to a real UUID.
+   The value is either a UUID (from API) or a name (from fallback list).
+   By submission time, _apiProviders is usually loaded — try name lookup. */
+function _resolveProviderId(val) {
+  const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (_UUID_RE.test(val)) return val;
+  const found = window._apiProviders.find(p =>
+    p.organization_name === val || p.organization_name.toLowerCase() === val.toLowerCase()
+  );
+  return found ? found.id : null;
 }
 
 function _normReport(r) {
@@ -1703,11 +1716,17 @@ async function submitSvcRequest() {
     document.getElementById('svcOtherType').focus();
     toast('Please describe the service you need','error'); return;
   }
-  const providerId = document.getElementById('svcProvider').value;
+  const _rawSvcProv = document.getElementById('svcProvider').value;
+  let   providerId  = _resolveProviderId(_rawSvcProv);
   const location   = document.getElementById('svcLocation').value.trim();
   const desc       = document.getElementById('svcDesc').value.trim();
   const urgency    = document.querySelector('input[name="svcUrgency"]:checked')?.value || 'low';
-  if (!providerId) { toast('Please select a provider','error'); return; }
+  if (!_rawSvcProv) { toast('Please select a provider','error'); return; }
+  if (!providerId) {
+    await loadProviders();
+    providerId = _resolveProviderId(_rawSvcProv);
+    if (!providerId) { toast('Provider not found — please try again','error'); return; }
+  }
   if (!location)   { toast('Please enter your location','error'); return; }
   if (desc.length < 10) { toast('Please describe your request (at least 10 characters)','error'); return; }
   const finalDesc = selectedSvcType === 'other' && svcOtherDetail
@@ -1993,7 +2012,8 @@ function openApptModalFor(providerId) {
 function closeApptModal() { document.getElementById('apptModal').classList.remove('open'); }
 
 async function submitAppt() {
-  const providerId = document.getElementById('apptProvider').value;
+  const _rawApptProv = document.getElementById('apptProvider').value;
+  const providerId   = _resolveProviderId(_rawApptProv);
   const reason     = document.getElementById('apptReason').value;
   const date       = document.getElementById('apptDate').value;
   const notes      = document.getElementById('apptNotes').value.trim();
@@ -2006,7 +2026,13 @@ async function submitAppt() {
   const timeStr     = slotTime || fallbackTime;
 
   const otherReasonDetail = (document.getElementById('apptOtherReason')?.value || '').trim();
-  if (!providerId) { toast('Please select a provider','error'); return; }
+  if (!_rawApptProv) { toast('Please select a provider','error'); return; }
+  if (!providerId) {
+    // Provider selected from fallback list but API hasn't resolved it yet — retry load then re-submit
+    await loadProviders();
+    const retried = _resolveProviderId(_rawApptProv);
+    if (!retried) { toast('Provider not found — please try again','error'); return; }
+  }
   if (!reason)     { toast('Please select an appointment reason','error'); return; }
   if (reason === 'other' && !otherReasonDetail) {
     document.getElementById('apptOtherReason').focus();
