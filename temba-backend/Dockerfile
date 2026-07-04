@@ -33,6 +33,8 @@ RUN chown -R temba:temba /app
 
 USER temba
 
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 8000
 
 # Run Alembic migrations then start Uvicorn
