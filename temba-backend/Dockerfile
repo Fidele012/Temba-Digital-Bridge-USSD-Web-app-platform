@@ -38,4 +38,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Run Alembic migrations then start Uvicorn
-CMD ["sh", "-c", "alembic upgrade head && echo 'Starting uvicorn on port '${PORT:-8000} && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} 2>&1"]
+CMD ["sh", "-c", "timeout 30 alembic upgrade head; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
