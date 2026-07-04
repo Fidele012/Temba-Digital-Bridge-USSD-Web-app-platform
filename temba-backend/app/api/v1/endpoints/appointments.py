@@ -34,7 +34,7 @@ from app.schemas.appointment import (
 from app.schemas.common import PaginatedResponse, PaginationParams
 from app.core.sla import sla_deadline_for
 from app.schemas.report import VerificationVerdict
-from app.services.notification_service import notify_user
+from app.services.notification_service import notify_org, notify_user
 
 _PROVIDER_APPT_STATUSES = {
     AppointmentStatus.APPROVED,
@@ -81,9 +81,9 @@ async def book_appointment(
     appt.sla_deadline = sla_deadline_for(body.reason.value, appt.created_at, "appointment")
     await write_audit(db, request, "appointment.create", "appointment", str(appt.id), actor=current_user)
 
-    await notify_user(
+    await notify_org(
         db,
-        user_id=provider.user_id,
+        provider=provider,
         notification_type="appointment_update",
         title="New appointment request",
         body=f"A new appointment has been requested for {body.appointment_date} at {body.appointment_time}",
@@ -192,9 +192,9 @@ async def cancel_appointment(
     appt.status = AppointmentStatus.CANCELLED
     prov = (await db.execute(select(Provider).where(Provider.id == appt.provider_id))).scalar_one_or_none()
     if prov:
-        await notify_user(
+        await notify_org(
             db,
-            user_id=prov.user_id,
+            provider=prov,
             notification_type="appointment_update",
             title="Appointment cancelled",
             body=f"A community member cancelled their appointment scheduled for {appt.appointment_date}",
@@ -225,9 +225,9 @@ async def request_reschedule(
     appt.reschedule_reason = body.reschedule_reason
 
     prov = (await db.execute(select(Provider).where(Provider.id == appt.provider_id))).scalar_one()
-    await notify_user(
+    await notify_org(
         db,
-        user_id=prov.user_id,
+        provider=prov,
         notification_type="appointment_update",
         title="Reschedule request",
         body=f"A user has requested to reschedule appointment to {body.requested_date} {body.requested_time}",
@@ -248,8 +248,12 @@ async def provider_propose_reschedule(
 ) -> Appointment:
     appt = await _get_appointment_or_404(appt_id, db)
     prov = await _get_provider_for_user(current_user, db)
-    if not prov or appt.provider_id != prov.id:
+    if not prov:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if appt.provider_id != prov.id:
+        appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
+        if appt_org != (prov.organization_name or "").lower():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     appt.status = AppointmentStatus.RESCHEDULED
     appt.proposed_date = body.proposed_date
@@ -318,8 +322,12 @@ async def update_appointment_status(
 ) -> Appointment:
     appt = await _get_appointment_or_404(appt_id, db)
     prov = await _get_provider_for_user(current_user, db)
-    if not prov or appt.provider_id != prov.id:
+    if not prov:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if appt.provider_id != prov.id:
+        appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
+        if appt_org != (prov.organization_name or "").lower():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     if body.status not in _PROVIDER_APPT_STATUSES:
         raise HTTPException(
@@ -386,8 +394,8 @@ async def verify_appointment(
     await write_audit(db, request, f"appointment.verify.{body.verdict}", "appointment", str(appt_id), actor=current_user)
 
     if prov:
-        await notify_user(
-            db, user_id=prov.user_id,
+        await notify_org(
+            db, provider=prov,
             notification_type="appointment_update",
             title=notif_title,
             body=f"Appointment on {appt.appointment_date}: {notif_body}",

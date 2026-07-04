@@ -401,12 +401,20 @@ async def list_providers(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     base_q = select(Provider).where(Provider.status == ProviderStatus.APPROVED)
-    total = (await db.execute(select(func.count()).select_from(base_q.subquery()))).scalar_one()
-    result = await db.execute(
-        _load_provider(base_q).order_by(Provider.organization_name).offset(params.offset).limit(params.size)
-    )
+    all_rows = (await db.execute(_load_provider(base_q).order_by(Provider.organization_name))).scalars().all()
+
+    # Deduplicate by org name — keep only the most recently created provider per org
+    seen: dict[str, Provider] = {}
+    for p in all_rows:
+        key = (p.organization_name or "").lower()
+        if key not in seen or p.created_at > seen[key].created_at:
+            seen[key] = p
+    deduped = sorted(seen.values(), key=lambda p: (p.organization_name or "").lower())
+
+    total = len(deduped)
+    page_items = deduped[params.offset : params.offset + params.size]
     return {
-        "items": result.scalars().all(),
+        "items": page_items,
         "total": total,
         "page": params.page,
         "size": params.size,

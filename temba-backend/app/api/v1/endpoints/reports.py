@@ -30,7 +30,7 @@ from app.models.rating import Rating
 from app.schemas.rating import RatingCreate, RatingPublic
 from app.schemas.report import ReportCreate, ReportPublic, ReportUpdate, VerificationVerdict
 from app.services.file_service import upload_report_media
-from app.services.notification_service import notify_user
+from app.services.notification_service import notify_org, notify_user
 
 _PROVIDER_REPORT_STATUSES = {
     ReportStatus.ACKNOWLEDGED,
@@ -153,6 +153,15 @@ async def update_report(
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
 
+    if current_user.role == UserRole.PROVIDER:
+        prov = await get_provider_for_user(current_user, db)
+        if not prov:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if report.provider_id is not None and report.provider_id != prov.id:
+            rpt_org = (report.provider.organization_name or "").lower() if report.provider else ""
+            if rpt_org != (prov.organization_name or "").lower():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
     if body.status:
         if current_user.role == UserRole.PROVIDER and body.status not in _PROVIDER_REPORT_STATUSES:
             raise HTTPException(
@@ -238,8 +247,8 @@ async def verify_report(
     if report.provider_id:
         prov = (await db.execute(select(Provider).where(Provider.id == report.provider_id))).scalar_one_or_none()
         if prov:
-            await notify_user(
-                db, user_id=prov.user_id,
+            await notify_org(
+                db, provider=prov,
                 notification_type="report_update",
                 title=notif_title,
                 body=f"Report '{report.title}': {notif_body}",
@@ -298,8 +307,12 @@ async def delete_report(
             )
     elif current_user.role == UserRole.PROVIDER:
         prov = await get_provider_for_user(current_user, db)
-        if not prov or report.provider_id != prov.id:
+        if not prov:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if report.provider_id != prov.id:
+            rpt_org = (report.provider.organization_name or "").lower() if report.provider else ""
+            if rpt_org != (prov.organization_name or "").lower():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
         if report.status not in _DELETABLE_STATUSES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

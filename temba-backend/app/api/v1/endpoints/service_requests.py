@@ -25,7 +25,7 @@ from app.models.user import User, UserRole
 from app.schemas.common import PaginatedResponse, PaginationParams
 from app.schemas.report import VerificationVerdict
 from app.schemas.service_request import ServiceRequestCreate, ServiceRequestPublic, ServiceRequestUpdate
-from app.services.notification_service import notify_user
+from app.services.notification_service import notify_org, notify_user
 
 router = APIRouter(prefix="/service-requests", tags=["service-requests"])
 
@@ -126,6 +126,15 @@ async def update_service_request(
     if not sr:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service request not found")
 
+    if current_user.role == UserRole.PROVIDER:
+        prov = await get_provider_for_user(current_user, db)
+        if not prov:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if sr.provider_id is not None and sr.provider_id != prov.id:
+            sr_org = (sr.provider.organization_name or "").lower() if sr.provider else ""
+            if sr_org != (prov.organization_name or "").lower():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
     if body.status:
         if current_user.role == UserRole.PROVIDER and body.status not in _PROVIDER_SR_STATUSES:
             raise HTTPException(
@@ -211,8 +220,8 @@ async def verify_service_request(
     if sr.provider_id:
         prov = (await db.execute(select(Provider).where(Provider.id == sr.provider_id))).scalar_one_or_none()
         if prov:
-            await notify_user(
-                db, user_id=prov.user_id,
+            await notify_org(
+                db, provider=prov,
                 notification_type="service_request_update",
                 title=notif_title,
                 body=f"Service request ({sr.request_type.value}): {notif_body}",
@@ -249,8 +258,12 @@ async def cancel_or_delete_service_request(
 
     elif current_user.role == UserRole.PROVIDER:
         prov = await get_provider_for_user(current_user, db)
-        if not prov or sr.provider_id != prov.id:
+        if not prov:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        if sr.provider_id != prov.id:
+            sr_org = (sr.provider.organization_name or "").lower() if sr.provider else ""
+            if sr_org != (prov.organization_name or "").lower():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
         if sr.status not in _DELETABLE_SR:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
