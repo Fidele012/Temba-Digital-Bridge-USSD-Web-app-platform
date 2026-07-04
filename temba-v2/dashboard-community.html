@@ -1154,10 +1154,18 @@ function _populateProviderSelects() {
 function _resolveProviderId(val) {
   const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (_UUID_RE.test(val)) return val;
-  const found = window._apiProviders.find(p =>
-    p.organization_name === val || p.organization_name.toLowerCase() === val.toLowerCase()
-  );
-  return found ? found.id : null;
+  // Search live API providers first, then fall back to localStorage cache
+  const sources = [
+    window._apiProviders,
+    (() => { try { return JSON.parse(localStorage.getItem('temba_providers_cache') || '[]'); } catch(_) { return []; } })(),
+  ];
+  for (const list of sources) {
+    const found = (list || []).find(p =>
+      p.organization_name === val || (p.organization_name || '').toLowerCase() === val.toLowerCase()
+    );
+    if (found && found.id) return found.id;
+  }
+  return null;
 }
 
 function _normReport(r) {
@@ -2013,7 +2021,7 @@ function closeApptModal() { document.getElementById('apptModal').classList.remov
 
 async function submitAppt() {
   const _rawApptProv = document.getElementById('apptProvider').value;
-  const providerId   = _resolveProviderId(_rawApptProv);
+  let   providerId   = _resolveProviderId(_rawApptProv);
   const reason     = document.getElementById('apptReason').value;
   const date       = document.getElementById('apptDate').value;
   const notes      = document.getElementById('apptNotes').value.trim();
@@ -2028,10 +2036,9 @@ async function submitAppt() {
   const otherReasonDetail = (document.getElementById('apptOtherReason')?.value || '').trim();
   if (!_rawApptProv) { toast('Please select a provider','error'); return; }
   if (!providerId) {
-    // Provider selected from fallback list but API hasn't resolved it yet — retry load then re-submit
     await loadProviders();
-    const retried = _resolveProviderId(_rawApptProv);
-    if (!retried) { toast('Provider not found — please try again','error'); return; }
+    providerId = _resolveProviderId(_rawApptProv);
+    if (!providerId) { toast('Provider not found — please try again','error'); return; }
   }
   if (!reason)     { toast('Please select an appointment reason','error'); return; }
   if (reason === 'other' && !otherReasonDetail) {
