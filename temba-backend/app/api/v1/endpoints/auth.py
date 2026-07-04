@@ -19,7 +19,7 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from jose import JWTError
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -85,13 +85,14 @@ async def register(
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
-    result = await db.execute(select(User).where(User.email == body.email))
+    normalized_email = body.email.lower().strip()
+    result = await db.execute(select(User).where(func.lower(User.email) == normalized_email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     verification_token = str(uuid4())
     user = User(
-        email=body.email,
+        email=normalized_email,
         phone=body.phone,
         hashed_password=hash_password(body.password),
         full_name=body.full_name,
@@ -138,7 +139,7 @@ async def login(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    result = await db.execute(select(User).where(User.email == body.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == body.email.lower().strip()))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(body.password, user.hashed_password):
@@ -215,7 +216,7 @@ async def forgot_password(
     user: User | None = None
 
     if _looks_like_email(identifier):
-        result = await db.execute(select(User).where(User.email == identifier.lower()))
+        result = await db.execute(select(User).where(func.lower(User.email) == identifier.lower()))
         user = result.scalar_one_or_none()
         channel = "email"
     else:
@@ -269,7 +270,7 @@ async def reset_password(
     user: User | None = None
 
     if _looks_like_email(identifier):
-        result = await db.execute(select(User).where(User.email == identifier.lower()))
+        result = await db.execute(select(User).where(func.lower(User.email) == identifier.lower()))
         user = result.scalar_one_or_none()
     else:
         variants = _phone_variants(identifier)

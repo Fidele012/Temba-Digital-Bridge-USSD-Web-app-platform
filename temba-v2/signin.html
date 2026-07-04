@@ -148,7 +148,7 @@ async function handleSignin(e) {
   btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Signing in…';
   btn.disabled = true;
 
-  const email = document.getElementById('siIdentifier').value.trim();
+  const email = document.getElementById('siIdentifier').value.trim().toLowerCase();
   const pw    = document.getElementById('siPassword').value;
 
   if (!email || !pw) {
@@ -186,7 +186,6 @@ async function handleSignin(e) {
             return;
           }
           /* Password matches locally — account was registered offline. Try to sync it to API. */
-          if (acct.role !== _signinRole) { _roleMismatchError(acct.role); return; }
           try {
             const reReg = await _serverFetch(`${API_BASE}/auth/register`, {
               method: 'POST',
@@ -233,7 +232,6 @@ async function handleSignin(e) {
       _siError('Incorrect password. Please check your credentials and try again.');
       return;
     }
-    if (acct.role !== _signinRole) { _roleMismatchError(acct.role); return; }
     usedLocalAuth = true;
     localAccount  = acct;
   }
@@ -291,13 +289,6 @@ async function handleSignin(e) {
   }
 
   const role = (me.role || 'community').toLowerCase();
-
-  /* Enforce: the selected tab must match the account's role */
-  if (role !== _signinRole) {
-    localStorage.removeItem('temba_token');
-    _roleMismatchError(role);
-    return;
-  }
 
   const name = me.full_name || email.split('@')[0];
 
