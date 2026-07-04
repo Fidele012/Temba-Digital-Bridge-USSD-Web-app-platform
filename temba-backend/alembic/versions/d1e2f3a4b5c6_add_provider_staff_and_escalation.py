@@ -10,6 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 
 revision: str = 'd1e2f3a4b5c6'
 down_revision: Union[str, None] = 'c7d8e9f0a1b2'
@@ -34,8 +35,8 @@ def upgrade() -> None:
         sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
             'staff_role',
-            sa.Enum('supervisor', 'regional_manager', 'executive',
-                    name='providerstaffrole', create_type=False),
+            PGEnum('supervisor', 'regional_manager', 'executive',
+                   name='providerstaffrole', create_type=False),
             nullable=False,
         ),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
