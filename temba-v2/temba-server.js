@@ -21,15 +21,15 @@
     }
     _banner.innerHTML =
       '<span style="display:inline-block;animation:spin 1s linear infinite;font-size:16px">⏳</span>' +
-      ` Server is waking up&hellip; please wait (attempt ${attempt}/${max})`;
+      ` Connecting to server&hellip; this takes up to 60 s on first use. Please wait. (${attempt}/${max})`;
   }
 
   function _showError() {
     if (!_banner) return;
     _banner.style.background = '#B71C1C';
     _banner.innerHTML =
-      '⚠️ Server is not responding. ' +
-      '<a href="javascript:location.reload()" style="color:#fff;text-decoration:underline;font-weight:700;">Click here to retry</a>';
+      '⚠️ Server did not respond in time (Render free tier). ' +
+      '<a href="javascript:location.reload()" style="color:#fff;text-decoration:underline;font-weight:700;">Click to try again</a> — it should work on the next attempt.';
   }
 
   function _hideBanner() {
