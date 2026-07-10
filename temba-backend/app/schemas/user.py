@@ -9,7 +9,7 @@ from app.schemas.common import ORMModel
 
 class UserCreate(ORMModel):
     email: EmailStr
-    phone: str | None = Field(None, pattern=r"^\+?[0-9]{9,15}$")
+    phone: str = Field(..., pattern=r"^\+?[0-9]{9,15}$")
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=2, max_length=255)
     role: UserRole = UserRole.COMMUNITY

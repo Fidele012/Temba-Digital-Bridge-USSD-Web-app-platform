@@ -178,6 +178,27 @@
         </div>
       </div>
 
+      <!-- No-phone banner — shown once to web users without a phone number -->
+      <div id="noPhoneBanner" style="display:none;background:linear-gradient(135deg,#FFF8E1,#FFFDE7);border:1.5px solid #FBC02D;border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.25rem;position:relative;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#F59E0B,#D97706);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ti-device-mobile" style="font-size:20px;color:#fff;" aria-hidden="true"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14.5px;color:#78350F;margin-bottom:3px;">Add your phone number to unlock USSD access</div>
+            <div style="font-size:13px;color:#92400E;line-height:1.6;">Dial Temba from any mobile phone — even without internet. Your USSD activity and web activity share the same account and history.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+            <button onclick="openAddPhoneModal()" style="background:#D97706;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+              <i class="ti ti-phone-plus" aria-hidden="true"></i> Add Phone
+            </button>
+            <button onclick="dismissNoPhoneBanner()" title="Dismiss" style="background:none;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#92400E;font-size:18px;" aria-label="Dismiss">
+              <i class="ti ti-x" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="panel-hero">
         <div>
           <h1 id="greetingText">Good morning, there</h1>
@@ -264,6 +285,36 @@
             <div id="surveyDone" style="display:none;font-size:13px;color:var(--green);font-weight:600;"><i class="ti ti-circle-check"></i> <span data-i18n="survey_thanks">Thank you! Your feedback helps strengthen community accountability.</span></div>
             <button id="surveyOpenBtn" class="btn-primary" style="width:auto;padding:8px 18px;font-size:13px;" onclick="openSurveyModal()">
               <i class="ti ti-clipboard-list" aria-hidden="true"></i> <span data-i18n="survey_btn_open">Share Your Experience</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- USSD Access Card -->
+      <div class="card" style="margin-top:1.25rem;border-left:4px solid #0277BD;">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-device-mobile" style="color:#0277BD;" aria-hidden="true"></i> USSD Access</span>
+        </div>
+        <p style="font-size:13px;color:var(--gray-600);margin-bottom:1rem;line-height:1.6;">
+          Dial the Temba shortcode from any mobile phone — no internet required. Your web and USSD activity share the same account and full history.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+          <div style="background:var(--gray-50);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Phone Number</div>
+            <div id="ussdAccessPhone" style="font-size:14px;font-weight:700;color:#94A3B8;">—</div>
+          </div>
+          <div style="background:var(--gray-50);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">USSD PIN</div>
+            <div id="ussdAccessPin" style="font-size:14px;font-weight:700;color:#94A3B8;">—</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="ussdSetPinBtn" onclick="openSetPinModal()" style="background:#0277BD;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <i class="ti ti-key" aria-hidden="true"></i> <span id="ussdSetPinBtnText">Set USSD PIN</span>
+          </button>
+          <div id="ussdAddPhoneLink" style="display:none;">
+            <button onclick="openAddPhoneModal()" style="background:none;border:1.5px solid #D97706;color:#D97706;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <i class="ti ti-phone-plus" aria-hidden="true"></i> Add Phone Number
             </button>
           </div>
         </div>
@@ -1023,6 +1074,79 @@
   </div>
 </div>
 
+<!-- ══ ADD PHONE MODAL ══ -->
+<div class="modal-overlay" id="addPhoneModal" onclick="if(event.target===this)closeAddPhoneModal()" style="display:none;">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-head">
+      <h2><i class="ti ti-phone-plus" style="color:#D97706;"></i> Add Phone Number</h2>
+      <button class="modal-close" onclick="closeAddPhoneModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13.5px;color:var(--gray-600);line-height:1.7;margin-bottom:1.25rem;">
+        Adding a phone number lets you use Temba via USSD on any mobile phone, lets providers contact you directly, and enables phone-based account recovery.
+      </p>
+      <div class="field">
+        <label class="field-label">Phone Number <span class="req">*</span></label>
+        <div class="phone-wrap">
+          <select id="apPhoneCode" class="phone-code-sel" aria-label="Country code">
+            <option value="+250">🇷🇼 +250</option>
+            <option value="+257">🇧🇮 +257</option>
+            <option value="+254">🇰🇪 +254</option>
+            <option value="+255">🇹🇿 +255</option>
+            <option value="+256">🇺🇬 +256</option>
+          </select>
+          <input type="tel" id="apPhone" class="phone-num-input" placeholder="e.g. 788 123 456" inputmode="tel" />
+        </div>
+      </div>
+      <div id="apError" style="display:none;background:var(--red-light);border:1px solid #FFCDD2;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-top:0.5rem;"></div>
+    </div>
+    <div class="modal-footer" style="gap:10px;">
+      <button class="btn-ghost" onclick="closeAddPhoneModal()">Cancel</button>
+      <button class="btn-primary" id="apSubmitBtn" onclick="submitAddPhone()" style="width:auto;height:42px;padding:0 24px;margin-top:0;">
+        <i class="ti ti-check"></i> Save Phone
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SET PIN MODAL ══ -->
+<div class="modal-overlay" id="setPinModal" onclick="if(event.target===this)closeSetPinModal()" style="display:none;">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-head">
+      <h2><i class="ti ti-key" style="color:#0277BD;"></i> <span id="setPinModalTitle">Set USSD PIN</span></h2>
+      <button class="modal-close" onclick="closeSetPinModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13.5px;color:var(--gray-600);line-height:1.7;margin-bottom:1.25rem;">
+        Your 4-digit PIN lets you sign in on USSD and on the web using your phone number instead of your email and password.
+      </p>
+      <div class="field">
+        <label class="field-label">New PIN <span class="req">*</span></label>
+        <div class="field-wrap">
+          <i class="ti ti-lock field-icon" aria-hidden="true"></i>
+          <input type="password" id="spPin" placeholder="4 digits" maxlength="4" inputmode="numeric" pattern="[0-9]*" />
+          <button type="button" class="eye-btn" onclick="togglePw('spPin',this)"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Confirm PIN <span class="req">*</span></label>
+        <div class="field-wrap">
+          <i class="ti ti-lock field-icon" aria-hidden="true"></i>
+          <input type="password" id="spPinConfirm" placeholder="Repeat 4 digits" maxlength="4" inputmode="numeric" pattern="[0-9]*" />
+          <button type="button" class="eye-btn" onclick="togglePw('spPinConfirm',this)"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div id="spError" style="display:none;background:var(--red-light);border:1px solid #FFCDD2;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-top:0.5rem;"></div>
+    </div>
+    <div class="modal-footer" style="gap:10px;">
+      <button class="btn-ghost" onclick="closeSetPinModal()">Cancel</button>
+      <button class="btn-primary" id="spSubmitBtn" onclick="submitSetPin()" style="width:auto;height:42px;padding:0 24px;margin-top:0;">
+        <i class="ti ti-key"></i> Save PIN
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="aboutModal">
   <div class="modal-box" style="max-width:580px;">
     <div class="modal-head">
@@ -1693,6 +1817,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateNotifBadge();
   renderVerifyBanners();
   renderUssdProfileBanner(s);
+  renderNoPhoneBanner(s);
+  renderUssdAccessCard(s);
 
   renderOverview(allReports);
   renderAlerts();
@@ -2681,7 +2807,7 @@ function submitSurvey() {
   }
 })();
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAboutModal(); closeSvcModal(); closeApptModal(); closeReschedModal(); closeSurveyModal(); }});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAboutModal(); closeSvcModal(); closeApptModal(); closeReschedModal(); closeSurveyModal(); closeAddPhoneModal(); closeSetPinModal(); }});
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
 
 /* ── USSD profile banner ── */
@@ -2698,6 +2824,152 @@ function dismissUssdBanner() {
   localStorage.setItem('temba_ussd_banner_dismissed', '1');
   const banner = document.getElementById('ussdProfileBanner');
   if (banner) banner.style.display = 'none';
+}
+
+/* ── No-phone banner (web users without a phone number) ── */
+function renderNoPhoneBanner(session) {
+  const banner = document.getElementById('noPhoneBanner');
+  if (!banner) return;
+  const dismissed = localStorage.getItem('temba_no_phone_dismissed');
+  if (!session.is_ussd_profile && !session.phone && !dismissed) {
+    banner.style.display = '';
+  }
+}
+function dismissNoPhoneBanner() {
+  localStorage.setItem('temba_no_phone_dismissed', '1');
+  const b = document.getElementById('noPhoneBanner');
+  if (b) b.style.display = 'none';
+}
+
+/* ── USSD Access card ── */
+function renderUssdAccessCard(session) {
+  const phoneEl   = document.getElementById('ussdAccessPhone');
+  const pinEl     = document.getElementById('ussdAccessPin');
+  const btnText   = document.getElementById('ussdSetPinBtnText');
+  const addLink   = document.getElementById('ussdAddPhoneLink');
+  if (phoneEl) {
+    phoneEl.textContent  = session.phone || 'Not set';
+    phoneEl.style.color  = session.phone ? 'var(--navy)' : '#94A3B8';
+  }
+  if (pinEl) {
+    pinEl.textContent   = session.has_ussd_pin ? 'Active' : 'Not set';
+    pinEl.style.color   = session.has_ussd_pin ? '#2E7D32' : '#94A3B8';
+  }
+  if (btnText) btnText.textContent = session.has_ussd_pin ? 'Change PIN' : 'Set USSD PIN';
+  if (addLink) addLink.style.display = session.phone ? 'none' : '';
+}
+
+/* ── Add Phone modal ── */
+function openAddPhoneModal() {
+  const modal = document.getElementById('addPhoneModal');
+  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  const err = document.getElementById('apError');
+  const inp = document.getElementById('apPhone');
+  if (err) err.style.display = 'none';
+  if (inp) inp.value = '';
+}
+function closeAddPhoneModal() {
+  const modal = document.getElementById('addPhoneModal');
+  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+}
+async function submitAddPhone() {
+  const code = (document.getElementById('apPhoneCode')?.value || '+250').trim();
+  const num  = (document.getElementById('apPhone')?.value || '').replace(/\D/g, '');
+  const err  = document.getElementById('apError');
+  const btn  = document.getElementById('apSubmitBtn');
+  if (!num || num.length < 7) {
+    err.textContent = 'Please enter a valid phone number.';
+    err.style.display = 'block';
+    return;
+  }
+  const phone = code + num;
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Saving…';
+  try {
+    const tok  = localStorage.getItem('temba_token');
+    const resp = await fetch(`${API_BASE}/users/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ phone }),
+    });
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      err.textContent = e.detail || 'Failed to save phone number.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check"></i> Save Phone';
+      return;
+    }
+    const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
+    s.phone = phone;
+    localStorage.setItem('temba_session', JSON.stringify(s));
+    document.getElementById('noPhoneBanner').style.display = 'none';
+    renderUssdAccessCard(s);
+    closeAddPhoneModal();
+    showTembaToast('Phone number saved — you can now use USSD.', 'success');
+  } catch (_) {
+    err.textContent = 'Connection error. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check"></i> Save Phone';
+  }
+}
+
+/* ── Set PIN modal ── */
+function openSetPinModal() {
+  const modal = document.getElementById('setPinModal');
+  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  const err = document.getElementById('spError');
+  if (err) err.style.display = 'none';
+  ['spPin', 'spPinConfirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
+  const title = document.getElementById('setPinModalTitle');
+  if (title) title.textContent = s.has_ussd_pin ? 'Change USSD PIN' : 'Set USSD PIN';
+  const btn = document.getElementById('spSubmitBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-key"></i> Save PIN'; }
+}
+function closeSetPinModal() {
+  const modal = document.getElementById('setPinModal');
+  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+}
+async function submitSetPin() {
+  const pin  = (document.getElementById('spPin')?.value || '').trim();
+  const conf = (document.getElementById('spPinConfirm')?.value || '').trim();
+  const err  = document.getElementById('spError');
+  const btn  = document.getElementById('spSubmitBtn');
+  err.style.display = 'none';
+  if (!/^\d{4}$/.test(pin)) { err.textContent = 'PIN must be exactly 4 digits.'; err.style.display = 'block'; return; }
+  if (pin !== conf) { err.textContent = 'PINs do not match.'; err.style.display = 'block'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Saving…';
+  try {
+    const tok  = localStorage.getItem('temba_token');
+    const resp = await fetch(`${API_BASE}/auth/set-pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ pin }),
+    });
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      err.textContent = e.detail || 'Failed to set PIN.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-key"></i> Save PIN';
+      return;
+    }
+    const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
+    s.has_ussd_pin = true;
+    localStorage.setItem('temba_session', JSON.stringify(s));
+    renderUssdAccessCard(s);
+    closeSetPinModal();
+    showTembaToast('USSD PIN saved — sign in via USSD or web with your phone + PIN.', 'success');
+  } catch (_) {
+    err.textContent = 'Connection error. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-key"></i> Save PIN';
+  }
 }
 
 function openCompleteProfileModal() {
