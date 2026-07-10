@@ -76,7 +76,14 @@ input, select, textarea { font-family: var(--font); }
 .navbar.shadow { box-shadow: 0 2px 20px rgba(10,37,64,0.08); }
 .nav-inner {
   width: 100%; max-width: 1280px; margin: 0 auto;
-  padding: 0 1.5rem; display: flex; align-items: center; gap: 1rem;
+  padding: 0 1.5rem 0 0; display: flex; align-items: center; gap: 1rem;
+}
+/* Desktop: pin brand to the absolute left edge of the navbar (full-width) */
+@media (min-width: 861px) {
+  .navbar .nav-brand {
+    position: absolute;
+    left: 1rem;
+  }
 }
 .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; color: var(--navy); flex-shrink: 0; }
 .nav-brand-icon {
