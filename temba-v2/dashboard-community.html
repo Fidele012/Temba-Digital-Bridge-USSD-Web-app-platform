@@ -1039,15 +1039,12 @@
         <div style="font-size:12px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="about_modal_providers_heading">Registered Providers</div>
         <div>
           <span class="about-provider-tag"><i class="ti ti-building"></i> WASAC</span>
-          <span class="about-provider-tag"><i class="ti ti-building"></i> Water Access Rwanda</span>
           <span class="about-provider-tag"><i class="ti ti-building"></i> IRIBA Water Group</span>
-          <span class="about-provider-tag"><i class="ti ti-building"></i> Aquasan Limited</span>
           <span class="about-provider-tag"><i class="ti ti-building"></i> Pro Water Rwanda</span>
-          <span class="about-provider-tag"><i class="ti ti-building"></i> Temba Digital Bridge</span>
         </div>
       </div>
       <div class="about-modal-grid">
-        <div class="about-metric"><div class="about-metric-num">6+</div><div class="about-metric-lbl" data-i18n="about_modal_metric1_lbl">Water Service Providers</div></div>
+        <div class="about-metric"><div class="about-metric-num">3</div><div class="about-metric-lbl" data-i18n="about_modal_metric1_lbl">Water Service Providers</div></div>
         <div class="about-metric"><div class="about-metric-num">5</div><div class="about-metric-lbl" data-i18n="about_modal_metric2_lbl">Administrative Levels</div></div>
         <div class="about-metric"><div class="about-metric-num">2</div><div class="about-metric-lbl" data-i18n="about_modal_metric3_lbl">Languages Supported</div></div>
         <div class="about-metric"><div class="about-metric-num">Web + USSD</div><div class="about-metric-lbl" data-i18n="about_modal_metric4_lbl">Access Channels</div></div>
@@ -1297,12 +1294,9 @@ function getQualityData() {
   ];
 }
 const providersData = [
-  { name:'WASAC',                type:'Water & Sanitation Corporation', coverage:'National',        phone:'+250 788 123 456', email:'info@wasac.rw',                  services:['Water Supply','Sanitation','Infrastructure'] },
-  { name:'Water Access Rwanda',  type:'Rural Water Supply',             coverage:'Rural areas',     phone:'+250 788 234 567', email:'contact@wateraccessrwanda.rw',    services:['Water Supply','Rural Connections'] },
-  { name:'IRIBA Water Group',    type:'Urban Distribution',             coverage:'Urban/peri-urban',phone:'+250 788 345 678', email:'support@iriba.rw',                services:['Water Distribution','Meter Services'] },
-  { name:'Aquasan Limited',      type:'Sanitation Services',            coverage:'Kigali City',     phone:'+250 788 456 789', email:'info@aquasan.rw',                 services:['Sanitation','Drainage'] },
-  { name:'Pro Water Rwanda',     type:'Commercial Water',               coverage:'Commercial zones', phone:'+250 788 567 890', email:'hello@prowater.rw',               services:['Commercial Supply','Water Trucks'] },
-  { name:'Temba Digital Bridge', type:'Digital Water Services',         coverage:'Kigali City',     phone:'+250 790 147 995', email:'f.ndihokubw1@alustudent.com',     services:['Water Supply','Sanitation','Meter Services'] },
+  { name:'WASAC',            type:'Water & Sanitation Corporation', coverage:'National',         phone:'+250 788 123 456', email:'info@wasac.rw',      services:['Water Supply','Sanitation','Infrastructure'] },
+  { name:'IRIBA Water Group', type:'Urban Water Distribution',      coverage:'Kigali City',      phone:'+250 788 345 678', email:'support@iriba.rw',   services:['Water Supply','Meter Services','Water Quality'] },
+  { name:'Pro Water Rwanda',  type:'Commercial Water Services',     coverage:'Kigali, East, South', phone:'+250 788 567 890', email:'hello@prowater.rw', services:['Water Truck Delivery','Water Storage','Water Supply'] },
 ];
 function getAreaData() {
   return [
