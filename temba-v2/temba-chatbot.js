@@ -912,21 +912,62 @@ Try rephrasing or tap one of the quick actions below.`,
   style.textContent = `
     #temba-chat-fab {
       position:fixed;bottom:28px;right:28px;z-index:9000;
-      width:58px;height:58px;border-radius:50%;
+      height:52px;width:auto;padding:0 20px 0 15px;
+      border-radius:26px;
       background:linear-gradient(135deg,#1565C0,#29B6F6);
       border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
-      box-shadow:0 4px 24px rgba(21,101,192,.5);
-      transition:transform .25s,box-shadow .25s;
-      font-size:24px;color:#fff;
+      gap:9px;
+      box-shadow:0 4px 28px rgba(21,101,192,.55);
+      transition:transform .25s,box-shadow .25s,padding .3s,border-radius .3s;
+      font-size:14px;font-weight:700;color:#fff;
+      letter-spacing:0.2px;white-space:nowrap;
+      animation:fabGlow 2.8s ease-in-out 3s 3;
     }
-    #temba-chat-fab:hover{transform:scale(1.1);box-shadow:0 6px 32px rgba(21,101,192,.6);}
+    @keyframes fabGlow{
+      0%{box-shadow:0 4px 28px rgba(21,101,192,.55);}
+      50%{box-shadow:0 4px 28px rgba(21,101,192,.55),0 0 0 10px rgba(41,182,246,.22);}
+      100%{box-shadow:0 4px 28px rgba(21,101,192,.55);}
+    }
+    #temba-chat-fab:hover{transform:scale(1.04);box-shadow:0 6px 36px rgba(21,101,192,.65);}
+    #tchat-fab-icon{font-size:22px;line-height:1;flex-shrink:0;}
+    #tchat-fab-txt{font-size:13.5px;font-weight:700;color:#fff;transition:opacity .3s,max-width .3s;max-width:150px;overflow:hidden;}
+    #temba-chat-fab.icon-only{padding:0;width:52px;border-radius:50%;}
+    #temba-chat-fab.icon-only #tchat-fab-txt{max-width:0;opacity:0;}
     #temba-chat-badge{
-      position:absolute;top:-4px;right:-4px;
+      position:absolute;top:-5px;right:-5px;
       background:#C62828;color:#fff;
       font-size:11px;font-weight:700;
       width:20px;height:20px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;
       border:2px solid #fff;
+    }
+    /* Nudge bubble */
+    #tchat-nudge{
+      position:fixed;bottom:90px;right:28px;z-index:8998;
+      background:#fff;border:1.5px solid #BFDBFE;border-radius:14px;
+      padding:11px 15px 11px 13px;
+      font-size:13px;font-weight:600;color:#0A2540;
+      box-shadow:0 4px 20px rgba(10,37,64,.14);
+      display:flex;align-items:center;gap:8px;
+      animation:nudgePop .45s cubic-bezier(.34,1.56,.64,1) forwards;
+      max-width:220px;line-height:1.4;
+    }
+    #tchat-nudge::after{
+      content:'';position:absolute;bottom:-9px;right:24px;
+      width:0;height:0;
+      border-left:8px solid transparent;border-right:8px solid transparent;
+      border-top:9px solid #fff;
+      filter:drop-shadow(0 2px 2px rgba(0,0,0,.08));
+    }
+    #tchat-nudge-close{
+      margin-left:auto;background:none;border:none;cursor:pointer;
+      color:#94A3B8;font-size:14px;padding:0 0 0 4px;line-height:1;flex-shrink:0;
+    }
+    #tchat-nudge-close:hover{color:#0A2540;}
+    @keyframes nudgePop{from{transform:translateY(12px) scale(.94);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+    @media(max-width:440px){
+      #tchat-fab-txt{display:none;}
+      #temba-chat-fab{width:52px;padding:0;border-radius:50%;}
     }
     #temba-chat-panel{
       position:fixed;bottom:98px;right:28px;z-index:8999;
@@ -1040,6 +1081,7 @@ Try rephrasing or tap one of the quick actions below.`,
     @media(max-width:440px){
       #temba-chat-panel{width:calc(100vw - 16px);right:8px;bottom:80px;max-height:80vh;}
       #temba-chat-fab{right:16px;bottom:16px;}
+      #tchat-nudge{right:8px;max-width:calc(100vw - 32px);}
     }
   `;
   document.head.appendChild(style);
@@ -1071,9 +1113,15 @@ Try rephrasing or tap one of the quick actions below.`,
       </div>
       <div class="tchat-footer">Temba AI · Emergencies: call 912 or provider directly</div>
     </div>
-    <button id="temba-chat-fab" onclick="tembaChat.toggle()" title="Open Temba Assistant">
-      💧
-      <span id="temba-chat-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#C62828;color:#fff;font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;border:2px solid #fff;"></span>
+    <div id="tchat-nudge" style="display:none;" role="tooltip">
+      <span style="font-size:18px;flex-shrink:0;">💧</span>
+      <span>Ask <strong>Temba AI</strong> — I can help with water issues &amp; services!</span>
+      <button id="tchat-nudge-close" onclick="document.getElementById('tchat-nudge').style.display='none'" title="Dismiss" aria-label="Dismiss">✕</button>
+    </div>
+    <button id="temba-chat-fab" onclick="tembaChat.toggle()" title="Ask Temba AI Assistant" aria-label="Ask Temba AI Assistant">
+      <span id="tchat-fab-icon">💧</span>
+      <span id="tchat-fab-txt">Ask Temba AI</span>
+      <span id="temba-chat-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#C62828;color:#fff;font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;border:2px solid #fff;"></span>
     </button>
   `;
   document.body.appendChild(root);
@@ -1149,6 +1197,8 @@ Try rephrasing or tap one of the quick actions below.`,
     open() {
       isOpen = true;
       document.getElementById('temba-chat-panel').classList.add('open');
+      document.getElementById('tchat-nudge').style.display = 'none';
+      document.getElementById('temba-chat-fab').classList.add('icon-only');
       unreadCount = 0;
       const b = document.getElementById('temba-chat-badge');
       b.style.display = 'none';
@@ -1165,6 +1215,7 @@ Try rephrasing or tap one of the quick actions below.`,
     close() {
       isOpen = false;
       document.getElementById('temba-chat-panel').classList.remove('open');
+      document.getElementById('temba-chat-fab').classList.remove('icon-only');
     },
 
     send(override) {
@@ -1238,16 +1289,22 @@ Or if you're not logged in yet: [Sign In →](signin.html)`;
     },
   };
 
-  // ─── Init: load providers, then show badge after 4s ──────────────────────────
+  // ─── Init: load providers, show nudge + badge after 3s ─────────────────────
   loadProviders();
 
   setTimeout(() => {
     if (!isOpen) {
+      /* Show nudge bubble */
+      const nudge = document.getElementById('tchat-nudge');
+      if (nudge) nudge.style.display = 'flex';
+      /* Auto-dismiss nudge after 9s */
+      setTimeout(() => { if (nudge) nudge.style.display = 'none'; }, 9000);
+      /* Badge */
       unreadCount = 1;
       const b = document.getElementById('temba-chat-badge');
       b.textContent = '1';
       b.style.display = 'flex';
     }
-  }, 4000);
+  }, 3000);
 
 }());
