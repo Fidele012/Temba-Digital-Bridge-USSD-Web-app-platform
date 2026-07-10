@@ -493,12 +493,12 @@
               <div class="step-section"><i class="ti ti-building" aria-hidden="true"></i> Select Provider</div>
               <div class="r-prov-list" id="rProviderList"></div>
               <div class="field" style="margin-top:1.25rem;">
-                <label class="field-label">Phone Number <span class="req">*</span></label>
+                <label class="field-label">Contact Phone Number <span class="req">*</span></label>
                 <div class="phone-wrap">
                   <select class="phone-code-sel" id="rPhoneCode"><option value="+250">🇷🇼 +250</option></select>
                   <input type="tel" class="phone-num-input" id="rPhone" placeholder="788 123 456"/>
                 </div>
-                <div class="field-hint">Providers will contact you at this number.</div>
+                <div class="field-hint"><i class="ti ti-info-circle" style="font-size:12px;margin-right:3px;"></i>The provider will call you at this number to confirm your exact location before sending a team.</div>
               </div>
               <div class="btn-row">
                 <button class="btn-secondary" onclick="rGoTo(3,2)"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
@@ -3478,6 +3478,14 @@ function rGoTo(from, to) {
     if (!cell)     { toast('Please select a Cell.', 'error');     document.getElementById('rCell')?.focus();     return; }
     if (!village)  { toast('Please select a Village.', 'error');  document.getElementById('rVillage')?.focus();  return; }
   }
+  if (from === 3 && to === 4) {
+    const phone = (document.getElementById('rPhone')?.value || '').trim();
+    if (!phone || phone.replace(/\D/g,'').length < 7) {
+      toast('Please enter a valid contact phone number.', 'error');
+      document.getElementById('rPhone')?.focus();
+      return;
+    }
+  }
   document.getElementById('rStep'+from).classList.remove('active');
   document.getElementById('rStep'+to).classList.add('active');
   for (let i=1;i<=4;i++) {
@@ -3521,34 +3529,60 @@ function rSelectProvider(el, idOrKey, name) {
 }
 
 /* Load providers into panel */
-async function loadReportProvidersD() {
-  const data = await apiGet('/providers?size=50');
-  window._rProviders = (data && data.items) ? data.items : [];
+function loadReportProvidersD() {
   const list = document.getElementById('rProviderList');
   if (!list) return;
-  if (!window._rProviders.length) {
-    list.innerHTML = `<div style="color:var(--gray-400);font-size:13px;padding:12px 0;">No providers loaded. You can still submit and Temba will route your report.</div>`;
-    rState.provider = 'Temba (auto-route)';
-    return;
+
+  /* Use already-loaded API providers; fall back to hardcoded providersData */
+  const apiProvs = (window._apiProviders || []);
+  const useApi = apiProvs.length > 0;
+
+  if (useApi) {
+    /* Build rich cards from live API data */
+    window._rProviders = apiProvs;
+    list.innerHTML = apiProvs.map((p, i) => {
+      const cats = (p.service_categories || []).map(s => s.replace(/_/g,' ')).join(' · ') || 'Water services';
+      const areas = (p.service_areas || []).map(a => a.province).filter(Boolean);
+      const coverage = areas.length ? areas.join(', ') : 'Rwanda';
+      const phone = p.phone ? `<span style="font-size:11.5px;color:var(--gray-400);margin-left:4px;">· ${p.phone}</span>` : '';
+      return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProvider(this,'${p.id}','${p.organization_name.replace(/'/g,"\\'")}')">
+        <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;color:var(--navy);">${p.organization_name}${phone}</div>
+          <div style="font-size:12.5px;color:var(--gray-400);margin-top:2px;">${cats} &mdash; ${coverage}</div>
+        </div>
+        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+      </div>`;
+    }).join('');
+    rState.provider = apiProvs[0].organization_name;
+    rState.providerId = apiProvs[0].id;
+  } else {
+    /* Fallback: use hardcoded providersData so the list is never empty */
+    window._rProviders = [];
+    list.innerHTML = providersData.map((p, i) => {
+      const services = p.services.join(' · ');
+      return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProvider(this,'${p.name.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
+        <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;color:var(--navy);">${p.name} <span style="font-size:11.5px;color:var(--gray-400);">· ${p.phone}</span></div>
+          <div style="font-size:12.5px;color:var(--gray-400);margin-top:2px;">${services} &mdash; ${p.coverage}</div>
+        </div>
+        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+      </div>`;
+    }).join('');
+    rState.provider = providersData[0].name;
+    rState.providerId = null;
   }
-  list.innerHTML = window._rProviders.map((p, i) => {
-    const cats = (p.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') || 'Water services';
-    const areas = (p.service_areas||[]).map(a=>a.province).filter(Boolean);
-    const coverage = areas.length ? areas.join(', ') : 'Rwanda';
-    return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProvider(this,'${p.id}','${p.organization_name.replace(/'/g,"\\'")}')">
-      <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
-      <div><div style="font-weight:700;font-size:14px;color:var(--navy);">${p.organization_name}</div><div style="font-size:12.5px;color:var(--gray-400);">${cats} — ${coverage}</div></div>
-      <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
-    </div>`;
-  }).join('') + `<div class="prov-opt" onclick="rSelectProvider(this,'','I\\'m not sure — route automatically')">
+
+  /* Always append an "I'm not sure" option at the bottom */
+  list.innerHTML += `<div class="prov-opt" onclick="rSelectProvider(this,'','I\\'m not sure — route automatically')">
     <div class="prov-icon" style="background:var(--gray-200);"><i class="ti ti-help-circle" style="color:var(--gray-600);" aria-hidden="true"></i></div>
-    <div><div style="font-weight:700;font-size:14px;color:var(--navy);">I'm not sure</div><div style="font-size:12.5px;color:var(--gray-400);">Temba will route to the right provider</div></div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:700;font-size:14px;color:var(--navy);">I'm not sure</div>
+      <div style="font-size:12.5px;color:var(--gray-400);">Temba will route to the right provider</div>
+    </div>
     <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
   </div>`;
-  if (window._rProviders.length) {
-    rState.provider = window._rProviders[0].organization_name;
-    rState.providerId = window._rProviders[0].id;
-  }
 }
 
 /* Location cascade */
