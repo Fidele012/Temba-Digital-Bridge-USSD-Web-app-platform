@@ -4,6 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Report a Problem — Temba Digital Bridge</title>
+  <!-- Redirect logged-in users to the dashboard panel so the form shows with the full sidebar -->
+  <script>
+    (function(){
+      try {
+        var s = JSON.parse(localStorage.getItem('temba_session') || '{}');
+        if (s && s.loggedIn) {
+          sessionStorage.setItem('_temba_open_panel', 'report');
+          window.location.replace('dashboard-community.html');
+        }
+      } catch(_) {}
+    })();
+  </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="temba.css" />
   <style>

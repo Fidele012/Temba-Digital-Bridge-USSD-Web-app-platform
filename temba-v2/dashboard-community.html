@@ -273,7 +273,7 @@
     <div class="dash-panel" id="panel-my-reports">
       <div class="dash-header">
         <div><h1 data-i18n="my_reports_title">My Reports</h1><p data-i18n="my_reports_sub">All water and sanitation issues you have submitted.</p></div>
-        <a href="report.html" class="btn-nav-cta" style="text-decoration:none;"><i class="ti ti-plus" aria-hidden="true"></i> <span data-i18n="dash_new_report">New Report</span></a>
+        <button onclick="openNewReport()" class="btn-nav-cta"><i class="ti ti-plus" aria-hidden="true"></i> <span data-i18n="dash_new_report">New Report</span></button>
       </div>
       <div id="reportVerifyBanner"></div>
       <div class="filter-bar">
@@ -1701,6 +1701,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Sync API notifications every 5 minutes
   _syncApiNotifs();
   setInterval(_syncApiNotifs, 5 * 60 * 1000);
+
+  // Auto-open report panel when redirected from report.html
+  const _autoPanel = sessionStorage.getItem('_temba_open_panel');
+  if (_autoPanel) {
+    sessionStorage.removeItem('_temba_open_panel');
+    setTimeout(() => openNewReport(), 350);
+  }
 });
 
 function updateSvcBadge() {
