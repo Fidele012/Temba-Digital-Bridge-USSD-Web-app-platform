@@ -11,24 +11,26 @@
 
 <nav class="navbar" id="mainNav">
   <div class="nav-inner">
-    <div class="nav-brand" style="display:flex;align-items:center;gap:10px;text-decoration:none;cursor:default;pointer-events:none;position:absolute;left:1rem;">
+    <button class="dash-mob-ham" onclick="toggleMobSidebar()" aria-label="Open navigation menu" title="Navigation">
+      <i class="ti ti-menu-2"></i>
+    </button>
+    <div class="nav-brand" style="display:flex;align-items:center;gap:10px;text-decoration:none;cursor:default;pointer-events:none;">
       <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:44px;width:auto;display:block;flex-shrink:0;">
-      <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
+      <span class="nav-brand-text" style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
     </div>
     <div class="nav-actions">
-      <button class="dash-mob-ham" onclick="toggleMobSidebar()" aria-label="Open navigation menu" title="Navigation">
-        <i class="ti ti-menu-2"></i>
-      </button>
-      <button data-lang-btn="en" onclick="setLang('en');rerenderProviderDashboard()" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 6px;">EN</button>
-      <span style="color:var(--gray-300);">|</span>
-      <button data-lang-btn="rw" onclick="setLang('rw');rerenderProviderDashboard()" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;padding:4px 6px;">RW</button>
+      <div class="lang-toggle" style="display:flex;align-items:center;gap:2px;font-size:13px;">
+        <button data-lang-btn="en" onclick="setLang('en');rerenderProviderDashboard()" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 6px;">EN</button>
+        <span style="color:var(--gray-300);">|</span>
+        <button data-lang-btn="rw" onclick="setLang('rw');rerenderProviderDashboard()" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;padding:4px 6px;">RW</button>
+      </div>
       <button class="dark-toggle" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle dark mode"><i class="ti ti-moon" id="darkModeIcon"></i></button>
       <button class="notif-btn" id="notifBtn" onclick="openNotifDrawer()" title="Notifications" aria-label="Notifications">
         <i class="ti ti-bell"></i>
         <span class="notif-badge" id="notifBadge" style="display:none;"></span>
       </button>
       <div class="nav-avatar" id="navAvatar" title="View profile" onclick="openProfileModal()" style="cursor:pointer;">P</div>
-      <span id="orgNameNav" style="font-size:13.5px;font-weight:600;color:var(--navy);cursor:pointer;" onclick="openProfileModal()"></span>
+      <span id="orgNameNav" class="nav-org-name" style="font-size:13.5px;font-weight:600;color:var(--navy);cursor:pointer;" onclick="openProfileModal()"></span>
       <button class="btn-ghost" onclick="signOut()" style="font-size:13px;" data-i18n="nav_signout">Sign Out</button>
     </div>
   </div>
