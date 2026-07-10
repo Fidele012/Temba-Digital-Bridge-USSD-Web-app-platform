@@ -6,6 +6,49 @@
   <title>My Dashboard — Temba Digital Bridge</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="temba.css" />
+  <style>
+    /* ── Report-issue panel styles ── */
+    .report-layout{display:grid;grid-template-columns:1fr 290px;gap:1.25rem;align-items:start;}
+    .issue-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px;}
+    .issue-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);background:var(--white);font-size:12.5px;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;text-align:center;}
+    .issue-chip i{font-size:22px;color:var(--gray-400);transition:color .2s;}
+    .issue-chip:hover,.issue-chip.active{border-color:var(--blue);background:var(--sky-pale);color:var(--blue);}
+    .issue-chip.active i,.issue-chip:hover i{color:var(--blue);}
+    .urgency-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+    .urg-opt input{display:none;}
+    .urg-card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);cursor:pointer;transition:all .2s;text-align:center;}
+    .urg-card i{font-size:22px;} .urg-card strong{font-size:13px;} .urg-card small{font-size:10.5px;color:var(--gray-400);line-height:1.3;}
+    .urg-opt input:checked+.urg-card.urg-urgent{border-color:var(--red);background:var(--red-light);}
+    .urg-opt input:checked+.urg-card.urg-moderate{border-color:var(--orange);background:var(--orange-light);}
+    .urg-opt input:checked+.urg-card.urg-low{border-color:var(--blue);background:var(--sky-pale);}
+    .urg-card.urg-urgent i{color:var(--red);} .urg-card.urg-moderate i{color:var(--orange);} .urg-card.urg-low i{color:var(--blue);}
+    .r-prov-list{display:flex;flex-direction:column;gap:8px;}
+    .prov-opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);cursor:pointer;transition:all .2s;}
+    .prov-opt:hover,.prov-opt.active{border-color:var(--blue);background:var(--sky-pale);}
+    .prov-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--sky));display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;}
+    .prov-check{margin-left:auto;color:var(--gray-200);font-size:17px;transition:color .2s;} .prov-opt.active .prov-check{color:var(--blue);}
+    .ev-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+    .btn-evidence{display:flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px solid var(--gray-300);border-radius:var(--radius-md);background:#fff;color:var(--navy);font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;}
+    .btn-evidence:hover{border-color:var(--blue);color:var(--blue);background:var(--sky-pale);}
+    .upload-zone{border:2px dashed var(--gray-300);border-radius:var(--radius-md);padding:1.25rem 2rem;text-align:center;transition:all .2s;}
+    .upload-zone i{font-size:32px;color:var(--gray-400);margin-bottom:.4rem;display:block;}
+    .upload-zone.dragover{border-color:var(--blue);background:var(--sky-pale);} .upload-zone.dragover i{color:var(--blue);}
+    .file-previews{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+    .file-thumb{width:80px;height:80px;border-radius:8px;border:1px solid var(--gray-200);object-fit:cover;display:block;}
+    .ev-wrap{position:relative;width:80px;flex-shrink:0;}
+    .ev-video-wrap{width:80px;height:80px;border-radius:8px;border:1px solid var(--gray-200);overflow:hidden;background:#000;position:relative;}
+    .ev-video-wrap video{width:100%;height:100%;object-fit:cover;display:block;}
+    .ev-video-wrap .ev-play-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;pointer-events:none;background:rgba(0,0,0,0.25);}
+    .ev-file-card{width:80px;height:80px;border-radius:8px;border:1px solid var(--gray-200);background:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;text-align:center;overflow:hidden;}
+    .ev-file-card i{font-size:22px;color:var(--blue);} .ev-file-card span{font-size:9.5px;color:var(--gray-500);word-break:break-all;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+    .ev-remove{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:2px solid #fff;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;}
+    .r-summary-box{background:var(--sky-pale);border:1px solid #B3E5FC;border-radius:var(--radius-md);padding:1.25rem;margin-top:1.25rem;}
+    .r-summary-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid rgba(41,182,246,0.15);}
+    .r-summary-row:last-child{border-bottom:none;} .r-summary-row span{color:var(--gray-600);} .r-summary-row strong{color:var(--navy);}
+    .r-sidebar-box{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;}
+    .r-sb-title{font-size:13.5px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:7px;margin-bottom:.75rem;}
+    @media(max-width:900px){.report-layout{grid-template-columns:1fr;}.issue-grid{grid-template-columns:repeat(2,1fr);}.urgency-row{grid-template-columns:1fr;}}
+  </style>
 </head>
 <body>
 
@@ -87,7 +130,7 @@
       <i class="ti ti-history" aria-hidden="true"></i> <span data-i18n="dash_history">History</span>
     </a>
     <hr class="sidebar-divider" />
-    <button class="sidebar-new-btn" onclick="window.location.href='report.html'">
+    <button class="sidebar-new-btn" onclick="openNewReport()">
       <i class="ti ti-plus" aria-hidden="true"></i> <span data-i18n="dash_new_report">New Report</span>
     </button>
   </aside>
@@ -139,9 +182,9 @@
           <h1 id="greetingText">Good morning, there</h1>
           <p id="greetingSub" data-i18n="overview_hero_sub">Here's what's happening in your area.</p>
         </div>
-        <a href="report.html" class="btn-nav-cta" style="text-decoration:none;">
+        <button onclick="openNewReport()" class="btn-nav-cta" style="border:none;cursor:pointer;">
           <i class="ti ti-flag" aria-hidden="true"></i> <span data-i18n="overview_report_problem">Report a Problem</span>
-        </a>
+        </button>
       </div>
 
       <div class="stat-grid">
@@ -308,6 +351,210 @@
       </div>
       <div class="card">
         <div id="historyList"></div>
+      </div>
+    </div>
+
+    <!-- ── REPORT A PROBLEM PANEL ── -->
+    <div class="dash-panel" id="panel-report">
+      <div class="dash-header">
+        <div>
+          <h1><i class="ti ti-flag" style="color:var(--blue);margin-right:6px;" aria-hidden="true"></i>Report a Water Problem</h1>
+          <p>Describe the issue and we'll connect you with the right service provider.</p>
+        </div>
+      </div>
+
+      <div class="report-layout">
+        <!-- FORM COLUMN -->
+        <div>
+          <!-- Step bar -->
+          <div style="display:flex;align-items:center;margin-bottom:1.75rem;" id="rStepBar">
+            <div class="auth-step active" id="rs1"><div class="auth-step-dot">1</div><div class="auth-step-label">Issue</div></div>
+            <div class="auth-step-line" id="rline1"></div>
+            <div class="auth-step" id="rs2"><div class="auth-step-dot">2</div><div class="auth-step-label">Location</div></div>
+            <div class="auth-step-line" id="rline2"></div>
+            <div class="auth-step" id="rs3"><div class="auth-step-dot">3</div><div class="auth-step-label">Provider</div></div>
+            <div class="auth-step-line" id="rline3"></div>
+            <div class="auth-step" id="rs4"><div class="auth-step-dot">4</div><div class="auth-step-label">Evidence</div></div>
+          </div>
+
+          <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:1.75rem;">
+
+            <!-- STEP 1 -->
+            <div class="form-step active" id="rStep1">
+              <div class="step-section"><i class="ti ti-flag" aria-hidden="true"></i> Issue Details</div>
+              <div class="field">
+                <label class="field-label">Issue Type</label>
+                <div class="issue-grid" id="rIssueGrid">
+                  <div class="issue-chip active" onclick="rSelectIssue(this,'broken_pipe')"><i class="ti ti-pipe" aria-hidden="true"></i><span>Broken Pipe</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'no_water')"><i class="ti ti-droplet-off" aria-hidden="true"></i><span>No Water Supply</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'contam')"><i class="ti ti-flask" aria-hidden="true"></i><span>Contamination</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'pressure')"><i class="ti ti-gauge" aria-hidden="true"></i><span>Low Pressure</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'flooding')"><i class="ti ti-waves" aria-hidden="true"></i><span>Flooding</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'billing')"><i class="ti ti-receipt" aria-hidden="true"></i><span>Billing Issue</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'sanitation')"><i class="ti ti-toilet-paper" aria-hidden="true"></i><span>Sanitation</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'long_distance')"><i class="ti ti-walk" aria-hidden="true"></i><span>Long Distance to Water</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'high_cost')"><i class="ti ti-coin" aria-hidden="true"></i><span>High Cost of Water</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'seasonal')"><i class="ti ti-sun" aria-hidden="true"></i><span>Seasonal Shortage</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'system_failure')"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>System Failure</span></div>
+                  <div class="issue-chip" onclick="rSelectIssue(this,'other')"><i class="ti ti-help-circle" aria-hidden="true"></i><span>Other</span></div>
+                </div>
+                <div id="rOtherReveal" style="display:none;margin-top:10px;">
+                  <div class="field-wrap"><i class="ti ti-pencil field-icon" aria-hidden="true"></i><input type="text" id="rOtherIssueText" placeholder="Describe the issue type…" maxlength="150" style="padding-left:42px;"/></div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">Urgency Level</label>
+                <div class="urgency-row">
+                  <label class="urg-opt"><input type="radio" name="rUrgency" value="urgent" checked/>
+                    <div class="urg-card urg-urgent"><i class="ti ti-alert-circle" aria-hidden="true"></i><strong>Urgent</strong><small>Immediate health risk</small></div></label>
+                  <label class="urg-opt"><input type="radio" name="rUrgency" value="moderate"/>
+                    <div class="urg-card urg-moderate"><i class="ti ti-alert-triangle" aria-hidden="true"></i><strong>Moderate</strong><small>Significant inconvenience</small></div></label>
+                  <label class="urg-opt"><input type="radio" name="rUrgency" value="low"/>
+                    <div class="urg-card urg-low"><i class="ti ti-info-circle" aria-hidden="true"></i><strong>Non-urgent</strong><small>Can wait a few days</small></div></label>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">Describe the Problem <span class="req">*</span></label>
+                <div class="field-wrap"><i class="ti ti-pencil field-icon" style="top:14px;bottom:auto;" aria-hidden="true"></i>
+                  <textarea id="rDesc" rows="4" placeholder="Describe what is happening…" style="padding-left:42px;height:auto;"></textarea></div>
+              </div>
+              <div class="field">
+                <label class="field-label">Affected Households <span class="opt">Optional</span></label>
+                <div class="field-wrap sel-wrap"><i class="ti ti-home field-icon" aria-hidden="true"></i>
+                  <select id="rHouseholds">
+                    <option value="" disabled selected>Select estimate</option>
+                    <option>Just my household</option><option>2–5 households</option>
+                    <option>6–20 households</option><option>Entire street / cell</option><option>Entire village / sector</option>
+                  </select><i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+              </div>
+              <button class="btn-primary" onclick="rGoTo(1,2)">Continue <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+            </div>
+
+            <!-- STEP 2 — Location (auto-filled from session) -->
+            <div class="form-step" id="rStep2">
+              <div class="step-section"><i class="ti ti-map-pin" aria-hidden="true"></i> Location of the Problem</div>
+              <div class="field">
+                <label class="field-label">Province <span class="req">*</span></label>
+                <div class="field-wrap sel-wrap"><i class="ti ti-map field-icon" aria-hidden="true"></i>
+                  <select id="rProvince" onchange="rCascadeDistrict()"><option value="" disabled selected>Select province</option></select>
+                  <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="field-label">District <span class="req">*</span></label>
+                  <div class="field-wrap sel-wrap"><i class="ti ti-map-2 field-icon" aria-hidden="true"></i>
+                    <select id="rDistrict" disabled onchange="rCascadeSector()"><option value="" disabled selected>Select province first</option></select>
+                    <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+                </div>
+                <div class="field">
+                  <label class="field-label">Sector <span class="req">*</span></label>
+                  <div class="field-wrap sel-wrap"><i class="ti ti-location field-icon" aria-hidden="true"></i>
+                    <select id="rSector" disabled><option value="" disabled selected>Select district first</option></select>
+                    <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">Nearest Landmark <span class="opt">Optional</span></label>
+                <div class="field-wrap"><i class="ti ti-signs-right field-icon" aria-hidden="true"></i>
+                  <input type="text" id="rLandmark" placeholder="e.g. Near Kimironko market"/></div>
+                <div class="field-hint">The more specific, the faster providers can locate the issue.</div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-secondary" onclick="rGoTo(2,1)"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+                <button class="btn-primary" style="flex:1;margin-top:0;" onclick="rGoTo(2,3)">Continue <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+              </div>
+            </div>
+
+            <!-- STEP 3 — Provider -->
+            <div class="form-step" id="rStep3">
+              <div class="step-section"><i class="ti ti-building" aria-hidden="true"></i> Select Provider</div>
+              <div class="r-prov-list" id="rProviderList"></div>
+              <div class="field" style="margin-top:1.25rem;">
+                <label class="field-label">Phone Number <span class="req">*</span></label>
+                <div class="phone-wrap">
+                  <select class="phone-code-sel" id="rPhoneCode"><option value="+250">🇷🇼 +250</option></select>
+                  <input type="tel" class="phone-num-input" id="rPhone" placeholder="788 123 456"/>
+                </div>
+                <div class="field-hint">Providers will contact you at this number.</div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-secondary" onclick="rGoTo(3,2)"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+                <button class="btn-primary" style="flex:1;margin-top:0;" onclick="rGoTo(3,4)">Continue <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+              </div>
+            </div>
+
+            <!-- STEP 4 — Evidence & Submit -->
+            <div class="form-step" id="rStep4">
+              <div class="step-section"><i class="ti ti-camera" aria-hidden="true"></i> Evidence &amp; Submit</div>
+              <div class="field">
+                <label class="field-label">Evidence <span class="opt">Optional</span></label>
+                <p style="font-size:13px;color:var(--gray-500);margin:0 0 12px;">Photos, videos or documents help providers respond faster.</p>
+                <div class="ev-btns">
+                  <button type="button" class="btn-evidence" onclick="document.getElementById('rEvCam').click()"><i class="ti ti-camera" aria-hidden="true"></i> Take Photo</button>
+                  <button type="button" class="btn-evidence" onclick="document.getElementById('rEvVid').click()"><i class="ti ti-video" aria-hidden="true"></i> Record Video</button>
+                  <button type="button" class="btn-evidence" onclick="document.getElementById('rEvFile').click()"><i class="ti ti-folder-open" aria-hidden="true"></i> Browse Files</button>
+                </div>
+                <div class="upload-zone" id="rEvDropZone" ondrop="rEvDrop(event)" ondragover="rEvDragOver(event)" ondragleave="rEvDragLeave(event)">
+                  <i class="ti ti-cloud-upload" aria-hidden="true"></i>
+                  <p style="font-size:13.5px;font-weight:600;color:var(--gray-600);margin:0 0 4px;">Drag &amp; drop files here</p>
+                  <small style="color:var(--gray-400);">Photos, Videos, Documents · Max 20 MB · Up to 5 files</small>
+                </div>
+                <input type="file" id="rEvCam" accept="image/*" capture="environment" style="display:none;" onchange="rEvAddFiles(this.files,this)"/>
+                <input type="file" id="rEvVid" accept="video/*" capture="environment" style="display:none;" onchange="rEvAddFiles(this.files,this)"/>
+                <input type="file" id="rEvFile" accept="image/*,video/*,.pdf,.doc,.docx,.txt" multiple style="display:none;" onchange="rEvAddFiles(this.files,this)"/>
+                <div class="file-previews" id="rEvPreviews"></div>
+                <div id="rEvCount" style="font-size:12px;color:var(--gray-400);margin-top:6px;display:none;"></div>
+              </div>
+              <div class="field">
+                <label class="field-label">Additional Notes <span class="opt">Optional</span></label>
+                <div class="field-wrap"><i class="ti ti-note field-icon" style="top:14px;bottom:auto;" aria-hidden="true"></i>
+                  <textarea id="rNotes" rows="3" placeholder="Any other information for the provider…" style="padding-left:42px;height:auto;"></textarea></div>
+              </div>
+              <div class="r-summary-box">
+                <div style="font-size:13px;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:7px;margin-bottom:.75rem;"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Report Summary</div>
+                <div class="r-summary-row"><span>Issue</span><strong id="rSumIssue">Broken Pipe</strong></div>
+                <div class="r-summary-row"><span>Urgency</span><strong id="rSumUrgency"><span class="badge badge-urgent">Urgent</span></strong></div>
+                <div class="r-summary-row"><span>Location</span><strong id="rSumLocation">—</strong></div>
+                <div class="r-summary-row"><span>Provider</span><strong id="rSumProvider">—</strong></div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-secondary" onclick="rGoTo(4,3)"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+                <button class="btn-primary" id="rSubmitBtn" style="flex:1;margin-top:0;" onclick="submitReportDash()"><i class="ti ti-send" aria-hidden="true"></i> Submit Report</button>
+              </div>
+            </div>
+
+            <!-- SUCCESS -->
+            <div id="rSuccess" style="display:none;text-align:center;padding:2rem 0;">
+              <div style="font-size:60px;color:var(--green);margin-bottom:1rem;"><i class="ti ti-circle-check-filled" aria-hidden="true"></i></div>
+              <h2 style="font-size:22px;font-weight:800;color:var(--navy);margin-bottom:.5rem;">Report Submitted!</h2>
+              <p style="color:var(--gray-600);margin-bottom:.5rem;">Your report has been sent to <strong id="rSuccessProv">—</strong>.</p>
+              <div style="display:inline-flex;align-items:center;gap:8px;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:20px;padding:6px 16px;font-size:13.5px;font-weight:700;margin-bottom:.5rem;"><i class="ti ti-circle-check"></i> Delivered to Provider</div>
+              <div style="display:block;background:var(--sky-light);color:var(--blue);border:1px solid #B3E5FC;border-radius:20px;padding:6px 18px;font-size:14px;font-weight:600;margin-bottom:1.5rem;">Reference: <strong id="rSuccessRef">#—</strong></div>
+              <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="showPanel('my-reports',null)" class="btn-primary" style="width:auto;"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My Reports</button>
+                <button onclick="openNewReport()" class="btn-secondary"><i class="ti ti-plus" aria-hidden="true"></i> Submit Another</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- INFO SIDEBAR -->
+        <div>
+          <div class="r-sidebar-box">
+            <div class="r-sb-title"><i class="ti ti-info-circle" style="color:var(--blue);" aria-hidden="true"></i> How it works</div>
+            <ol style="padding-left:1.2rem;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-600);line-height:1.55;">
+              <li><strong>Submit</strong> — Fill in your issue, location, and provider.</li>
+              <li><strong>Assigned</strong> — Your report reaches the provider instantly.</li>
+              <li><strong>Follow-up</strong> — Provider contacts you within their SLA.</li>
+              <li><strong>Resolved</strong> — You confirm resolution and close the report.</li>
+            </ol>
+          </div>
+          <div class="r-sidebar-box" style="background:var(--sky-pale);border-color:#B3E5FC;">
+            <div class="r-sb-title" style="color:var(--blue);"><i class="ti ti-device-mobile" aria-hidden="true"></i> Using a basic phone?</div>
+            <p style="font-size:13px;color:var(--gray-600);line-height:1.65;">Dial *XXX# on any phone — no internet needed. Available in English and Kinyarwanda.</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -3065,7 +3312,330 @@ function _renderNotifList() {
       ${n.read ? '' : '<div class="notif-unread-dot"></div>'}
     </div>`).join('');
 }
+
+/* ── togglePw helper (used by complete-profile modal) ── */
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  const isText = inp.type === 'text';
+  inp.type = isText ? 'password' : 'text';
+  const icon = btn.querySelector('i');
+  if (icon) { icon.className = isText ? 'ti ti-eye' : 'ti ti-eye-off'; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   REPORT A PROBLEM — Dashboard panel JS
+   ══════════════════════════════════════════════════════════════════ */
+
+const R_ISSUE_CATEGORY_MAP = {
+  broken_pipe:'pipe_burst', no_water:'no_supply', contam:'contamination',
+  pressure:'low_pressure', flooding:'other', billing:'billing', sanitation:'other',
+  long_distance:'other', high_cost:'billing', seasonal:'no_supply', system_failure:'other',
+  other:'other',
+};
+const R_URGENCY_API_MAP = { urgent:'high', moderate:'medium', low:'low' };
+const R_EV_MAX_FILES = 5;
+const R_EV_MAX_MB    = 20;
+
+let rCurrentStep = 1;
+let rState = { issueKey:'broken_pipe', issueLabel:'Broken Pipe', urgency:'urgent', provider:'', providerId:null, location:'' };
+let rEvidenceFiles = [];
+
+/* Open/reset the report panel */
+function openNewReport() {
+  showPanel('report', null);
+  resetReportForm();
+}
+
+function resetReportForm() {
+  rCurrentStep = 1;
+  rState = { issueKey:'broken_pipe', issueLabel:'Broken Pipe', urgency:'urgent', provider:'', providerId:null, location:'' };
+  rEvidenceFiles = [];
+  /* Show step 1, hide all others and success */
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('rStep' + i);
+    if (el) { el.classList.toggle('active', i === 1); }
+  }
+  const suc = document.getElementById('rSuccess');
+  if (suc) suc.style.display = 'none';
+  /* Reset step bar */
+  for (let i = 1; i <= 4; i++) {
+    const d = document.getElementById('rs' + i);
+    if (d) { d.classList.remove('active','done'); if (i===1) d.classList.add('active'); }
+  }
+  ['rline1','rline2','rline3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('done'); });
+  /* Reset chips */
+  document.querySelectorAll('#panel-report .issue-chip').forEach((c,i)=>c.classList.toggle('active',i===0));
+  /* Reset urgency */
+  const urg = document.querySelector('input[name="rUrgency"][value="urgent"]');
+  if (urg) urg.checked = true;
+  /* Reset other reveal */
+  const rev = document.getElementById('rOtherReveal');
+  if (rev) rev.style.display = 'none';
+  /* Reset fields */
+  ['rDesc','rNotes','rOtherIssueText','rLandmark'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const hh = document.getElementById('rHouseholds'); if (hh) hh.selectedIndex = 0;
+  /* Reset evidence */
+  const prev = document.getElementById('rEvPreviews'); if (prev) prev.innerHTML = '';
+  const cnt = document.getElementById('rEvCount'); if (cnt) cnt.style.display = 'none';
+  /* Reset submit button */
+  const sb = document.getElementById('rSubmitBtn'); if (sb) { sb.disabled=false; sb.innerHTML='<i class="ti ti-send" aria-hidden="true"></i> Submit Report'; }
+  /* Pre-populate from session */
+  initReportPanel();
+}
+
+function initReportPanel() {
+  const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
+  /* Province cascade */
+  const pv = document.getElementById('rProvince');
+  if (pv && typeof RWANDA !== 'undefined') {
+    pv.innerHTML = '<option value="" disabled selected>Select province</option>';
+    Object.keys(RWANDA).sort().forEach(p => pv.appendChild(new Option(p, p)));
+    if (s.province) {
+      pv.value = s.province;
+      rCascadeDistrict();
+      const dv = document.getElementById('rDistrict');
+      if (dv && s.district) {
+        dv.value = s.district;
+        rCascadeSector();
+        const sv = document.getElementById('rSector');
+        if (sv && s.sector) sv.value = s.sector;
+      }
+    }
+  }
+  /* Phone */
+  const ph = document.getElementById('rPhone');
+  if (ph && s.phone && !ph.value) ph.value = s.phone.replace(/^\+250/, '').replace(/^250/, '');
+  updateSummaryR();
+  loadReportProvidersD();
+}
+
+/* Step navigation */
+function rGoTo(from, to) {
+  if (from === 1 && to === 2 && rState.issueKey === 'other') {
+    const otherVal = (document.getElementById('rOtherIssueText')?.value || '').trim();
+    if (!otherVal) {
+      document.getElementById('rOtherIssueText')?.focus();
+      toast('Please describe the issue type before continuing.', 'error');
+      return;
+    }
+    rState.issueLabel = otherVal;
+  }
+  document.getElementById('rStep'+from).classList.remove('active');
+  document.getElementById('rStep'+to).classList.add('active');
+  for (let i=1;i<=4;i++) {
+    const d=document.getElementById('rs'+i);
+    d.classList.remove('active','done');
+    if (i<to) d.classList.add('done');
+    if (i===to) d.classList.add('active');
+  }
+  ['rline1','rline2','rline3'].forEach((id,idx)=>{
+    const el=document.getElementById(id);
+    if (el) el.classList.toggle('done',to>idx+1);
+  });
+  rCurrentStep = to;
+  updateSummaryR();
+  document.getElementById('panel-report').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* Issue chips */
+function rSelectIssue(el, key) {
+  document.querySelectorAll('#panel-report .issue-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  rState.issueKey = key;
+  rState.issueLabel = el.querySelector('span').textContent;
+  const rev = document.getElementById('rOtherReveal');
+  if (rev) rev.style.display = key === 'other' ? 'block' : 'none';
+  if (key !== 'other') { const inp=document.getElementById('rOtherIssueText'); if(inp) inp.value=''; }
+}
+
+/* Provider selection */
+const _R_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function rSelectProvider(el, idOrKey, name) {
+  document.querySelectorAll('#rProviderList .prov-opt').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  rState.provider = name;
+  if (_R_UUID_RE.test(idOrKey)) {
+    rState.providerId = idOrKey;
+  } else {
+    const found = (window._rProviders||[]).find(p=>p.organization_name===name);
+    rState.providerId = found ? found.id : null;
+  }
+}
+
+/* Load providers into panel */
+async function loadReportProvidersD() {
+  const data = await apiGet('/providers?size=50');
+  window._rProviders = (data && data.items) ? data.items : [];
+  const list = document.getElementById('rProviderList');
+  if (!list) return;
+  if (!window._rProviders.length) {
+    list.innerHTML = `<div style="color:var(--gray-400);font-size:13px;padding:12px 0;">No providers loaded. You can still submit and Temba will route your report.</div>`;
+    rState.provider = 'Temba (auto-route)';
+    return;
+  }
+  list.innerHTML = window._rProviders.map((p, i) => {
+    const cats = (p.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') || 'Water services';
+    const areas = (p.service_areas||[]).map(a=>a.province).filter(Boolean);
+    const coverage = areas.length ? areas.join(', ') : 'Rwanda';
+    return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProvider(this,'${p.id}','${p.organization_name.replace(/'/g,"\\'")}')">
+      <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
+      <div><div style="font-weight:700;font-size:14px;color:var(--navy);">${p.organization_name}</div><div style="font-size:12.5px;color:var(--gray-400);">${cats} — ${coverage}</div></div>
+      <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+    </div>`;
+  }).join('') + `<div class="prov-opt" onclick="rSelectProvider(this,'','I\\'m not sure — route automatically')">
+    <div class="prov-icon" style="background:var(--gray-200);"><i class="ti ti-help-circle" style="color:var(--gray-600);" aria-hidden="true"></i></div>
+    <div><div style="font-weight:700;font-size:14px;color:var(--navy);">I'm not sure</div><div style="font-size:12.5px;color:var(--gray-400);">Temba will route to the right provider</div></div>
+    <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+  </div>`;
+  if (window._rProviders.length) {
+    rState.provider = window._rProviders[0].organization_name;
+    rState.providerId = window._rProviders[0].id;
+  }
+}
+
+/* Location cascade */
+function rCascadeDistrict() {
+  const prov=document.getElementById('rProvince').value;
+  const d=document.getElementById('rDistrict');
+  d.innerHTML='<option value="" disabled selected>Select district</option>';
+  d.disabled=false;
+  document.getElementById('rSector').innerHTML='<option value="" disabled selected>Select district first</option>';
+  document.getElementById('rSector').disabled=true;
+  if (typeof RWANDA!=='undefined' && RWANDA[prov]) Object.keys(RWANDA[prov]).sort().forEach(k=>d.appendChild(new Option(k,k)));
+  rState.location='';
+}
+function rCascadeSector() {
+  const prov=document.getElementById('rProvince').value;
+  const dist=document.getElementById('rDistrict').value;
+  const s=document.getElementById('rSector');
+  s.innerHTML='<option value="" disabled selected>Select sector</option>';
+  s.disabled=false;
+  if (typeof RWANDA!=='undefined' && RWANDA[prov]&&RWANDA[prov][dist]) Object.keys(RWANDA[prov][dist]).sort().forEach(k=>s.appendChild(new Option(k,k)));
+  rState.location=[dist,prov].filter(Boolean).join(' → ');
+}
+
+/* Summary */
+function updateSummaryR() {
+  const urgMap={urgent:'badge-urgent',moderate:'badge-moderate',low:'badge-active'};
+  const urgency=document.querySelector('input[name="rUrgency"]:checked')?.value||'urgent';
+  rState.urgency=urgency;
+  const si=document.getElementById('rSumIssue'); if(si) si.textContent=rState.issueLabel;
+  const su=document.getElementById('rSumUrgency'); if(su) su.innerHTML=`<span class="badge ${urgMap[urgency]}">${urgency}</span>`;
+  const sl=document.getElementById('rSumLocation'); if(sl) sl.textContent=rState.location||'—';
+  const sp=document.getElementById('rSumProvider'); if(sp) sp.textContent=rState.provider||'—';
+}
+
+/* Evidence upload */
+function rEvDragOver(e) { e.preventDefault(); document.getElementById('rEvDropZone').classList.add('dragover'); }
+function rEvDragLeave() { document.getElementById('rEvDropZone').classList.remove('dragover'); }
+function rEvDrop(e) { e.preventDefault(); document.getElementById('rEvDropZone').classList.remove('dragover'); rEvAddFiles(e.dataTransfer.files, null); }
+
+function rEvAddFiles(fileList, inputEl) {
+  const remaining = R_EV_MAX_FILES - rEvidenceFiles.length;
+  if (remaining <= 0) { toast(`Maximum ${R_EV_MAX_FILES} files allowed. Remove one to add more.`, 'error'); if (inputEl) inputEl.value=''; return; }
+  Array.from(fileList).slice(0, remaining).forEach(f => {
+    if (f.size > R_EV_MAX_MB * 1024 * 1024) { toast(`"${f.name}" exceeds the ${R_EV_MAX_MB} MB limit and was skipped.`, 'error'); return; }
+    rEvidenceFiles.push(f);
+  });
+  if (inputEl) inputEl.value='';
+  rEvRenderPreviews();
+}
+function rEvRemove(idx) { rEvidenceFiles.splice(idx, 1); rEvRenderPreviews(); }
+function rEvRenderPreviews() {
+  const row=document.getElementById('rEvPreviews'); const countEl=document.getElementById('rEvCount');
+  if (!row) return; row.innerHTML='';
+  rEvidenceFiles.forEach((f,i) => {
+    const wrap=document.createElement('div'); wrap.className='ev-wrap';
+    if (f.type.startsWith('image/')) {
+      const img=document.createElement('img'); img.className='file-thumb'; img.alt=f.name;
+      const reader=new FileReader(); reader.onload=e=>{img.src=e.target.result;}; reader.readAsDataURL(f);
+      wrap.appendChild(img);
+    } else if (f.type.startsWith('video/')) {
+      const vw=document.createElement('div'); vw.className='ev-video-wrap';
+      const vid=document.createElement('video'); vid.src=URL.createObjectURL(f); vid.muted=true; vid.preload='metadata';
+      vid.onmouseover=()=>vid.play().catch(()=>{}); vid.onmouseleave=()=>{vid.pause();vid.currentTime=0;};
+      const pi=document.createElement('div'); pi.className='ev-play-icon'; pi.innerHTML='<i class="ti ti-player-play-filled"></i>';
+      vw.appendChild(vid); vw.appendChild(pi); wrap.appendChild(vw);
+    } else {
+      const card=document.createElement('div'); card.className='ev-file-card';
+      const ext=f.name.includes('.')?f.name.split('.').pop().toUpperCase():'FILE';
+      card.innerHTML=`<i class="ti ti-file-description" aria-hidden="true"></i><span style="font-weight:700;font-size:10px;">${ext}</span><span>${f.name}</span>`;
+      wrap.appendChild(card);
+    }
+    const rm=document.createElement('button'); rm.type='button'; rm.className='ev-remove'; rm.title='Remove file';
+    rm.innerHTML='<i class="ti ti-x"></i>'; rm.onclick=()=>rEvRemove(i); wrap.appendChild(rm);
+    row.appendChild(wrap);
+  });
+  const n=rEvidenceFiles.length;
+  if (countEl) { countEl.style.display=n>0?'block':'none'; if(n>0) countEl.textContent=`${n} of ${R_EV_MAX_FILES} file${n!==1?'s':''} selected`; }
+}
+
+/* Submit report */
+async function submitReportDash() {
+  const desc     = (document.getElementById('rDesc')?.value||'').trim();
+  const province = document.getElementById('rProvince')?.value||null;
+  const district = document.getElementById('rDistrict')?.value||null;
+  const sector   = document.getElementById('rSector')?.value||null;
+  const landmark = (document.getElementById('rLandmark')?.value||'').trim();
+  const phone    = (document.getElementById('rPhone')?.value||'').trim();
+  const phCode   = document.getElementById('rPhoneCode')?.value||'+250';
+
+  if (!district || !province) { toast('Please select a province and district.', 'error'); return; }
+
+  const sb = document.getElementById('rSubmitBtn');
+  if (sb) { sb.disabled=true; sb.innerHTML='<i class="ti ti-loader-2 ti-spin" aria-hidden="true"></i> Submitting…'; }
+
+  const otherDetail = rState.issueKey==='other' ? (document.getElementById('rOtherIssueText')?.value||'').trim() : '';
+  const finalLabel  = otherDetail || rState.issueLabel;
+  const finalDesc   = desc
+    ? (otherDetail ? `Issue type: ${otherDetail}\n\n${desc}` : desc)
+    : `${finalLabel} reported${rState.location?' at '+rState.location:''}${landmark?' near '+landmark:''}.`;
+
+  const body = {
+    category: R_ISSUE_CATEGORY_MAP[rState.issueKey]||'other',
+    urgency:  R_URGENCY_API_MAP[rState.urgency]||'medium',
+    title:    `${finalLabel}${district?' in '+district:''}${province?', '+province:''}`,
+    description: finalDesc,
+    provider_id: rState.providerId||null,
+    province, district, sector,
+    cell: null, village: null,
+  };
+  if (phone) body.contact_phone = phCode + phone.replace(/\s/g,'');
+
+  const result = await apiPost('/reports', body);
+
+  if (sb) { sb.disabled=false; sb.innerHTML='<i class="ti ti-send" aria-hidden="true"></i> Submit Report'; }
+
+  if (!result) {
+    toast('Submission failed. Please check your connection and try again.', 'error');
+    return;
+  }
+
+  const ref = result.reference_number || result.ref_number
+            || (result.id ? 'RPT-' + String(result.id).slice(0,8).toUpperCase() : null);
+  if (!ref) {
+    toast('Submission failed. Please try again.', 'error');
+    return;
+  }
+
+  const refEl = document.getElementById('rSuccessRef'); if (refEl) refEl.textContent = ref;
+  const provEl = document.getElementById('rSuccessProv'); if (provEl) provEl.textContent = rState.provider||'the provider';
+  for (let i=1;i<=4;i++) { const el=document.getElementById('rStep'+i); if(el) el.style.display='none'; }
+  const suc = document.getElementById('rSuccess'); if (suc) suc.style.display='block';
+  document.getElementById('rStepBar')?.style && (document.getElementById('rStepBar').style.display='none');
+}
+
+/* Wire showPanel to init report panel when opened */
+(function() {
+  const _origShowPanel = showPanel;
+  showPanel = function(id, linkEl) {
+    _origShowPanel(id, linkEl);
+    if (id === 'report') initReportPanel();
+  };
+})();
 </script>
+<script src="rwanda_data.js"></script>
 <script src="temba-i18n.js"></script>
 <script src="temba-server.js"></script>
 <script src="temba-chatbot.js"></script>
