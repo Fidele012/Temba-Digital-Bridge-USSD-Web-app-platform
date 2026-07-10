@@ -66,26 +66,22 @@
 
 <nav class="navbar" id="mainNav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-brand">
-      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:38px;width:auto;display:block;">
-      <span style="font-size:15px;font-weight:800;color:var(--navy,#0A2540);white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
+    <a href="index.html" class="nav-brand" style="display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer;position:absolute;left:1rem;">
+      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:44px;width:auto;display:block;flex-shrink:0;">
+      <span style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
     </a>
-    <div class="nav-links">
-      <a href="dashboard-community.html" data-i18n="nav_dashboard">Dashboard</a>
-      <a href="report.html" class="active" data-i18n="nav_report">Report Issue</a>
-      <a href="#" onclick="openAboutModal();return false;" data-i18n="nav_about">About</a>
-    </div>
-    <div class="nav-actions">
-      <button data-lang-btn="en" onclick="setLang('en')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 6px;">EN</button>
-      <span style="color:var(--gray-300);">|</span>
-      <button data-lang-btn="rw" onclick="setLang('rw')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;padding:4px 6px;">RW</button>
-      <a href="signin.html" class="btn-ghost" data-i18n="nav_signin">Sign In</a>
+    <div class="nav-actions" id="reportNavActions">
+      <div style="display:flex;align-items:center;gap:4px;font-size:13px;">
+        <button data-lang-btn="en" onclick="setLang('en')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;">EN</button>
+        <span style="color:var(--gray-200);">|</span>
+        <button data-lang-btn="rw" onclick="setLang('rw')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;">RW</button>
+      </div>
     </div>
   </div>
 </nav>
 
 <!-- Page header -->
-<div style="background:linear-gradient(135deg,var(--navy),var(--blue));padding:2.5rem 2rem;">
+<div style="background:linear-gradient(135deg,var(--navy),var(--blue));padding:2rem 1.5rem;">
   <div style="max-width:1280px;margin:0 auto;">
     <div style="font-size:12.5px;color:rgba(255,255,255,0.6);margin-bottom:6px;display:flex;align-items:center;gap:6px;">
       <a href="index.html" style="color:rgba(255,255,255,0.7);">Home</a>
@@ -97,7 +93,7 @@
   </div>
 </div>
 
-<div style="max-width:1280px;margin:0 auto;padding:2rem;">
+<div style="max-width:1280px;margin:0 auto;padding:2rem 1.5rem;">
   <div class="report-layout">
 
     <!-- FORM -->
@@ -393,6 +389,45 @@
 const _s = JSON.parse(localStorage.getItem('temba_session')||'{}');
 if (!_s.loggedIn) window.location.href = 'signin.html';
 
+/* Inject dark-toggle + avatar + Sign Out into nav (matches dashboard style) */
+(function() {
+  const initial = (_s.name || _s.email || 'U').charAt(0).toUpperCase();
+  const nav = document.getElementById('reportNavActions');
+  if (!nav) return;
+  nav.insertAdjacentHTML('beforeend', `
+    <button class="dark-toggle" id="reportDarkToggle" onclick="toggleReportDarkMode()" title="Toggle dark mode">
+      <i class="ti ti-moon" id="reportDarkIcon" aria-hidden="true"></i>
+    </button>
+    <div class="nav-avatar" title="${_s.name || 'Profile'}" style="flex-shrink:0;">${initial}</div>
+    <button onclick="signOut()" class="btn-ghost" style="font-size:13px;display:flex;align-items:center;gap:6px;">
+      <i class="ti ti-logout" aria-hidden="true"></i> Sign Out
+    </button>
+  `);
+})();
+
+function toggleReportDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
+  const icon = document.getElementById('reportDarkIcon');
+  if (icon) icon.className = isDark ? 'ti ti-moon' : 'ti ti-sun';
+  localStorage.setItem('temba_dark', isDark ? '0' : '1');
+}
+// Restore saved dark preference
+(function(){
+  if (localStorage.getItem('temba_dark') === '1') {
+    document.documentElement.setAttribute('data-theme','dark');
+    const icon = document.getElementById('reportDarkIcon');
+    if (icon) icon.className = 'ti ti-sun';
+  }
+})();
+
+function signOut() {
+  localStorage.removeItem('temba_session');
+  localStorage.removeItem('temba_token');
+  localStorage.removeItem('temba_refresh_token');
+  window.location.href = 'signin.html';
+}
+
 window.addEventListener('scroll',()=>document.getElementById('mainNav').classList.toggle('shadow',window.scrollY>8));
 
 const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
@@ -408,17 +443,25 @@ async function apiGet(path) {
   } catch { return null; }
 }
 
+/* Returns the JSON body on success, or { _error: string } on any failure */
 async function apiPost(path, body) {
   const token = localStorage.getItem('temba_token');
-  if (!token) return null;
+  if (!token) return { _error: 'no_token' };
   try {
     const r = await fetch(API_BASE + path, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { localStorage.removeItem('temba_token'); return null; }
-    return r.ok ? await r.json() : null;
-  } catch { return null; }
+    if (r.status === 401) { localStorage.removeItem('temba_token'); return { _error: 'unauthorized' }; }
+    if (!r.ok) {
+      const errBody = await r.json().catch(() => ({}));
+      const detail = Array.isArray(errBody.detail)
+        ? errBody.detail.map(e => e.msg || JSON.stringify(e)).join('; ')
+        : (errBody.detail || `Server error (${r.status})`);
+      return { _error: detail };
+    }
+    return await r.json();
+  } catch { return { _error: 'network' }; }
 }
 
 const ISSUE_CATEGORY_MAP = {
@@ -657,8 +700,13 @@ function evRenderPreviews() {
 
 /* Submit */
 async function submitReport(){
-  const desc = (document.getElementById('rDesc').value||'').trim();
-  const notes = (document.getElementById('rNotes').value||'').trim();
+  /* Block immediately if no JWT — offline-auth users can't reach the API */
+  if (!localStorage.getItem('temba_token')) {
+    showTembaToast('Your session is device-only. Please sign out and sign in again to submit reports to the server.', 'error');
+    return;
+  }
+
+  const desc     = (document.getElementById('rDesc').value||'').trim();
   const province = document.getElementById('rProvince').value||null;
   const district = document.getElementById('rDistrict').value||null;
   const sector   = document.getElementById('rSector').value||null;
@@ -685,19 +733,28 @@ async function submitReport(){
 
   if (submitBtn) { submitBtn.disabled=false; submitBtn.innerHTML='<i class="ti ti-send"></i> Submit Report'; }
 
-  const ref = apiResult ? '#'+String(apiResult.id).slice(0,8).toUpperCase() : '#TDB-'+Math.floor(1000+Math.random()*9000);
-  document.getElementById('reportRef').textContent=ref;
-  document.getElementById('successProv').textContent=rState.provider;
-  document.querySelector('#rStep4').style.display='none';
-  document.getElementById('reportSuccess').style.display='block';
-
-  if (!apiResult) {
-    /* Fallback: namespaced localStorage so community dashboard shows it after reload */
-    const _rKey = `temba_reports_${(_s.email||'guest').toLowerCase().replace(/[^a-z0-9]/g,'_')}`;
-    const reports = JSON.parse(localStorage.getItem(_rKey)||'[]');
-    reports.unshift({ref,issue:rState.issueLabel,urgency:rState.urgency,loc:rState.location,provider:rState.provider,status:'submitted',time:new Date().toISOString()});
-    localStorage.setItem(_rKey, JSON.stringify(reports));
+  /* Surface any error clearly — never show fake success */
+  if (apiResult && apiResult._error) {
+    const msg = apiResult._error === 'no_token'       ? 'Session expired — please sign in again.'
+              : apiResult._error === 'unauthorized'   ? 'Session expired — please sign in again.'
+              : apiResult._error === 'network'        ? 'No internet connection. Please check your connection and try again.'
+              : `Submission failed: ${apiResult._error}`;
+    showTembaToast(msg, 'error');
+    return;
   }
+
+  /* Use the real RPT-YYYYMMDD-XXXX reference number from the API */
+  const ref = apiResult?.reference_number || apiResult?.ref_number
+            || (apiResult?.id ? 'RPT-' + String(apiResult.id).slice(0,8).toUpperCase() : null);
+  if (!ref) {
+    showTembaToast('Submission failed. Please try again.', 'error');
+    return;
+  }
+
+  document.getElementById('reportRef').textContent = ref;
+  document.getElementById('successProv').textContent = rState.provider;
+  document.querySelector('#rStep4').style.display = 'none';
+  document.getElementById('reportSuccess').style.display = 'block';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
