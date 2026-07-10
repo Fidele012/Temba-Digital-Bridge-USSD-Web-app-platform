@@ -11,10 +11,12 @@ GET  /auth/verify-email/{token}
 """
 import random
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import uuid4
 
+import httpx
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -44,6 +46,7 @@ from app.models.user import User, UserRole
 from app.schemas.auth import (
     ChangePasswordRequest,
     CompleteProfileRequest,
+    GoogleLoginRequest,
     LoginRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -412,3 +415,73 @@ async def set_pin(
     current_user.ussd_pin_hash = hash_password(body.pin)
     await write_audit(db, request, "auth.set_pin", "user", str(current_user.id), actor=current_user)
     return {"message": "USSD PIN set successfully"}
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(
+    body: GoogleLoginRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Sign in or create an account using a Google ID token from the browser."""
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google Sign-In is not configured on this server.",
+        )
+
+    # Verify the token with Google's public tokeninfo endpoint
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": body.token},
+            )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Could not reach Google to verify token.")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google token.")
+
+    info = resp.json()
+    if info.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Google token audience mismatch.")
+    if str(info.get("email_verified")).lower() != "true":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Google email is not verified.")
+
+    email = info["email"].lower().strip()
+    full_name = info.get("name") or email.split("@")[0]
+
+    # Find existing Temba account by email (covers both web-registered and Google-registered accounts)
+    user = (await db.execute(
+        select(User).where(func.lower(User.email) == email)
+    )).scalar_one_or_none()
+
+    if user is None:
+        # First-time Google sign-in: create a community account
+        user = User(
+            email=email,
+            full_name=full_name,
+            hashed_password=hash_password(secrets.token_hex(24)),
+            role=UserRole.COMMUNITY,
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+        await db.flush()
+        await write_audit(db, request, "auth.google_register", "user", str(user.id))
+        log.info("google_register", email=email)
+    else:
+        await write_audit(db, request, "auth.google_login", "user", str(user.id))
+        log.info("google_login", email=email)
+
+    access_token = create_access_token({"sub": str(user.id), "role": user.role.value})
+    refresh_token_val = create_refresh_token()
+    await store_refresh_token(str(user.id), refresh_token_val)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token_val,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }

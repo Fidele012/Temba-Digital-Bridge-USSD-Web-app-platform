@@ -90,6 +90,11 @@ class CompleteProfileRequest(BaseModel):
         return v
 
 
+class GoogleLoginRequest(BaseModel):
+    """ID token returned by Google Identity Services after the user selects their account."""
+    token: str
+
+
 class SetPinRequest(BaseModel):
     """Set or update the 4-digit USSD PIN on any account."""
     pin: str = Field(min_length=4, max_length=4)

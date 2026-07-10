@@ -1547,9 +1547,13 @@ async def _handle_ussd(
         if user.ussd_pin_hash is None:
             return await _pin_setup_flow(parts, user, lang, db)
 
-        # parts[2] = PIN attempt
+        # parts[2] = PIN attempt — show the phone so users know what number is registered
         if depth == 2:
-            return _t("enter_pin", lang)
+            display = phoneNumber if phoneNumber.startswith("+") else f"+{phoneNumber}"
+            if lang == "en":
+                return f"CON Login\nPhone: {display}\n\nEnter your 4-digit PIN:"
+            else:
+                return f"CON Kwinjira\nTelefoni: {display}\n\nInjiza PIN yawe y'imibare 4:"
 
         pin_attempt = parts[2]
         if not verify_password(pin_attempt, user.ussd_pin_hash):
@@ -1691,7 +1695,23 @@ async def _signup_flow(
         await db.flush()
         log.info("ussd_user_updated", phone=phoneNumber, name=name,
                  sector=sector_name, cell=cell_name, village=village_name)
-        return _t("account_created", lang)
+        clean = re.sub(r"[\s\-]", "", phoneNumber)
+        if lang == "en":
+            return (
+                f"END Account updated!\n"
+                f"Phone: {clean}\n"
+                f"Use Phone+PIN to login\n"
+                f"on the Temba web portal.\n"
+                f"Dial again to use services."
+            )
+        else:
+            return (
+                f"END Konti yavuguruwe!\n"
+                f"Telefoni: {clean}\n"
+                f"Koresha Telefoni+PIN\n"
+                f"kwinjira kuri portal ya Temba.\n"
+                f"Hamagara nanone gukoresha."
+            )
 
     # Phone UNIQUE constraint: if a web user already holds this number, leave
     # phone=None on the USSD record — the email is the canonical identifier.
@@ -1720,8 +1740,24 @@ async def _signup_flow(
     await db.flush()
     log.info("ussd_user_created", phone=phoneNumber, name=name,
              province=province_name, district=district_name,
-             sector=sector_name, cell=cell_name)
-    return _t("account_created", lang)
+             sector=sector_name, cell=cell_name, village=village_name)
+    clean = re.sub(r"[\s\-]", "", phoneNumber)
+    if lang == "en":
+        return (
+            f"END Account created!\n"
+            f"Phone: {clean}\n"
+            f"Use Phone+PIN to login\n"
+            f"on the Temba web portal.\n"
+            f"Dial again to use services."
+        )
+    else:
+        return (
+            f"END Konti yashyizweho!\n"
+            f"Telefoni: {clean}\n"
+            f"Koresha Telefoni+PIN\n"
+            f"kwinjira kuri portal ya Temba.\n"
+            f"Hamagara nanone gukoresha."
+        )
 
 
 # ── PIN setup flow (web user logging in for the first time via USSD) ──────────

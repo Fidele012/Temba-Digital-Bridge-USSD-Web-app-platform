@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: str = "Temba Digital Bridge"
     EMAILS_FROM_EMAIL: EmailStr = "noreply@temba.rw"  # type: ignore[assignment]
 
+    # ── Google OAuth ───────────────────────────────────────────
+    GOOGLE_CLIENT_ID: str = ""   # Set in Railway env vars to enable Google Sign-In
+
     # ── Sentry ─────────────────────────────────────────────────
     SENTRY_DSN: str = ""
 
