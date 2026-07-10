@@ -461,13 +461,13 @@
               <!-- Cell + Village -->
               <div class="field-row">
                 <div class="field">
-                  <label class="field-label">Cell <span class="opt">Optional</span></label>
+                  <label class="field-label">Cell <span class="req">*</span></label>
                   <div class="field-wrap sel-wrap"><i class="ti ti-home field-icon" aria-hidden="true"></i>
                     <select id="rCell" disabled onchange="rCascadeVillage()"><option value="" disabled selected>Select sector first</option></select>
                     <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
                 </div>
                 <div class="field">
-                  <label class="field-label">Village <span class="opt">Optional</span></label>
+                  <label class="field-label">Village <span class="req">*</span></label>
                   <div class="field-wrap sel-wrap"><i class="ti ti-building-community field-icon" aria-hidden="true"></i>
                     <select id="rVillage" disabled><option value="" disabled selected>Select cell first</option></select>
                     <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
@@ -3466,6 +3466,18 @@ function rGoTo(from, to) {
     }
     rState.issueLabel = otherVal;
   }
+  if (from === 2 && to === 3) {
+    const province = document.getElementById('rProvince')?.value;
+    const district = document.getElementById('rDistrict')?.value;
+    const sector   = document.getElementById('rSector')?.value;
+    const cell     = document.getElementById('rCell')?.value;
+    const village  = document.getElementById('rVillage')?.value;
+    if (!province) { toast('Please select a Province.', 'error'); document.getElementById('rProvince')?.focus(); return; }
+    if (!district) { toast('Please select a District.', 'error'); document.getElementById('rDistrict')?.focus(); return; }
+    if (!sector)   { toast('Please select a Sector.', 'error');   document.getElementById('rSector')?.focus();   return; }
+    if (!cell)     { toast('Please select a Cell.', 'error');     document.getElementById('rCell')?.focus();     return; }
+    if (!village)  { toast('Please select a Village.', 'error');  document.getElementById('rVillage')?.focus();  return; }
+  }
   document.getElementById('rStep'+from).classList.remove('active');
   document.getElementById('rStep'+to).classList.add('active');
   for (let i=1;i<=4;i++) {
@@ -3668,7 +3680,7 @@ async function submitReportDash() {
   const phone    = (document.getElementById('rPhone')?.value||'').trim();
   const phCode   = document.getElementById('rPhoneCode')?.value||'+250';
 
-  if (!district || !province) { toast('Please select a province and district.', 'error'); return; }
+  if (!province || !district || !sector || !cell || !village) { toast('Please complete all required location fields (Province → Village).', 'error'); return; }
 
   const sb = document.getElementById('rSubmitBtn');
   if (sb) { sb.disabled=true; sb.innerHTML='<i class="ti ti-loader-2 ti-spin" aria-hidden="true"></i> Submitting…'; }
