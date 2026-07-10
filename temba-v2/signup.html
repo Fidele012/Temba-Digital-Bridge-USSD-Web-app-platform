@@ -113,9 +113,9 @@
                 <option value="+263">🇿🇼 +263</option>
               </optgroup>
             </select>
-            <input type="tel" class="phone-num-input" id="cPhone" placeholder="e.g. 788 123 456" autocomplete="tel" />
+            <input type="tel" class="phone-num-input" id="cPhone" placeholder="e.g. 788 123 456" autocomplete="tel" onblur="checkPhoneAvailability()" />
           </div>
-          <div class="field-hint" data-i18n="hint_phone">Required — providers will use this to contact you</div>
+          <div class="field-hint" id="cPhoneHint" data-i18n="hint_phone">Required — providers will use this to contact you</div>
         </div>
 
         <div class="field">
@@ -661,6 +661,37 @@
 <script src="temba-auth.js"></script>
 <script>
 if (typeof _serverFetch === 'undefined') window._serverFetch = (url, opts) => fetch(url, opts);
+
+const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
+  ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api-production.up.railway.app/api/v1';
+
+/* ── Phone duplicate check ── */
+async function checkPhoneAvailability() {
+  const code = (document.getElementById('cPhoneCode').value || '+250').trim();
+  const num  = (document.getElementById('cPhone').value || '').trim().replace(/[\s\-]/g, '');
+  if (!num || num.length < 7) return;
+  const phone = code + num;
+  const hint  = document.getElementById('cPhoneHint');
+  if (!hint) return;
+  try {
+    const resp = await fetch(`${API_BASE}/auth/check-phone?phone=${encodeURIComponent(phone)}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.registered) {
+      hint.innerHTML = `<i class="ti ti-info-circle" style="vertical-align:-2px;color:var(--blue);"></i>
+        This phone is already registered${data.is_ussd ? ' via USSD' : ''}.
+        <a href="signin.html" style="color:var(--blue);font-weight:700;text-decoration:underline;">Sign in with Phone + PIN</a> instead.`;
+      hint.style.color      = '#1565C0';
+      hint.style.fontWeight = '500';
+    } else {
+      hint.setAttribute('data-i18n', 'hint_phone');
+      hint.style.color      = '';
+      hint.style.fontWeight = '';
+      hint.innerHTML        = 'Required — providers will use this to contact you';
+    }
+  } catch (_) { /* silent — don't block registration on network error */ }
+}
+
 /* ── Password strength meter ── */
 function checkStrength(pw, fillId, lblId) {
   fillId = fillId || 'cStrFill';

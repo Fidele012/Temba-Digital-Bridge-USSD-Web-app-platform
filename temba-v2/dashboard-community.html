@@ -113,6 +113,27 @@
         </div>
       </div>
 
+      <!-- USSD profile completion banner — shown once to USSD-registered users -->
+      <div id="ussdProfileBanner" style="display:none;background:linear-gradient(135deg,#E3F2FD,#E8F5E9);border:1.5px solid #90CAF9;border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.25rem;position:relative;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#00897B);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(21,101,192,0.25);">
+            <i class="ti ti-user-check" style="font-size:20px;color:#fff;" aria-hidden="true"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:14.5px;color:#0D47A1;margin-bottom:3px;">Complete your Temba profile</div>
+            <div style="font-size:13px;color:#37474F;line-height:1.6;">Add an email &amp; password to sign in faster, recover your account, and get email notifications for your reports.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+            <button onclick="openCompleteProfileModal()" style="background:#1565C0;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+              <i class="ti ti-user-edit" aria-hidden="true"></i> Complete Profile
+            </button>
+            <button onclick="dismissUssdBanner()" title="Dismiss" style="background:none;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#546E7A;font-size:18px;" aria-label="Dismiss">
+              <i class="ti ti-x" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="panel-hero">
         <div>
           <h1 id="greetingText">Good morning, there</h1>
@@ -686,6 +707,51 @@
 </div>
 
 <!-- ── ABOUT MODAL ── -->
+<!-- ══ COMPLETE PROFILE MODAL (USSD users) ══ -->
+<div class="modal-overlay" id="completeProfileModal" onclick="if(event.target===this)closeCompleteProfileModal()">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-head">
+      <h2><i class="ti ti-user-edit" style="color:var(--blue);"></i> Complete Your Profile</h2>
+      <button class="modal-close" onclick="closeCompleteProfileModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13.5px;color:var(--gray-600);line-height:1.7;margin-bottom:1.25rem;">
+        Add an email address and password to sign in from any device without needing your USSD PIN. Your existing reports and history will remain linked to your account.
+      </p>
+      <div class="field">
+        <label class="field-label">Email Address <span class="req">*</span></label>
+        <div class="field-wrap">
+          <i class="ti ti-mail field-icon" aria-hidden="true"></i>
+          <input type="email" id="cpEmail" placeholder="e.g. jean@example.com" autocomplete="email" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">New Password <span class="req">*</span></label>
+        <div class="field-wrap">
+          <i class="ti ti-lock field-icon" aria-hidden="true"></i>
+          <input type="password" id="cpPassword" placeholder="Min 8 chars, 1 uppercase, 1 digit, 1 symbol" autocomplete="new-password" />
+          <button type="button" class="eye-btn" onclick="togglePw('cpPassword',this)"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Confirm Password <span class="req">*</span></label>
+        <div class="field-wrap">
+          <i class="ti ti-lock field-icon" aria-hidden="true"></i>
+          <input type="password" id="cpPasswordConfirm" placeholder="Repeat your password" autocomplete="new-password" />
+          <button type="button" class="eye-btn" onclick="togglePw('cpPasswordConfirm',this)"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div id="cpError" style="display:none;background:var(--red-light);border:1px solid #FFCDD2;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-top:0.5rem;"></div>
+    </div>
+    <div class="modal-footer" style="gap:10px;">
+      <button class="btn-ghost" onclick="closeCompleteProfileModal()">Cancel</button>
+      <button class="btn-primary" id="cpSubmitBtn" onclick="submitCompleteProfile()" style="width:auto;height:42px;padding:0 24px;margin-top:0;">
+        <i class="ti ti-check"></i> Save Profile
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="aboutModal">
   <div class="modal-box" style="max-width:580px;">
     <div class="modal-head">
@@ -1361,6 +1427,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateApptBadge();
   updateNotifBadge();
   renderVerifyBanners();
+  renderUssdProfileBanner(s);
 
   renderOverview(allReports);
   renderAlerts();
@@ -2344,6 +2411,83 @@ function submitSurvey() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAboutModal(); closeSvcModal(); closeApptModal(); closeReschedModal(); closeSurveyModal(); }});
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+/* ── USSD profile banner ── */
+function renderUssdProfileBanner(session) {
+  const banner = document.getElementById('ussdProfileBanner');
+  if (!banner) return;
+  const dismissed = localStorage.getItem('temba_ussd_banner_dismissed');
+  if (session.is_ussd_profile && !dismissed) {
+    banner.style.display = '';
+  }
+}
+
+function dismissUssdBanner() {
+  localStorage.setItem('temba_ussd_banner_dismissed', '1');
+  const banner = document.getElementById('ussdProfileBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+function openCompleteProfileModal() {
+  const modal = document.getElementById('completeProfileModal');
+  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  const cpError = document.getElementById('cpError');
+  if (cpError) cpError.style.display = 'none';
+  ['cpEmail','cpPassword','cpPasswordConfirm'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
+function closeCompleteProfileModal() {
+  const modal = document.getElementById('completeProfileModal');
+  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+}
+
+async function submitCompleteProfile() {
+  const email    = (document.getElementById('cpEmail').value || '').trim().toLowerCase();
+  const password = document.getElementById('cpPassword').value;
+  const confirm  = document.getElementById('cpPasswordConfirm').value;
+  const errEl    = document.getElementById('cpError');
+  const btn      = document.getElementById('cpSubmitBtn');
+
+  function _showErr(msg) { errEl.textContent = msg; errEl.style.display = ''; }
+
+  if (!email || !password || !confirm) { _showErr('Please fill in all fields.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _showErr('Please enter a valid email address.'); return; }
+  if (password.length < 8) { _showErr('Password must be at least 8 characters.'); return; }
+  if (!/[A-Z]/.test(password)) { _showErr('Password must contain at least one uppercase letter.'); return; }
+  if (!/[0-9]/.test(password)) { _showErr('Password must contain at least one digit.'); return; }
+  if (!/[!@#$%^&*()\-_=+[\]{}|;:'",.<>?/]/.test(password)) { _showErr('Password must contain at least one special character.'); return; }
+  if (password !== confirm) { _showErr('Passwords do not match.'); return; }
+
+  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Saving…';
+  errEl.style.display = 'none';
+
+  const token = localStorage.getItem('temba_token');
+  if (!token) { _showErr('Session expired — please sign in again.'); btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Save Profile'; return; }
+
+  try {
+    const resp = await fetch(`${API_BASE}/auth/complete-profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) { _showErr(data.detail || 'Could not save profile. Please try again.'); btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Save Profile'; return; }
+
+    // Update session so banner won't reappear
+    const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
+    s.email = email; s.is_ussd_profile = false;
+    localStorage.setItem('temba_session', JSON.stringify(s));
+
+    closeCompleteProfileModal();
+    dismissUssdBanner();
+    toast('Profile completed! You can now sign in with your email and password.', 'success');
+  } catch (_) {
+    _showErr('Network error. Please check your connection and try again.');
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Save Profile';
+  }
+}
 
 /* ── Auth ── */
 function signOut() {

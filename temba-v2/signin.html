@@ -35,31 +35,71 @@
       </button>
     </div>
 
+    <!-- Community-member auth method toggle (hidden when provider tab active) -->
+    <div id="communityAuthToggle" style="display:flex;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:4px;gap:3px;margin-bottom:1.25rem;">
+      <button type="button" id="authTabEmail" onclick="setAuthMethod('email')"
+        style="flex:1;padding:7px 10px;border:none;border-radius:7px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,0.95);color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,0.12);transition:all .15s;">
+        <i class="ti ti-mail" aria-hidden="true"></i> Email + Password
+      </button>
+      <button type="button" id="authTabPin" onclick="setAuthMethod('pin')"
+        style="flex:1;padding:7px 10px;border:none;border-radius:7px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent;color:rgba(255,255,255,0.7);transition:all .15s;">
+        <i class="ti ti-device-mobile" aria-hidden="true"></i> Phone + PIN
+      </button>
+    </div>
+
     <form id="signinForm" onsubmit="handleSignin(event)">
 
-      <div class="field">
-        <label class="field-label"><span>Email Address</span> <span class="req">*</span></label>
-        <div class="field-wrap">
-          <i class="ti ti-mail field-icon" aria-hidden="true"></i>
-          <input type="email" id="siIdentifier" placeholder="e.g. jean@example.com" autocomplete="username" />
+      <!-- Email + Password fields -->
+      <div id="emailFormGroup">
+        <div class="field">
+          <label class="field-label"><span>Email Address</span> <span class="req">*</span></label>
+          <div class="field-wrap">
+            <i class="ti ti-mail field-icon" aria-hidden="true"></i>
+            <input type="email" id="siIdentifier" placeholder="e.g. jean@example.com" autocomplete="username" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" style="display:flex; justify-content:space-between; align-items:center;">
+            <span data-i18n="lbl_password">Password</span> <span class="req">*</span>
+            <a href="forgot-password.html" style="font-size:12.5px; color:var(--blue); font-weight:600; margin-left:auto;" data-i18n="lbl_forgot_pw">Forgot password?</a>
+          </label>
+          <div class="field-wrap">
+            <i class="ti ti-lock field-icon" aria-hidden="true"></i>
+            <input type="password" id="siPassword" data-i18n-placeholder="ph_password" placeholder="Enter your password" autocomplete="current-password" />
+            <button type="button" class="eye-btn" onclick="togglePw('siPassword',this)">
+              <i class="ti ti-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="field">
-        <label class="field-label" style="display:flex; justify-content:space-between; align-items:center;">
-          <span data-i18n="lbl_password">Password</span> <span class="req">*</span>
-          <a href="forgot-password.html" style="font-size:12.5px; color:var(--blue); font-weight:600; margin-left:auto;" data-i18n="lbl_forgot_pw">Forgot password?</a>
-        </label>
-        <div class="field-wrap">
-          <i class="ti ti-lock field-icon" aria-hidden="true"></i>
-          <input type="password" id="siPassword" data-i18n-placeholder="ph_password" placeholder="Enter your password" autocomplete="current-password" />
-          <button type="button" class="eye-btn" onclick="togglePw('siPassword',this)">
-            <i class="ti ti-eye" aria-hidden="true"></i>
-          </button>
+      <!-- Phone + PIN fields (USSD users logging into web) -->
+      <div id="pinFormGroup" style="display:none;">
+        <div style="background:rgba(41,182,246,0.08);border:1.5px solid rgba(41,182,246,0.2);border-radius:10px;padding:10px 14px;font-size:13px;color:rgba(255,255,255,0.75);margin-bottom:1rem;line-height:1.6;">
+          <i class="ti ti-info-circle" style="vertical-align:-2px;" aria-hidden="true"></i>
+          Enter the phone number and 4-digit PIN you used to register via USSD (<strong>*XXX#</strong>).
+        </div>
+        <div class="field">
+          <label class="field-label">Phone Number <span class="req">*</span></label>
+          <div class="field-wrap">
+            <i class="ti ti-phone field-icon" aria-hidden="true"></i>
+            <input type="tel" id="siPhone" placeholder="e.g. 0788 123 456" autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">4-Digit PIN <span class="req">*</span></label>
+          <div class="field-wrap">
+            <i class="ti ti-lock field-icon" aria-hidden="true"></i>
+            <input type="password" id="siPin" placeholder="Enter your 4-digit PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" />
+            <button type="button" class="eye-btn" onclick="togglePw('siPin',this)">
+              <i class="ti ti-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+      <div id="rememberRow" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <label class="check-item" style="font-size:13.5px;">
           <input type="checkbox" id="rememberMe" /> <span data-i18n="lbl_remember_me">Remember me</span>
         </label>
@@ -108,18 +148,46 @@ if (typeof _serverFetch === 'undefined') window._serverFetch = (url, opts) => fe
 const API_BASE = ['localhost','127.0.0.1'].includes(window.location.hostname)
   ? 'http://127.0.0.1:8000/api/v1' : 'https://temba-api-production.up.railway.app/api/v1';
 
-/* Track which tab the user selected — enforced during sign-in */
+/* Track which tab + auth method the user selected */
 let _signinRole = 'community';
+let _authMethod = 'email'; // 'email' | 'pin'
 
 function setRole(role) {
   _signinRole = role;
   document.getElementById('tabC').classList.toggle('active', role === 'community');
   document.getElementById('tabP').classList.toggle('active', role === 'provider');
-  /* Update placeholder to match the selected role */
+  const toggle = document.getElementById('communityAuthToggle');
+  if (toggle) toggle.style.display = role === 'provider' ? 'none' : 'flex';
+  if (role === 'provider') {
+    setAuthMethod('email');
+  }
   const id = document.getElementById('siIdentifier');
-  if (id) id.placeholder = role === 'provider'
-    ? 'Organisation admin email'
-    : 'e.g. jean@example.com';
+  if (id) id.placeholder = role === 'provider' ? 'Organisation admin email' : 'e.g. jean@example.com';
+}
+
+function setAuthMethod(method) {
+  _authMethod = method;
+  const emailGroup = document.getElementById('emailFormGroup');
+  const pinGroup   = document.getElementById('pinFormGroup');
+  const remRow     = document.getElementById('rememberRow');
+  const tabEmail   = document.getElementById('authTabEmail');
+  const tabPin     = document.getElementById('authTabPin');
+  const isPin = method === 'pin';
+  if (emailGroup) emailGroup.style.display = isPin ? 'none' : '';
+  if (pinGroup)   pinGroup.style.display   = isPin ? '' : 'none';
+  if (remRow)     remRow.style.display     = isPin ? 'none' : 'flex';
+  if (tabEmail) {
+    tabEmail.style.background   = isPin ? 'transparent' : 'rgba(255,255,255,0.95)';
+    tabEmail.style.color        = isPin ? 'rgba(255,255,255,0.7)' : 'var(--navy)';
+    tabEmail.style.fontWeight   = isPin ? '600' : '700';
+    tabEmail.style.boxShadow    = isPin ? 'none' : '0 1px 4px rgba(0,0,0,0.12)';
+  }
+  if (tabPin) {
+    tabPin.style.background  = isPin ? 'rgba(255,255,255,0.95)' : 'transparent';
+    tabPin.style.color       = isPin ? 'var(--navy)' : 'rgba(255,255,255,0.7)';
+    tabPin.style.fontWeight  = isPin ? '700' : '600';
+    tabPin.style.boxShadow   = isPin ? '0 1px 4px rgba(0,0,0,0.12)' : 'none';
+  }
 }
 
 function _siError(msg) {
@@ -148,6 +216,65 @@ async function handleSignin(e) {
   btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Signing in…';
   btn.disabled = true;
 
+  // ── Phone + PIN path ──────────────────────────────────────────────────────
+  if (_authMethod === 'pin') {
+    const phone = (document.getElementById('siPhone').value || '').trim();
+    const pin   = (document.getElementById('siPin').value   || '').trim();
+    if (!phone || !pin) { _siError('Please enter your phone number and PIN.'); return; }
+    if (!/^\d{4}$/.test(pin)) { _siError('PIN must be exactly 4 digits.'); return; }
+    let pinTokenData;
+    try {
+      const resp = await _serverFetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, pin }),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        _siError(errBody.detail || 'Incorrect phone number or PIN. Please try again.');
+        return;
+      }
+      pinTokenData = await resp.json();
+    } catch (_) {
+      _siError('Cannot reach the server. Please check your connection and try again.');
+      return;
+    }
+    localStorage.setItem('temba_token', pinTokenData.access_token);
+    if (pinTokenData.refresh_token) localStorage.setItem('temba_refresh_token', pinTokenData.refresh_token);
+    let me = {};
+    try {
+      const meResp = await fetch(`${API_BASE}/users/me`, { headers: { Authorization: `Bearer ${pinTokenData.access_token}` } });
+      if (!meResp.ok) throw new Error('profile');
+      me = await meResp.json();
+    } catch (_) {
+      localStorage.removeItem('temba_token');
+      _siError('Signed in but could not load your profile. Please try again.');
+      return;
+    }
+    const name = me.full_name || phone;
+    const nameParts = name.trim().split(/\s+/);
+    localStorage.setItem('temba_session', JSON.stringify({
+      loggedIn:       true,
+      role:           'community',
+      name,
+      firstName:      nameParts[0]              || null,
+      lastName:       nameParts.slice(1).join(' ') || null,
+      email:          me.email                  || null,
+      phone:          me.phone                  || phone,
+      province:       me.province               || null,
+      district:       me.district               || null,
+      sector:         me.sector                 || null,
+      cell:           me.cell                   || null,
+      is_ussd_profile: me.is_ussd_profile       || false,
+      has_ussd_pin:   me.has_ussd_pin           || true,
+    }));
+    if (!localStorage.getItem('temba_lang')) localStorage.setItem('temba_lang', 'en');
+    showTembaToast('Signed in successfully!', 'success');
+    setTimeout(() => { window.location.href = 'dashboard-community.html'; }, 600);
+    return;
+  }
+
+  // ── Email + Password path ─────────────────────────────────────────────────
   const email = document.getElementById('siIdentifier').value.trim().toLowerCase();
   const pw    = document.getElementById('siPassword').value;
 
@@ -304,19 +431,21 @@ async function handleSignin(e) {
 
   const nameParts = name.trim().split(/\s+/);
   localStorage.setItem('temba_session', JSON.stringify({
-    loggedIn:   true,
+    loggedIn:        true,
     role,
     name,
-    firstName:  me.first_name  || nameParts[0]                       || null,
-    lastName:   me.last_name   || nameParts.slice(1).join(' ')       || null,
-    gender:     me.gender      || null,
+    firstName:       me.first_name  || nameParts[0]                       || null,
+    lastName:        me.last_name   || nameParts.slice(1).join(' ')       || null,
+    gender:          me.gender      || null,
     orgName,
-    email:      me.email       || email,
-    phone:      me.phone       || null,
-    province:   me.province    || null,
-    district:   me.district    || null,
-    sector:     me.sector      || null,
-    cell:       me.cell        || null,
+    email:           me.email       || email,
+    phone:           me.phone       || null,
+    province:        me.province    || null,
+    district:        me.district    || null,
+    sector:          me.sector      || null,
+    cell:            me.cell        || null,
+    is_ussd_profile: me.is_ussd_profile || false,
+    has_ussd_pin:    me.has_ussd_pin    || false,
   }));
 
   if (!localStorage.getItem('temba_lang')) localStorage.setItem('temba_lang', 'en');

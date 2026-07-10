@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, computed_field, field_validator
 
 from app.models.user import UserRole
 from app.schemas.common import ORMModel
@@ -45,7 +45,7 @@ class UserUpdate(ORMModel):
 
 class UserPublic(ORMModel):
     id: UUID
-    email: EmailStr
+    email: str  # may be {digits}@ussd.temba.rw for USSD-originated accounts
     phone: str | None
     full_name: str
     role: UserRole
@@ -58,6 +58,17 @@ class UserPublic(ORMModel):
     cell: str | None
     village: str | None
     created_at: datetime
+    ussd_pin_hash: str | None = Field(None, exclude=True)
+
+    @computed_field
+    @property
+    def is_ussd_profile(self) -> bool:
+        return (self.email or '').endswith('@ussd.temba.rw')
+
+    @computed_field
+    @property
+    def has_ussd_pin(self) -> bool:
+        return self.ussd_pin_hash is not None
 
 
 class UserAdminUpdate(ORMModel):

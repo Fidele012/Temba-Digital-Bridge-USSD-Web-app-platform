@@ -43,10 +43,12 @@ from app.db.session import get_db
 from app.models.user import User, UserRole
 from app.schemas.auth import (
     ChangePasswordRequest,
+    CompleteProfileRequest,
     LoginRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
     RefreshRequest,
+    SetPinRequest,
     TokenResponse,
 )
 from app.schemas.common import MessageResponse
@@ -76,6 +78,17 @@ def _phone_variants(phone: str) -> list[str]:
     elif p.startswith("0") and len(p) == 10:
         variants.update({"+250" + p[1:], "250" + p[1:]})
     return list(variants)
+
+
+def _ussd_email_variants(phone: str) -> list[str]:
+    """Return all @ussd.temba.rw email addresses that could correspond to this phone."""
+    digits_only = re.sub(r"[^\d]", "", phone)
+    candidates: set[str] = set()
+    for v in _phone_variants(phone):
+        stripped = re.sub(r"[^\d]", "", v)
+        candidates.add(f"{stripped}@ussd.temba.rw")
+    candidates.add(f"{digits_only}@ussd.temba.rw")
+    return list(candidates)
 
 
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
@@ -139,12 +152,40 @@ async def login(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    result = await db.execute(select(User).where(func.lower(User.email) == body.email.lower().strip()))
-    user = result.scalar_one_or_none()
+    user: User | None = None
 
-    if not user or not verify_password(body.password, user.hashed_password):
-        await write_audit(db, request, "auth.login_failed", "user", extra={"email": body.email}, status_code=401)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if body.phone and body.pin:
+        # ── Phone + PIN path (USSD-registered users logging into web) ──────────
+        # Try USSD-style synthetic email accounts first
+        for email_candidate in _ussd_email_variants(body.phone):
+            row = (await db.execute(select(User).where(User.email == email_candidate))).scalar_one_or_none()
+            if row:
+                user = row
+                break
+        # Fall back to web users who have phone field set
+        if user is None:
+            variants = _phone_variants(body.phone)
+            user = (await db.execute(
+                select(User).where(or_(*[User.phone == v for v in variants]))
+            )).scalar_one_or_none()
+
+        if not user or not user.ussd_pin_hash:
+            await write_audit(db, request, "auth.login_failed", "user", extra={"phone": body.phone}, status_code=401)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Phone number not found or PIN not set",
+            )
+        if not verify_password(body.pin, user.ussd_pin_hash):
+            await write_audit(db, request, "auth.login_failed", "user", extra={"phone": body.phone}, status_code=401)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect PIN")
+
+    else:
+        # ── Email + Password path (web-registered users) ────────────────────────
+        result = await db.execute(select(User).where(func.lower(User.email) == body.email.lower().strip()))
+        user = result.scalar_one_or_none()
+        if not user or not verify_password(body.password, user.hashed_password):
+            await write_audit(db, request, "auth.login_failed", "user", extra={"email": str(body.email)}, status_code=401)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
@@ -312,3 +353,62 @@ async def change_password(
     current_user.hashed_password = hash_password(body.new_password)
     await delete_refresh_token(str(current_user.id))
     return {"message": "Password changed successfully"}
+
+
+@router.get("/check-phone")
+async def check_phone(
+    phone: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Returns whether a phone is already registered (USSD or web). Used by signup form."""
+    variants = _phone_variants(phone)
+    for email_candidate in _ussd_email_variants(phone):
+        row = (await db.execute(select(User.id).where(User.email == email_candidate))).scalar_one_or_none()
+        if row:
+            return {"registered": True, "is_ussd": True}
+    row = (await db.execute(
+        select(User.id).where(or_(*[User.phone == v for v in variants]))
+    )).scalar_one_or_none()
+    if row:
+        return {"registered": True, "is_ussd": False}
+    return {"registered": False, "is_ussd": False}
+
+
+@router.post("/complete-profile", response_model=MessageResponse)
+async def complete_profile(
+    body: CompleteProfileRequest,
+    request: Request,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """USSD-registered users set a real email + web password on first web login."""
+    if not current_user.email.endswith("@ussd.temba.rw"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Profile is already complete",
+        )
+    normalized = body.email.lower().strip()
+    existing = (await db.execute(
+        select(User).where(func.lower(User.email) == normalized)
+    )).scalar_one_or_none()
+    if existing and existing.id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    current_user.email = normalized
+    current_user.hashed_password = hash_password(body.password)
+    current_user.is_verified = True  # authenticated via PIN — treat as verified
+    await write_audit(db, request, "auth.complete_profile", "user", str(current_user.id), actor=current_user)
+    return {"message": "Profile completed successfully"}
+
+
+@router.post("/set-pin", response_model=MessageResponse)
+async def set_pin(
+    body: SetPinRequest,
+    request: Request,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Set or update the 4-digit USSD PIN for the current user."""
+    current_user.ussd_pin_hash = hash_password(body.pin)
+    await write_audit(db, request, "auth.set_pin", "user", str(current_user.id), actor=current_user)
+    return {"message": "USSD PIN set successfully"}
