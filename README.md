@@ -10,7 +10,7 @@
 
 ---
 
-![Temba Digital Bridge — Landing Page](docs/screenshots/Landing.png)
+![Temba Digital Bridge — Landing Page](docs/screenshots/Home_page.png)
 
 > **[GitHub Repository](https://github.com/Fidele012/Temba-Digital-Bridge-USSD-Web-app-platform)**
 
@@ -441,37 +441,13 @@ All screenshots below are taken from the live running application.
 
 ##### Landing Page
 Hero section with public issue tracker and feature highlights.
-![Landing Page](docs/screenshots/Landing.png)
+![Landing Page](docs/screenshots/Home_page.png)
 
 ---
 
 ##### Sign In
-Secure login for community members, providers, and admins.
-![Sign In](docs/screenshots/Signin.png)
-
----
-
-##### Sign Up — Community Member
-Registration form with Rwanda five-level location picker.
-![Sign Up Community](docs/screenshots/Signup_community.png)
-
----
-
-##### Sign Up — Water Provider
-Organisation registration and service category selection.
-![Sign Up Provider](docs/screenshots/Signup_water_provider.png)
-
----
-
-##### Reset Password
-Email-based password recovery flow.
-![Reset Password](docs/screenshots/Reset_Password.png)
-
----
-
-##### Language Switching
-Toggle between English and Kinyarwanda across the entire interface.
-![Language Switching](docs/screenshots/Language_switching.png)
+Secure login for community members, providers, and admins — tested across browsers with error-state validation.
+![Sign In](docs/screenshots/Wrong_password.png)
 
 ---
 
@@ -479,31 +455,32 @@ Toggle between English and Kinyarwanda across the entire interface.
 
 ##### Community Dashboard
 Central hub showing active reports, appointments, and quick-action cards.
-![Community Dashboard](docs/screenshots/Community_member_portal.png)
+![Community Dashboard](docs/screenshots/Dashboard.png)
 
 ---
 
 ##### Submit a Report
 Water issue reporting with category, urgency level, description, and optional photo upload.
-![Submit Report](docs/screenshots/Community_report.png)
+![Submit Report](docs/screenshots/report_form.png)
+
+---
+
+##### Submitting a Report
+
+Confirming water issue details and clicking submit.
+![Clicking Submit](docs/screenshots/Clicking_Submit.png)
 
 ---
 
 ##### Report History
 Complete list of all submitted reports with real-time status badges and tracking codes.
-![Report History](docs/screenshots/History.png)
+![Report History](docs/screenshots/Tracking_issue.png)
 
 ---
 
 ##### Individual Report Accountability
 Detailed view of a single report: full status timeline, provider notes, and community verification button.
-![Individual Accountability](docs/screenshots/Accountability_individual.png)
-
----
-
-##### Water Quality Report
-Dedicated submission form for water quality and contamination issues.
-![Water Quality](docs/screenshots/Water_quality.png)
+![Individual Accountability](docs/screenshots/Issue_Tracking.png)
 
 ---
 
@@ -513,21 +490,9 @@ Submit a formal service request (new water connection, tank delivery, meter supp
 
 ---
 
-##### Service Request Submitted
-Confirmation screen after a service request is successfully submitted, showing the reference number.
-![Service Requested](docs/screenshots/Service_requested.png)
-
----
-
 ##### Book an Appointment
 Browse providers, select a date on the availability calendar, and choose a time slot.
 ![Appointment Booking](docs/screenshots/Appointment_booking.png)
-
----
-
-##### My Appointments
-Upcoming and past appointments with status indicators and reschedule options.
-![Appointments Booked](docs/screenshots/Appointments_booked.png)
 
 ---
 
@@ -537,9 +502,10 @@ Directory of all approved water service providers with service categories and co
 
 ---
 
-##### Member Requested Services
-Full list of service requests the community member has submitted.
-![Members Requested Services](docs/screenshots/Members_requested_services.png)
+##### AI Chatbot Assistant
+
+The built-in AI assistant routes users to the right water provider based on their location and issue type — no account required.
+![AI Chatbot Assistant](docs/screenshots/AI_Assistant.png)
 
 ---
 
@@ -547,33 +513,43 @@ Full list of service requests the community member has submitted.
 
 ##### Provider Dashboard
 Organisation command centre with statistics, SLA indicators, and recent activity.
-![Provider Dashboard](docs/screenshots/Water_provider_portal.png)
+![Provider Dashboard](docs/screenshots/Provider_Dashboard.png)
 
 ---
 
 ##### Reports Inbox
 Paginated queue of all incoming reports assigned to the provider, with status filters and urgency indicators.
-![Reports Inbox](docs/screenshots/Reports_inbox.png)
+![Reports Inbox](docs/screenshots/Provider_dashboard_2.png)
 
 ---
 
-##### Availability Management
-Set working days, working hours, maximum daily appointments, and blackout dates.
-![My Availability](docs/screenshots/My_availability.png)
+#### Mobile & Cross-Device Views
+
+##### Mobile View — iPhone
+
+The dashboard adapts fully to phone screen sizes with a slide-in navigation drawer and full feature access.
+![Mobile iPhone View](docs/screenshots/Phone_view.png)
 
 ---
 
-#### Admin & Shared
+##### Mobile View — Samsung
 
-##### Alerts & Announcements
-Platform-wide alerts, notices, and announcements visible to all users.
-![Alerts Announcements](docs/screenshots/Alerts_Announcements.png)
+All features remain fully accessible on Android devices across different screen sizes.
+![Mobile Samsung View](docs/screenshots/Samsung_view.png)
 
 ---
 
-##### Publish Announcement
-Admin and provider form to draft and publish announcements to the platform.
-![Announcements Publishing](docs/screenshots/Announcements_publishing.png)
+##### Cross-Browser Testing
+
+Sign-in and dashboard functionality tested across Chrome, Firefox, and Edge — consistent behaviour on every browser.
+![Cross-Browser Testing](docs/screenshots/Different_Browser.png)
+
+---
+
+##### Provider — Receiving a Request
+
+Provider dashboard view when a new community report arrives, showing priority badge and action controls.
+![Provider Receiving Request](docs/screenshots/Provider_receiving_request.png)
 
 ---
 
@@ -896,7 +872,7 @@ RATE_LIMIT_AUTH_PER_MINUTE=10
 
 ## 12. Deployment Plan
 
-Temba Digital Bridge is deployed as two separate parts: the **frontend** on Vercel and the **backend** on Render.
+Temba Digital Bridge is deployed as two separate parts: the **frontend** on Vercel and the **backend** on Railway.
 
 ---
 
@@ -928,32 +904,53 @@ The live frontend URL is: **`https://temba-digital-bridge-ussd-web-app-p.vercel.
 
 ---
 
-### 12.2 Backend — Render
+### 12.2 Backend — Railway
 
-The backend is deployed via a Render Blueprint (`render.yaml` at the repo root), which provisions the API, PostgreSQL database, and Redis in one step.
+The backend is deployed on Railway using the `Dockerfile` inside `temba-backend/`. Railway auto-detects `railway.json` and builds the container image on every push to `main`.
 
-#### Step 1 — Sign up at Render
+#### Step 1 — Sign up at Railway
 
-Go to [render.com](https://render.com) and sign up with GitHub.
+Go to [railway.app](https://railway.app) and sign up with GitHub.
 
-#### Step 2 — Deploy the Blueprint
+#### Step 2 — Create a new project
 
-1. Click **New → Blueprint**
-2. Connect your `Temba-Digital-Bridge-USSD-Web-app-platform` repository
-3. Render detects `render.yaml` at the repo root automatically
-4. Fill in the secret environment variables when prompted:
-   - `AT_API_KEY` — your Africa's Talking sandbox API key
-   - `SMTP_USER` — Gmail address for transactional emails
-   - `SMTP_PASSWORD` — Gmail App Password (16-character code from Google Account → Security → App Passwords)
-   - `EMAILS_FROM_EMAIL` — same Gmail address
-   - `FIRST_ADMIN_PASSWORD` — initial password for `admin@temba.rw`
-5. Click **Apply**
+1. Click **New Project → Deploy from GitHub repo**
+2. Select your `Temba-Digital-Bridge-USSD-Web-app-platform` repository
+3. In **Root Directory** set: `temba-backend`
+4. Railway detects `railway.json` and uses the Dockerfile builder automatically
 
-Render creates: the `temba-api` web service, `temba-db` PostgreSQL database, and `temba-redis` Redis instance. On first deploy, `alembic upgrade head` runs automatically before Uvicorn starts.
+#### Step 3 — Add a PostgreSQL database
 
-#### Step 3 — Run the seed script once (if providers are missing)
+In the Railway project dashboard:
 
-In Render → `temba-api` service → **Shell** tab:
+1. Click **New → Database → Add PostgreSQL**
+2. Railway provisions the database and automatically injects `DATABASE_URL` into your service environment
+
+#### Step 4 — Add a Redis instance
+
+1. Click **New → Database → Add Redis**
+2. Railway injects `REDIS_URL` automatically
+
+#### Step 5 — Set environment variables
+
+In the Railway service → **Variables** tab, add:
+
+| Variable | Value |
+| --- | --- |
+| `AT_API_KEY` | Your Africa's Talking sandbox API key |
+| `SMTP_USER` | Gmail address for transactional emails |
+| `SMTP_PASSWORD` | Gmail App Password (16-character code from Google Account → Security → App Passwords) |
+| `EMAILS_FROM_EMAIL` | Same Gmail address |
+| `SECRET_KEY` | A 64-character random string |
+| `FIRST_ADMIN_PASSWORD` | Initial password for `admin@temba.rw` |
+
+#### Step 6 — Deploy
+
+Click **Deploy**. On startup, the container runs `alembic upgrade head` then starts Uvicorn on the `PORT` Railway provides. Check the deploy logs to confirm a successful start.
+
+#### Step 7 — Run the seed script once (if providers are missing)
+
+In Railway → service → **Shell** tab:
 
 ```bash
 python seed_providers.py
@@ -965,7 +962,7 @@ python seed_providers.py
 
 Register the live backend URL in the Africa's Talking dashboard under your USSD service callback:
 
-- **USSD Callback URL**: `https://temba-api.onrender.com/api/v1/ussd/callback`
+- **USSD Callback URL**: `https://temba-api-production.up.railway.app/api/v1/ussd/callback`
 
 ---
 
@@ -974,11 +971,11 @@ Register the live backend URL in the Africa's Talking dashboard under your USSD 
 | Service | Platform | URL |
 | --- | --- | --- |
 | Frontend | Vercel | `https://temba-digital-bridge-ussd-web-app-p.vercel.app` |
-| Backend API | Render | `https://temba-api.onrender.com` |
-| API Docs (Swagger) | Render | `https://temba-api.onrender.com/docs` |
+| Backend API | Railway | `https://temba-api-production.up.railway.app` |
+| API Docs (Swagger) | Railway | `https://temba-api-production.up.railway.app/docs` |
 | USSD Channel | Africa's Talking | `*384*36640#` |
-| Database | Render (PostgreSQL 16) | internal |
-| Cache / Queue | Render (Redis 7) | internal |
+| Database | Railway (PostgreSQL 16) | internal |
+| Cache / Queue | Railway (Redis 7) | internal |
 
 ---
 
@@ -987,8 +984,8 @@ Register the live backend URL in the Africa's Talking dashboard under your USSD 
 The full interactive API documentation is auto-generated by FastAPI:
 
 ```text
-http://localhost:8000/docs                   (local)
-https://temba-api.onrender.com/docs          (production)
+http://localhost:8000/docs                                    (local)
+https://temba-api-production.up.railway.app/docs              (production)
 ```
 
 ### Key Endpoints
