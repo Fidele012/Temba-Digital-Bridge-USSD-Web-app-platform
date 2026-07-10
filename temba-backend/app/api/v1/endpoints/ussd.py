@@ -8,16 +8,16 @@ USSD navigation encoding:
   parts[1] = auth route       (1=Register, 2=Login, 0=Exit)
 
 ── REGISTER FLOW (route == "1") ──────────────────────────────────────────────
-  parts[2]  = full name
-  parts[3]  = province (1-5)
-  parts[4]  = district (1-N)
-  parts[5]  = sector   (text, "0" to skip)
-  parts[6]  = cell     (text, "0" to skip)
-  parts[7]  = village  (text, "0" to skip)
-  parts[8]  = SMS phone number ("0" = use calling number)
-  parts[9]  = create 4-digit PIN
-  parts[10] = confirm PIN
-  → Account created; dial again to use services.
+  parts[2]    = full name
+  parts[3]    = province choice (1-5)
+  parts[4]    = district choice (1-N)
+  parts[5..x] = sector  (paginated numbered menu; "9" advances page, "0" goes back)
+  parts[x..y] = cell    (paginated numbered menu)
+  parts[y..z] = village (paginated numbered menu)
+  parts[z]    = create 4-digit PIN
+  parts[z+1]  = confirm PIN
+  → Phone number is captured automatically from the calling number (not typed).
+  → Account created with province/district/sector/cell/village all stored.
 
 ── LOGIN FLOW (route == "2") ─────────────────────────────────────────────────
   parts[2] = 4-digit USSD PIN
@@ -1410,6 +1410,16 @@ def _cell_menu(district_name: str, sector_name: str, lang: str, page: int) -> st
     return hdr + lines + more + "\n" + _back(lang)
 
 
+def _village_menu(district_name: str, sector_name: str, cell_name: str, lang: str, page: int) -> str:
+    villages = _villages_for(district_name, sector_name, cell_name)
+    start = page * _SIGNUP_PER_PAGE
+    chunk = villages[start: start + _SIGNUP_PER_PAGE]
+    hdr = "CON Select your village:\n" if lang == "en" else "CON Hitamo umudugudu wawe:\n"
+    lines = "\n".join(f"{i + 1}. {v}" for i, v in enumerate(chunk))
+    more = ("\n9. More >>" if lang == "en" else "\n9. Undi mwanya >>") if (start + _SIGNUP_PER_PAGE) < len(villages) else ""
+    return hdr + lines + more + "\n" + _back(lang)
+
+
 async def _fetch_providers(db: AsyncSession) -> list[Provider]:
     result = await db.execute(
         select(Provider)
@@ -1633,17 +1643,25 @@ async def _signup_flow(
     if cell_name == "BACK":
         return _sector_menu(district_name, lang, sec_page)
 
-    # Step 6: create 4-digit PIN
-    if len(parts) <= cell_next:
+    # Step 6: village (paginated — starts right after the cell selection)
+    villages = _villages_for(district_name, sector_name, cell_name)
+    village_name, vil_page, vil_next = _paged_selection(parts, cell_next, villages)
+    if village_name is None:
+        return _village_menu(district_name, sector_name, cell_name, lang, vil_page)
+    if village_name == "BACK":
+        return _cell_menu(district_name, sector_name, lang, cell_page)
+
+    # Step 7: create 4-digit PIN
+    if len(parts) <= vil_next:
         return _t("create_pin", lang)
-    pin = parts[cell_next]
+    pin = parts[vil_next]
     if len(pin) != 4 or not pin.isdigit():
         return _t("pin_invalid", lang)
 
-    # Step 7: confirm PIN
-    if len(parts) <= cell_next + 1:
+    # Step 8: confirm PIN
+    if len(parts) <= vil_next + 1:
         return _t("confirm_pin", lang)
-    confirm = parts[cell_next + 1]
+    confirm = parts[vil_next + 1]
     if pin != confirm:
         return _t("pin_mismatch", lang)
 
@@ -1669,9 +1687,10 @@ async def _signup_flow(
         existing.district = district_name
         existing.sector = sector_name
         existing.cell = cell_name
+        existing.village = village_name
         await db.flush()
         log.info("ussd_user_updated", phone=phoneNumber, name=name,
-                 sector=sector_name, cell=cell_name)
+                 sector=sector_name, cell=cell_name, village=village_name)
         return _t("account_created", lang)
 
     # Phone UNIQUE constraint: if a web user already holds this number, leave
@@ -1694,6 +1713,7 @@ async def _signup_flow(
         district=district_name,
         sector=sector_name,
         cell=cell_name,
+        village=village_name,
         ussd_pin_hash=hash_password(pin),
     )
     db.add(new_user)

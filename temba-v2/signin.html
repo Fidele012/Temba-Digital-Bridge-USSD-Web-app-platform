@@ -270,6 +270,7 @@ async function handleSignin(e) {
       district:       me.district               || null,
       sector:         me.sector                 || null,
       cell:           me.cell                   || null,
+      village:        me.village                || null,
       is_ussd_profile: me.is_ussd_profile       || false,
       has_ussd_pin:   me.has_ussd_pin           || true,
     }));
@@ -449,6 +450,7 @@ async function handleSignin(e) {
     district:        me.district    || null,
     sector:          me.sector      || null,
     cell:            me.cell        || null,
+    village:         me.village     || null,
     is_ussd_profile: me.is_ussd_profile || false,
     has_ussd_pin:    me.has_ussd_pin    || false,
   }));
