@@ -433,12 +433,16 @@
             <!-- STEP 2 — Location (auto-filled from session) -->
             <div class="form-step" id="rStep2">
               <div class="step-section"><i class="ti ti-map-pin" aria-hidden="true"></i> Location of the Problem</div>
+
+              <!-- Province -->
               <div class="field">
                 <label class="field-label">Province <span class="req">*</span></label>
                 <div class="field-wrap sel-wrap"><i class="ti ti-map field-icon" aria-hidden="true"></i>
                   <select id="rProvince" onchange="rCascadeDistrict()"><option value="" disabled selected>Select province</option></select>
                   <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
               </div>
+
+              <!-- District + Sector -->
               <div class="field-row">
                 <div class="field">
                   <label class="field-label">District <span class="req">*</span></label>
@@ -449,16 +453,35 @@
                 <div class="field">
                   <label class="field-label">Sector <span class="req">*</span></label>
                   <div class="field-wrap sel-wrap"><i class="ti ti-location field-icon" aria-hidden="true"></i>
-                    <select id="rSector" disabled><option value="" disabled selected>Select district first</option></select>
+                    <select id="rSector" disabled onchange="rCascadeCell()"><option value="" disabled selected>Select district first</option></select>
                     <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
                 </div>
               </div>
+
+              <!-- Cell + Village -->
+              <div class="field-row">
+                <div class="field">
+                  <label class="field-label">Cell <span class="opt">Optional</span></label>
+                  <div class="field-wrap sel-wrap"><i class="ti ti-home field-icon" aria-hidden="true"></i>
+                    <select id="rCell" disabled onchange="rCascadeVillage()"><option value="" disabled selected>Select sector first</option></select>
+                    <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+                </div>
+                <div class="field">
+                  <label class="field-label">Village <span class="opt">Optional</span></label>
+                  <div class="field-wrap sel-wrap"><i class="ti ti-building-community field-icon" aria-hidden="true"></i>
+                    <select id="rVillage" disabled><option value="" disabled selected>Select cell first</option></select>
+                    <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+                </div>
+              </div>
+
+              <!-- Nearest Landmark -->
               <div class="field">
                 <label class="field-label">Nearest Landmark <span class="opt">Optional</span></label>
                 <div class="field-wrap"><i class="ti ti-signs-right field-icon" aria-hidden="true"></i>
                   <input type="text" id="rLandmark" placeholder="e.g. Near Kimironko market"/></div>
                 <div class="field-hint">The more specific, the faster providers can locate the issue.</div>
               </div>
+
               <div class="btn-row">
                 <button class="btn-secondary" onclick="rGoTo(2,1)"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
                 <button class="btn-primary" style="flex:1;margin-top:0;" onclick="rGoTo(2,3)">Continue <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
@@ -3382,6 +3405,11 @@ function resetReportForm() {
   /* Reset fields */
   ['rDesc','rNotes','rOtherIssueText','rLandmark'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const hh = document.getElementById('rHouseholds'); if (hh) hh.selectedIndex = 0;
+  /* Reset location selects */
+  ['rCell','rVillage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.innerHTML = `<option value="" disabled selected>${id==='rCell'?'Select sector first':'Select cell first'}</option>`; el.disabled = true; }
+  });
   /* Reset evidence */
   const prev = document.getElementById('rEvPreviews'); if (prev) prev.innerHTML = '';
   const cnt = document.getElementById('rEvCount'); if (cnt) cnt.style.display = 'none';
@@ -3406,7 +3434,17 @@ function initReportPanel() {
         dv.value = s.district;
         rCascadeSector();
         const sv = document.getElementById('rSector');
-        if (sv && s.sector) sv.value = s.sector;
+        if (sv && s.sector) {
+          sv.value = s.sector;
+          rCascadeCell();
+          const cv = document.getElementById('rCell');
+          if (cv && s.cell) {
+            cv.value = s.cell;
+            rCascadeVillage();
+            const vv = document.getElementById('rVillage');
+            if (vv && s.village) vv.value = s.village;
+          }
+        }
       }
     }
   }
@@ -3503,23 +3541,63 @@ async function loadReportProvidersD() {
 
 /* Location cascade */
 function rCascadeDistrict() {
-  const prov=document.getElementById('rProvince').value;
-  const d=document.getElementById('rDistrict');
-  d.innerHTML='<option value="" disabled selected>Select district</option>';
-  d.disabled=false;
-  document.getElementById('rSector').innerHTML='<option value="" disabled selected>Select district first</option>';
-  document.getElementById('rSector').disabled=true;
-  if (typeof RWANDA!=='undefined' && RWANDA[prov]) Object.keys(RWANDA[prov]).sort().forEach(k=>d.appendChild(new Option(k,k)));
-  rState.location='';
+  const prov = document.getElementById('rProvince').value;
+  const d = document.getElementById('rDistrict');
+  d.innerHTML = '<option value="" disabled selected>Select district</option>';
+  d.disabled = false;
+  ['rSector','rCell','rVillage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<option value="" disabled selected>${id==='rSector'?'Select district first':id==='rCell'?'Select sector first':'Select cell first'}</option>`;
+    el.disabled = true;
+  });
+  if (typeof RWANDA !== 'undefined' && RWANDA[prov]) Object.keys(RWANDA[prov]).sort().forEach(k => d.appendChild(new Option(k, k)));
+  rState.location = '';
 }
+
 function rCascadeSector() {
-  const prov=document.getElementById('rProvince').value;
-  const dist=document.getElementById('rDistrict').value;
-  const s=document.getElementById('rSector');
-  s.innerHTML='<option value="" disabled selected>Select sector</option>';
-  s.disabled=false;
-  if (typeof RWANDA!=='undefined' && RWANDA[prov]&&RWANDA[prov][dist]) Object.keys(RWANDA[prov][dist]).sort().forEach(k=>s.appendChild(new Option(k,k)));
-  rState.location=[dist,prov].filter(Boolean).join(' → ');
+  const prov = document.getElementById('rProvince').value;
+  const dist = document.getElementById('rDistrict').value;
+  const s = document.getElementById('rSector');
+  s.innerHTML = '<option value="" disabled selected>Select sector</option>';
+  s.disabled = false;
+  ['rCell','rVillage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<option value="" disabled selected>${id==='rCell'?'Select sector first':'Select cell first'}</option>`;
+    el.disabled = true;
+  });
+  if (typeof RWANDA !== 'undefined' && RWANDA[prov] && RWANDA[prov][dist])
+    Object.keys(RWANDA[prov][dist]).sort().forEach(k => s.appendChild(new Option(k, k)));
+  rState.location = [dist, prov].filter(Boolean).join(' → ');
+}
+
+function rCascadeCell() {
+  const prov = document.getElementById('rProvince').value;
+  const dist = document.getElementById('rDistrict').value;
+  const sect = document.getElementById('rSector').value;
+  const c = document.getElementById('rCell');
+  c.innerHTML = '<option value="" disabled selected>Select cell</option>';
+  c.disabled = false;
+  const vEl = document.getElementById('rVillage');
+  vEl.innerHTML = '<option value="" disabled selected>Select cell first</option>';
+  vEl.disabled = true;
+  const cells = typeof RWANDA !== 'undefined' && RWANDA[prov]?.[dist]?.[sect];
+  if (cells) Object.keys(cells).sort().forEach(k => c.appendChild(new Option(k, k)));
+  rState.location = [sect, dist, prov].filter(Boolean).join(' → ');
+}
+
+function rCascadeVillage() {
+  const prov = document.getElementById('rProvince').value;
+  const dist = document.getElementById('rDistrict').value;
+  const sect = document.getElementById('rSector').value;
+  const cell = document.getElementById('rCell').value;
+  const v = document.getElementById('rVillage');
+  v.innerHTML = '<option value="" disabled selected>Select village</option>';
+  v.disabled = false;
+  const villages = typeof RWANDA !== 'undefined' && RWANDA[prov]?.[dist]?.[sect]?.[cell];
+  if (Array.isArray(villages)) villages.sort().forEach(k => v.appendChild(new Option(k, k)));
+  rState.location = [cell, sect, dist, prov].filter(Boolean).join(' → ');
 }
 
 /* Summary */
@@ -3584,6 +3662,8 @@ async function submitReportDash() {
   const province = document.getElementById('rProvince')?.value||null;
   const district = document.getElementById('rDistrict')?.value||null;
   const sector   = document.getElementById('rSector')?.value||null;
+  const cell     = document.getElementById('rCell')?.value||null;
+  const village  = document.getElementById('rVillage')?.value||null;
   const landmark = (document.getElementById('rLandmark')?.value||'').trim();
   const phone    = (document.getElementById('rPhone')?.value||'').trim();
   const phCode   = document.getElementById('rPhoneCode')?.value||'+250';
@@ -3605,8 +3685,7 @@ async function submitReportDash() {
     title:    `${finalLabel}${district?' in '+district:''}${province?', '+province:''}`,
     description: finalDesc,
     provider_id: rState.providerId||null,
-    province, district, sector,
-    cell: null, village: null,
+    province, district, sector, cell, village,
   };
   if (phone) body.contact_phone = phCode + phone.replace(/\s/g,'');
 
