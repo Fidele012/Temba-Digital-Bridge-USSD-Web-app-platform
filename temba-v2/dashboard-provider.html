@@ -181,15 +181,19 @@
     <div class="dash-panel" id="panel-appointments">
       <div class="dash-header"><div><h1 data-i18n="dash_appointments">Appointments</h1><p data-i18n="prov_appt_subtitle">Review, approve, reschedule, and manage community appointment requests.</p></div></div>
       <!-- USSD tracking code lookup -->
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:10px 14px;">
-        <i class="ti ti-device-mobile" style="color:#7C3AED;font-size:18px;flex-shrink:0;"></i>
-        <span style="font-size:13px;font-weight:600;color:#5B21B6;flex-shrink:0;">USSD Lookup:</span>
-        <input id="apptTrackInput" type="text" maxlength="10" placeholder="Enter tracking code e.g. E2430026"
-          style="flex:1;border:1px solid #DDD6FE;border-radius:7px;padding:7px 12px;font-size:13px;outline:none;background:#fff;"
-          onkeydown="if(event.key==='Enter')lookupUssdAppt()">
-        <button onclick="lookupUssdAppt()" style="background:#7C3AED;color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;">
-          <i class="ti ti-search"></i> Find
-        </button>
+      <div class="ussd-lookup-row">
+        <div class="ussd-lookup-label">
+          <i class="ti ti-device-mobile" style="color:#7C3AED;font-size:18px;flex-shrink:0;"></i>
+          <span style="font-size:13px;font-weight:600;color:#5B21B6;white-space:nowrap;">USSD Lookup</span>
+        </div>
+        <div class="ussd-lookup-inputs">
+          <input id="apptTrackInput" type="text" maxlength="10" placeholder="Enter tracking code e.g. E2430026"
+            style="flex:1;min-width:0;border:1px solid #DDD6FE;border-radius:7px;padding:7px 12px;font-size:13px;outline:none;background:#fff;"
+            onkeydown="if(event.key==='Enter')lookupUssdAppt()">
+          <button onclick="lookupUssdAppt()" style="background:#7C3AED;color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+            <i class="ti ti-search"></i> Find
+          </button>
+        </div>
       </div>
       <div id="apptTrackResult" style="display:none;margin-bottom:12px;"></div>
       <div class="filter-bar">
@@ -328,9 +332,10 @@
       <!-- Add staff form -->
       <div class="card" style="margin-bottom:1.5rem;">
         <div style="font-weight:700;font-size:15px;color:var(--navy);margin-bottom:1rem;"><i class="ti ti-user-plus" style="margin-right:6px;color:var(--blue);"></i><span data-i18n="prov_add_staff">Add Staff Member</span></div>
-        <div style="display:grid;grid-template-columns:1fr 180px auto;gap:10px;align-items:end;">
+        <div class="add-staff-grid">
           <div class="field" style="margin:0;">
-            <label class="field-label" data-i18n="prov_staff_email_lbl">Email (must have a provider-role Temba account)</label>
+            <label class="field-label" data-i18n="prov_staff_email_lbl">Staff Email</label>
+            <div style="font-size:11.5px;color:var(--gray-400);margin-bottom:5px;" data-i18n="prov_staff_email_hint">Must have a provider-role Temba account</div>
             <div class="field-wrap">
               <i class="ti ti-mail field-icon"></i>
               <input type="email" id="staffEmail" placeholder="colleague@example.com" />
@@ -344,8 +349,8 @@
               <option value="executive" data-i18n="prov_role_executive">Executive</option>
             </select>
           </div>
-          <button class="btn-primary" style="height:42px;white-space:nowrap;" onclick="addStaffMember()">
-            <i class="ti ti-plus"></i> <span data-i18n="prov_add_btn">Add</span>
+          <button class="btn-primary add-staff-btn" onclick="addStaffMember()">
+            <i class="ti ti-plus"></i> <span data-i18n="prov_add_btn">Add Staff Member</span>
           </button>
         </div>
         <div id="staffAddError" style="display:none;margin-top:10px;font-size:13px;color:var(--red);padding:8px 12px;background:var(--red-light);border-radius:8px;"></div>
