@@ -38,18 +38,21 @@
     </div>
 
     <!-- Login method selector (community only) -->
+    <p id="loginMethodLabel" style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6B7A90;text-align:center;margin-bottom:9px;" data-i18n="login_how">How would you like to sign in?</p>
     <div id="communityAuthToggle" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.4rem;">
       <button type="button" id="authTabEmail" onclick="setAuthMethod('email')"
-        style="padding:14px 10px;border:2.5px solid var(--blue);border-radius:12px;font-family:var(--font);font-size:12.5px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#EEF5FF;color:var(--navy);box-shadow:0 2px 8px rgba(0,0,0,0.10);transition:all .15s;line-height:1.3;text-align:center;">
-        <i class="ti ti-mail" style="font-size:22px;color:var(--blue);" aria-hidden="true"></i>
-        <span>Email &amp; Password</span>
-        <span style="font-size:10.5px;font-weight:500;color:#5a7a9a;">Web-registered users</span>
+        style="padding:16px 10px;border:2.5px solid var(--blue);border-radius:14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:#EEF5FF;color:var(--navy);box-shadow:0 3px 10px rgba(0,112,243,0.15);transition:all .18s;line-height:1.3;text-align:center;position:relative;">
+        <span style="position:absolute;top:7px;right:9px;width:16px;height:16px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;" id="emailActiveCheck"><i class="ti ti-check" style="font-size:10px;color:#fff;"></i></span>
+        <i class="ti ti-mail" style="font-size:26px;color:var(--blue);" aria-hidden="true"></i>
+        <span data-i18n="login_email_title">Email &amp; Password</span>
+        <span style="font-size:10.5px;font-weight:500;color:#5a7a9a;" data-i18n="login_email_sub">Web-registered users</span>
       </button>
       <button type="button" id="authTabPin" onclick="setAuthMethod('pin')"
-        style="padding:14px 10px;border:2.5px solid #CBD5E1;border-radius:12px;font-family:var(--font);font-size:12.5px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#F8FAFC;color:#374151;transition:all .15s;line-height:1.3;text-align:center;">
-        <i class="ti ti-device-mobile" style="font-size:22px;color:#0F9D58;" aria-hidden="true"></i>
-        <span>Phone + PIN</span>
-        <span style="font-size:10.5px;font-weight:500;color:#5a7a9a;">USSD-registered users</span>
+        style="padding:16px 10px;border:2.5px solid #CBD5E1;border-radius:14px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:#F8FAFC;color:#374151;transition:all .18s;line-height:1.3;text-align:center;position:relative;">
+        <span style="position:absolute;top:7px;right:9px;width:16px;height:16px;border-radius:50%;background:#CBD5E1;display:flex;align-items:center;justify-content:center;" id="pinActiveCheck"><i class="ti ti-check" style="font-size:10px;color:#fff;"></i></span>
+        <i class="ti ti-device-mobile-star" style="font-size:26px;color:#0F9D58;" aria-hidden="true"></i>
+        <span data-i18n="login_pin_title">Phone + PIN</span>
+        <span style="font-size:10.5px;font-weight:500;color:#5a7a9a;" data-i18n="login_pin_sub">USSD-registered users</span>
       </button>
     </div>
 
@@ -83,21 +86,21 @@
       <!-- Phone + PIN fields (USSD users logging into web) -->
       <div id="pinFormGroup" style="display:none;">
         <div style="background:#EDF7F0;border:1.5px solid #A7D7B8;border-radius:10px;padding:12px 14px;font-size:13px;color:#1A3A2A;margin-bottom:1rem;line-height:1.6;">
-          <div style="font-weight:700;margin-bottom:4px;color:#0F6B3A;"><i class="ti ti-device-mobile" style="vertical-align:-2px;" aria-hidden="true"></i> USSD Account Login</div>
-          Enter the phone number shown during USSD registration and the 4-digit PIN you created via <strong>*XXX#</strong>. Use the full number with country code (e.g. <strong>+250788123456</strong>).
+          <div style="font-weight:700;margin-bottom:4px;color:#0F6B3A;"><i class="ti ti-device-mobile-star" style="vertical-align:-2px;" aria-hidden="true"></i> <span data-i18n="ussd_login_banner_title">USSD Account Login</span></div>
+          <span data-i18n="ussd_login_banner_body">Enter the phone number shown during USSD registration and the 4-digit PIN you created via <strong>*XXX#</strong>. Use the full number with country code (e.g. <strong>+250788123456</strong>).</span>
         </div>
         <div class="field">
-          <label class="field-label">Phone Number <span class="req">*</span></label>
+          <label class="field-label"><span data-i18n="lbl_phone_number">Phone Number</span> <span class="req">*</span></label>
           <div class="field-wrap">
             <i class="ti ti-phone field-icon" aria-hidden="true"></i>
-            <input type="tel" id="siPhone" placeholder="e.g. 0788 123 456" autocomplete="tel" inputmode="tel" />
+            <input type="tel" id="siPhone" placeholder="+250788123456" autocomplete="tel" inputmode="tel" />
           </div>
         </div>
         <div class="field">
-          <label class="field-label">4-Digit PIN <span class="req">*</span></label>
+          <label class="field-label"><span data-i18n="lbl_pin_4digit">4-Digit PIN</span> <span class="req">*</span></label>
           <div class="field-wrap">
             <i class="ti ti-lock field-icon" aria-hidden="true"></i>
-            <input type="password" id="siPin" placeholder="Enter your 4-digit PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" />
+            <input type="password" id="siPin" data-i18n-placeholder="ph_pin_enter" placeholder="Enter your 4-digit PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" />
             <button type="button" class="eye-btn" onclick="togglePw('siPin',this)">
               <i class="ti ti-eye" aria-hidden="true"></i>
             </button>
@@ -125,7 +128,7 @@
     <!-- Google Sign-In -->
     <div style="display:flex;align-items:center;gap:12px;margin:1.5rem 0 1rem;color:rgba(255,255,255,0.3);font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;">
       <div style="flex:1;height:1px;background:rgba(255,255,255,0.12);"></div>
-      <span>or continue with</span>
+      <span data-i18n="si_or_continue">or continue with</span>
       <div style="flex:1;height:1px;background:rgba(255,255,255,0.12);"></div>
     </div>
     <div id="googleBtnContainer" style="display:flex;justify-content:center;min-height:44px;"></div>
@@ -171,7 +174,9 @@ function setRole(role) {
   document.getElementById('tabC').classList.toggle('active', role === 'community');
   document.getElementById('tabP').classList.toggle('active', role === 'provider');
   const toggle = document.getElementById('communityAuthToggle');
-  if (toggle) toggle.style.display = role === 'provider' ? 'none' : 'flex';
+  const methodLabel = document.getElementById('loginMethodLabel');
+  if (toggle) toggle.style.display = role === 'provider' ? 'none' : 'grid';
+  if (methodLabel) methodLabel.style.display = role === 'provider' ? 'none' : '';
   if (role === 'provider') {
     setAuthMethod('email');
   }
@@ -194,14 +199,18 @@ function setAuthMethod(method) {
     tabEmail.style.background  = isPin ? '#F8FAFC' : '#EEF5FF';
     tabEmail.style.color       = isPin ? '#374151' : 'var(--navy)';
     tabEmail.style.border      = isPin ? '2.5px solid #CBD5E1' : '2.5px solid var(--blue)';
-    tabEmail.style.boxShadow   = isPin ? 'none' : '0 2px 8px rgba(0,0,0,0.10)';
+    tabEmail.style.boxShadow   = isPin ? 'none' : '0 3px 10px rgba(0,112,243,0.15)';
   }
   if (tabPin) {
     tabPin.style.background  = isPin ? '#EDFAF3' : '#F8FAFC';
     tabPin.style.color       = isPin ? 'var(--navy)' : '#374151';
     tabPin.style.border      = isPin ? '2.5px solid #0F9D58' : '2.5px solid #CBD5E1';
-    tabPin.style.boxShadow   = isPin ? '0 2px 8px rgba(0,0,0,0.10)' : 'none';
+    tabPin.style.boxShadow   = isPin ? '0 3px 10px rgba(15,157,88,0.15)' : 'none';
   }
+  const emailCheck = document.getElementById('emailActiveCheck');
+  const pinCheck   = document.getElementById('pinActiveCheck');
+  if (emailCheck) emailCheck.style.background = isPin ? '#CBD5E1' : 'var(--blue)';
+  if (pinCheck)   pinCheck.style.background   = isPin ? '#0F9D58' : '#CBD5E1';
 }
 
 function _siError(msg) {
