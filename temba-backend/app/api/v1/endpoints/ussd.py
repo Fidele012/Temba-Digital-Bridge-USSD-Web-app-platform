@@ -1052,14 +1052,14 @@ _T: dict[str, dict[str, str]] = {
             "1. High - health risk\n"
             "2. Medium - significant impact\n"
             "3. Low - minor issue\n"
-            "0. Back"
+            "0. Main Menu"
         ),
         "rw": (
             "CON Byihutirwa kangahe?\n"
             "1. Byihutirwa cyane - akaga\n"
             "2. Hagati - ingaruka nini\n"
             "3. Bike - ikibazo gito\n"
-            "0. Subira"
+            "0. Menu Nyamukuru"
         ),
     },
     "report_confirm": {
@@ -1107,7 +1107,7 @@ _T: dict[str, dict[str, str]] = {
             "5. Inspection\n"
             "6. Billing\n"
             "7. Other\n"
-            "0. Back"
+            "0. Main Menu"
         ),
         "rw": (
             "CON Impamvu ya randevu:\n"
@@ -1118,7 +1118,7 @@ _T: dict[str, dict[str, str]] = {
             "5. Kugenzura\n"
             "6. Akamaro\n"
             "7. Ibindi\n"
-            "0. Subira"
+            "0. Menu Nyamukuru"
         ),
     },
     "appt_date_hdr": {
@@ -1133,7 +1133,7 @@ _T: dict[str, dict[str, str]] = {
             "3. 12:00 - 13:00\n"
             "4. 14:00 - 15:00\n"
             "5. 16:00 - 17:00\n"
-            "0. Back"
+            "0. Main Menu"
         ),
         "rw": (
             "CON Hitamo igihe:\n"
@@ -1142,7 +1142,7 @@ _T: dict[str, dict[str, str]] = {
             "3. 12:00 - 13:00\n"
             "4. 14:00 - 15:00\n"
             "5. 16:00 - 17:00\n"
-            "0. Subira"
+            "0. Menu Nyamukuru"
         ),
     },
     "appt_confirm": {
@@ -1194,14 +1194,14 @@ _T: dict[str, dict[str, str]] = {
             "1. High - urgent\n"
             "2. Medium\n"
             "3. Low\n"
-            "0. Back"
+            "0. Main Menu"
         ),
         "rw": (
             "CON Urwego rwo kubyihutira:\n"
             "1. Byihutirwa\n"
             "2. Hagati\n"
             "3. Bike\n"
-            "0. Subira"
+            "0. Menu Nyamukuru"
         ),
     },
     "svc_confirm": {
@@ -1338,13 +1338,17 @@ def _back(lang: str) -> str:
     return "0. Back" if lang == "en" else "0. Subira"
 
 
+def _back_main(lang: str) -> str:
+    return "0. Main Menu" if lang == "en" else "0. Menu Nyamukuru"
+
+
 def _date_menu(lang: str) -> str:
     header = _t("appt_date_hdr", lang)
     lines = []
     for i in range(1, 5):
         d = date.today() + timedelta(days=i)
         lines.append(f"{i}. {d.strftime('%a %d %b')}")
-    return header + "\n".join(lines) + "\n" + _back(lang)
+    return header + "\n".join(lines) + "\n" + _back_main(lang)
 
 
 def _date_from_idx(choice: str) -> date:
@@ -1377,7 +1381,7 @@ def _paged_selection(
             page += 1
             idx += 1
         elif val == "0":
-            return "BACK", page, idx
+            return "BACK", page, idx + 1  # consume the "0" so caller reads past it
         else:
             try:
                 offset = page * _SIGNUP_PER_PAGE + int(val) - 1
@@ -1434,7 +1438,7 @@ def _provider_menu(providers: list[Provider], lang: str) -> str:
         return _t("no_providers", lang)
     header = _t("appt_provider_hdr", lang)
     lines = "\n".join(f"{i + 1}. {p.organization_name}" for i, p in enumerate(providers))
-    return header + lines + "\n" + _back(lang)
+    return header + lines + "\n" + _back_main(lang)
 
 
 def _pick_provider(providers: list[Provider], idx_str: str) -> Provider | None:
@@ -1631,41 +1635,82 @@ async def _signup_flow(
         return _district_menu(prov_choice, lang)
     district_name = districts[dist_idx]
 
-    # Step 4: sector (paginated — starts at parts[5])
+    # Steps 4/5/6: sector → cell → village (paginated, Back-aware)
+    # Because USSD accumulates all inputs in one string, a Back press appends "0"
+    # and the user's next choice follows immediately in the stream. We walk the
+    # parts linearly: after each BACK the relevant start index advances past the
+    # consumed "0" so the next _paged_selection picks up the re-selection.
     sectors = _sectors_for(district_name)
-    sector_name, sec_page, sec_next = _paged_selection(parts, 5, sectors)
-    if sector_name is None:
-        return _sector_menu(district_name, lang, sec_page)
-    if sector_name == "BACK":
-        return _district_menu(prov_choice, lang)
+    sec_start = 5
+    pin_start: int | None = None  # set once village is resolved
 
-    # Step 5: cell (paginated — starts right after the sector selection)
-    cells = _cells_for(district_name, sector_name)
-    cell_name, cell_page, cell_next = _paged_selection(parts, sec_next, cells)
-    if cell_name is None:
-        return _cell_menu(district_name, sector_name, lang, cell_page)
-    if cell_name == "BACK":
-        return _sector_menu(district_name, lang, sec_page)
+    while pin_start is None:
+        sector_name, sec_page, sec_next = _paged_selection(parts, sec_start, sectors)
+        if sector_name is None:
+            return _sector_menu(district_name, lang, sec_page)
 
-    # Step 6: village (paginated — starts right after the cell selection)
-    villages = _villages_for(district_name, sector_name, cell_name)
-    village_name, vil_page, vil_next = _paged_selection(parts, cell_next, villages)
-    if village_name is None:
-        return _village_menu(district_name, sector_name, cell_name, lang, vil_page)
-    if village_name == "BACK":
-        return _cell_menu(district_name, sector_name, lang, cell_page)
+        if sector_name == "BACK":
+            # User backed out of sector → show district menu.
+            # If they've already entered a new district choice after the "0", apply it.
+            if sec_next < len(parts):
+                new_d = parts[sec_next]
+                if new_d == "0":
+                    return _t("select_province", lang)
+                dlist = _DISTRICTS.get(prov_choice, [])
+                try:
+                    di = int(new_d) - 1
+                    if 0 <= di < len(dlist):
+                        district_name = dlist[di]
+                        sectors = _sectors_for(district_name)
+                        sec_start = sec_next + 1
+                        continue
+                except ValueError:
+                    pass
+            return _district_menu(prov_choice, lang)
+
+        # Sector resolved — walk cells
+        cells = _cells_for(district_name, sector_name)
+        cell_start = sec_next
+        cell_loop_done = False
+
+        while not cell_loop_done:
+            cell_name, cell_page, cell_next = _paged_selection(parts, cell_start, cells)
+            if cell_name is None:
+                return _cell_menu(district_name, sector_name, lang, cell_page)
+
+            if cell_name == "BACK":
+                # User backed out of cell → re-read sector from this position
+                sec_start = cell_next
+                break  # exits cell loop → outer sector loop retries
+
+            # Cell resolved — walk villages
+            villages = _villages_for(district_name, sector_name, cell_name)
+            while True:
+                village_name, vil_page, vil_next = _paged_selection(parts, cell_next, villages)
+                if village_name is None:
+                    return _village_menu(district_name, sector_name, cell_name, lang, vil_page)
+
+                if village_name == "BACK":
+                    # User backed out of village → re-read cell from this position
+                    cell_start = vil_next
+                    break  # exits village loop → cell loop retries
+
+                # Village resolved — fall through to PIN
+                pin_start = vil_next
+                cell_loop_done = True
+                break
 
     # Step 7: create 4-digit PIN
-    if len(parts) <= vil_next:
+    if len(parts) <= pin_start:
         return _t("create_pin", lang)
-    pin = parts[vil_next]
+    pin = parts[pin_start]
     if len(pin) != 4 or not pin.isdigit():
         return _t("pin_invalid", lang)
 
     # Step 8: confirm PIN
-    if len(parts) <= vil_next + 1:
+    if len(parts) <= pin_start + 1:
         return _t("confirm_pin", lang)
-    confirm = parts[vil_next + 1]
+    confirm = parts[pin_start + 1]
     if pin != confirm:
         return _t("pin_mismatch", lang)
 
@@ -1817,7 +1862,7 @@ async def _service_flow(
 
         urg = sub_parts[2]
         if urg == "0":
-            return _t("report_cat", lang)
+            return _t("main_menu", lang)
         if urg not in _URG_MAP:
             return _t("report_urgency", lang)
 
@@ -1827,7 +1872,7 @@ async def _service_flow(
 
         prov_idx = sub_parts[3]
         if prov_idx == "0":
-            return _t("report_urgency", lang)
+            return _t("main_menu", lang)
         provider = _pick_provider(providers, prov_idx)
         if not provider:
             return _provider_menu(providers, lang)
@@ -2053,7 +2098,7 @@ async def _service_flow(
 
         reason = sub_parts[2]
         if reason == "0":
-            return _provider_menu(providers, lang)
+            return _t("main_menu", lang)
         if reason not in _REASON_MAP:
             return _t("appt_reason", lang)
 
@@ -2062,7 +2107,7 @@ async def _service_flow(
 
         date_choice = sub_parts[3]
         if date_choice == "0":
-            return _t("appt_reason", lang)
+            return _t("main_menu", lang)
         if date_choice not in ("1", "2", "3", "4"):
             return _date_menu(lang)
 
@@ -2071,7 +2116,7 @@ async def _service_flow(
 
         time_choice = sub_parts[4]
         if time_choice == "0":
-            return _date_menu(lang)
+            return _t("main_menu", lang)
         if time_choice not in _TIME_SLOTS:
             return _t("appt_time", lang)
 
@@ -2206,7 +2251,7 @@ async def _service_flow(
 
         prov_idx = sub_parts[2]
         if prov_idx == "0":
-            return _t("svc_type", lang)
+            return _t("main_menu", lang)
         provider = _pick_provider(providers, prov_idx)
         if not provider:
             return _provider_menu(providers, lang)
@@ -2216,7 +2261,7 @@ async def _service_flow(
 
         urg = sub_parts[3]
         if urg == "0":
-            return _provider_menu(providers, lang)
+            return _t("main_menu", lang)
         if urg not in _SVC_URG_MAP:
             return _t("svc_urgency", lang)
 
