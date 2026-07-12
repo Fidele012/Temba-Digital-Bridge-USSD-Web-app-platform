@@ -33,7 +33,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.redis import (
+from app.db.token_store import (
     delete_refresh_token,
     delete_reset_otp,
     get_reset_otp,
@@ -475,9 +475,9 @@ async def google_login(
         await write_audit(db, request, "auth.google_login", "user", str(user.id))
         log.info("google_login", email=email)
 
-    access_token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    refresh_token_val = create_refresh_token()
-    await store_refresh_token(str(user.id), refresh_token_val)
+    access_token = create_access_token(user.id, user.role.value)
+    refresh_token_val = create_refresh_token(user.id, user.role.value)
+    await store_refresh_token(str(user.id), refresh_token_val, _REFRESH_TTL)
 
     return {
         "access_token": access_token,
