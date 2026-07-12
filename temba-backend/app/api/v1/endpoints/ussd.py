@@ -2037,13 +2037,17 @@ async def _service_flow(
                     return ("CON Shyira amanota (1-5):\n"
                             "1. Nabi\n2. Bisanzwe\n3. Byiza\n4. Byiza cyane\n5. Byiza rwose\n0. Kureka")
 
-            # Save rating
+            # Save rating (guard against duplicate if user somehow re-enters this step)
             rating_val = sub_parts[3] if sub_depth > 3 else "0"
             if rating_val in ("1", "2", "3", "4", "5"):
                 from app.models.rating import Rating as _Rating
-                r = _Rating(report_id=report.id, provider_id=report.provider_id, score=int(rating_val))
-                db.add(r)
-                await db.flush()
+                existing_r = (await db.execute(
+                    select(_Rating).where(_Rating.report_id == report.id)
+                )).scalar_one_or_none()
+                if not existing_r:
+                    r = _Rating(report_id=report.id, provider_id=report.provider_id, score=int(rating_val))
+                    db.add(r)
+                    await db.flush()
                 star = "★" * int(rating_val)
                 if lang == "en":
                     return f"END Thank you for your {star} rating!\nYour feedback helps improve water services."

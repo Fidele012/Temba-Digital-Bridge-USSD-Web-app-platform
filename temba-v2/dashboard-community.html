@@ -1963,13 +1963,18 @@ function renderProviderCards() {
     coverage: (p.service_areas || []).map(a => a.province).filter(Boolean).join(', ') || 'Rwanda',
     phone: p.phone || '—', email: p.email || '—',
     services: p.service_categories || [],
+    avg_rating: p.avg_rating ?? null,
+    total_ratings: p.total_ratings ?? 0,
   })) : providersData.map(p => ({ ...p, id: null }));
 
   document.getElementById('providerCards').innerHTML = source.map(p => `
   <div class="provider-card stat-card-link" role="button" tabindex="0" onclick="openProviderDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})" onkeydown="if(event.key==='Enter')this.click()" style="cursor:pointer;">
     <div class="pc-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
     <div style="flex:1;">
-      <div class="pc-name">${p.name}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="pc-name">${p.name}</div>
+        ${p.avg_rating ? `<span style="font-size:11.5px;font-weight:700;color:#E65100;background:#FFF3E0;border-radius:10px;padding:1px 8px;">★ ${p.avg_rating.toFixed(1)} <span style="font-weight:400;color:var(--gray-400);">(${p.total_ratings})</span></span>` : ''}
+      </div>
       <div class="pc-type">${p.type} · ${p.coverage}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">
         ${(p.services||[]).map(s=>`<span style="background:var(--sky-pale);color:var(--blue);font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${s.replace(/_/g,' ')}</span>`).join('')}
