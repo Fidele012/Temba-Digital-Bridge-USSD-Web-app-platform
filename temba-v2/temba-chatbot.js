@@ -903,9 +903,43 @@ Try rephrasing or tap one of the quick actions below.`,
   }
 
   // ─── State ───────────────────────────────────────────────────────────────────
-  const history = [];
+  const history = [];           // legacy local-KB history (for fallback)
+  const aiHistory = [];         // multi-turn history sent to AI backend
   let isOpen = false;
   let unreadCount = 0;
+  let aiAvailable = true;       // set false if backend unreachable
+
+  // ─── AI backend call ─────────────────────────────────────────────────────────
+  async function _callAI(message) {
+    const res = await fetch(`${API}/api/v1/chatbot/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history: aiHistory.slice(-14), // last 7 turns
+      }),
+    });
+    if (!res.ok) throw new Error(`AI API ${res.status}`);
+    return res.json();
+  }
+
+  // ─── Platform action dispatch ─────────────────────────────────────────────────
+  function _handleAction(action) {
+    // Dispatch a DOM event so dashboard pages can open the relevant modal/section
+    document.dispatchEvent(new CustomEvent('temba:chatbot-action', { detail: action }));
+    // Also try direct function calls if available on the page
+    try {
+      if (action.action === 'file_report' && typeof openReportModal === 'function') {
+        openReportModal();
+      } else if (action.action === 'book_appointment') {
+        if (action.params && action.params.provider_id && typeof tembaChat._bookWith === 'function') {
+          tembaChat._bookWith(action.params.provider_id, action.params.provider_name || 'this provider');
+        }
+      } else if (action.action === 'request_service' && typeof openServiceModal === 'function') {
+        openServiceModal();
+      }
+    } catch (_) {}
+  }
 
   // ─── CSS ─────────────────────────────────────────────────────────────────────
   const style = document.createElement('style');
@@ -1095,7 +1129,7 @@ Try rephrasing or tap one of the quick actions below.`,
         <div class="tchat-avatar">💧</div>
         <div class="tchat-header-info">
           <div class="tchat-title">Temba Assistant</div>
-          <div class="tchat-subtitle"><span class="tchat-online"></span>Online — Water &amp; Sanitation Guide</div>
+          <div class="tchat-subtitle"><span class="tchat-online"></span>AI-Powered · English &amp; Kinyarwanda</div>
         </div>
         <button class="tchat-hbtn" onclick="tembaChat.close()" title="Close">✕</button>
       </div>
@@ -1202,10 +1236,23 @@ Try rephrasing or tap one of the quick actions below.`,
       unreadCount = 0;
       const b = document.getElementById('temba-chat-badge');
       b.style.display = 'none';
-      if (history.length === 0) {
+      if (aiHistory.length === 0 && history.length === 0) {
         setTimeout(() => {
-          const greeting = KB.find(t => t.id === 'greeting');
-          appendMessage('bot', greeting.response(), null, greeting);
+          const greetingText = `Hello! I'm **Temba Water AI Assistant** 👋
+
+I'm trained on Rwanda's water sector and can help you with:
+
+💧 **Water quality & safety** — testing, contamination, treatment
+🗺️ **Find the right provider** — by district, service type, or need
+🚨 **Emergencies** — contamination, burst pipes, outages
+📢 **File a report** or **book an appointment** directly from chat
+📱 **USSD access** — use Temba on any phone without internet
+
+I understand both **English** and **Kinyarwanda**. What can I help you with today?`;
+          const greetingTopic = {
+            quickReplies: ['Water in my area is contaminated', 'Find providers near me', 'How do I report an issue?', 'Use Temba without internet'],
+          };
+          appendMessage('bot', greetingText, null, greetingTopic);
           history.push('greeting');
         }, 200);
       }
@@ -1218,16 +1265,35 @@ Try rephrasing or tap one of the quick actions below.`,
       document.getElementById('temba-chat-fab').classList.remove('icon-only');
     },
 
-    send(override) {
+    async send(override) {
       const input = document.getElementById('tchat-input');
       const text = (override || input.value).trim();
       if (!text) return;
       input.value = '';
 
       appendMessage('user', text);
-      history.push({ role: 'user', text });
-
       showTyping();
+
+      // ── AI path ──────────────────────────────────────────────────────────────
+      if (aiAvailable) {
+        try {
+          const aiResult = await _callAI(text);
+          hideTyping();
+          if (aiResult.action) _handleAction(aiResult.action);
+          appendMessage('bot', aiResult.reply, null, null);
+          aiHistory.push({ role: 'user', content: text });
+          aiHistory.push({ role: 'assistant', content: aiResult.reply });
+          bumpBadge();
+          return;
+        } catch (err) {
+          aiAvailable = false;
+          console.warn('Temba AI unavailable, switching to local KB:', err.message);
+          // fall through to local KB
+        }
+      }
+
+      // ── Local KB fallback ────────────────────────────────────────────────────
+      history.push({ role: 'user', text });
       setTimeout(() => {
         hideTyping();
         const result = buildResponse(text);
