@@ -457,13 +457,14 @@ Want me to find the **right provider for a specific service?** Tell me what you 
 4. Set your Rwanda location (Province → Village)
 5. Create a password → account is **active immediately**
 
-**Water Provider — verified:**
+**Water Provider — instant access:**
 1. Click **"Sign Up"** → **"Water Provider"**
-2. Enter organisation name, description, service categories
-3. Add SLA commitment and escalation contacts (Officer + Supervisor)
-4. Submit → reviewed by admin within **1–2 business days**
+2. Enter organisation name, registration number, and description
+3. Choose service categories and coverage areas
+4. Add SLA commitment and escalation contacts (Officer + Supervisor)
+5. Submit → your dashboard is **active immediately**
 
-📧 Once approved, providers receive a verification email and can access their dashboard.
+Your registration number is your credential — you are responsible for the accuracy of your information.
 
 [Sign Up →](signup.html)`,
       quickReplies: ['Sign up as community member','Register as water provider','Already have an account?'],
