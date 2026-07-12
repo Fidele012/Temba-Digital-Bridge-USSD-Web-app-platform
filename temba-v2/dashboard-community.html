@@ -1075,7 +1075,7 @@
 </div>
 
 <!-- ══ ADD PHONE MODAL ══ -->
-<div class="modal-overlay" id="addPhoneModal" onclick="if(event.target===this)closeAddPhoneModal()" style="display:none;">
+<div class="modal-overlay" id="addPhoneModal" onclick="if(event.target===this)closeAddPhoneModal()">
   <div class="modal-box" style="max-width:420px;">
     <div class="modal-head">
       <h2><i class="ti ti-phone-plus" style="color:#D97706;"></i> Add Phone Number</h2>
@@ -1110,7 +1110,7 @@
 </div>
 
 <!-- ══ SET PIN MODAL ══ -->
-<div class="modal-overlay" id="setPinModal" onclick="if(event.target===this)closeSetPinModal()" style="display:none;">
+<div class="modal-overlay" id="setPinModal" onclick="if(event.target===this)closeSetPinModal()">
   <div class="modal-box" style="max-width:400px;">
     <div class="modal-head">
       <h2><i class="ti ti-key" style="color:#0277BD;"></i> <span id="setPinModalTitle">Set USSD PIN</span></h2>
@@ -2807,7 +2807,7 @@ function submitSurvey() {
   }
 })();
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAboutModal(); closeSvcModal(); closeApptModal(); closeReschedModal(); closeSurveyModal(); closeAddPhoneModal(); closeSetPinModal(); }});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAboutModal(); closeSvcModal(); closeApptModal(); closeReschedModal(); closeSurveyModal(); closeAddPhoneModal(); closeSetPinModal(); closeCompleteProfileModal(); }});
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
 
 /* ── USSD profile banner ── */
@@ -2862,7 +2862,7 @@ function renderUssdAccessCard(session) {
 /* ── Add Phone modal ── */
 function openAddPhoneModal() {
   const modal = document.getElementById('addPhoneModal');
-  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  if (modal) modal.classList.add('open');
   const err = document.getElementById('apError');
   const inp = document.getElementById('apPhone');
   if (err) err.style.display = 'none';
@@ -2870,7 +2870,7 @@ function openAddPhoneModal() {
 }
 function closeAddPhoneModal() {
   const modal = document.getElementById('addPhoneModal');
-  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+  if (modal) modal.classList.remove('open');
 }
 async function submitAddPhone() {
   const code = (document.getElementById('apPhoneCode')?.value || '+250').trim();
@@ -2919,7 +2919,7 @@ async function submitAddPhone() {
 /* ── Set PIN modal ── */
 function openSetPinModal() {
   const modal = document.getElementById('setPinModal');
-  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  if (modal) modal.classList.add('open');
   const err = document.getElementById('spError');
   if (err) err.style.display = 'none';
   ['spPin', 'spPinConfirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -2931,7 +2931,7 @@ function openSetPinModal() {
 }
 function closeSetPinModal() {
   const modal = document.getElementById('setPinModal');
-  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+  if (modal) modal.classList.remove('open');
 }
 async function submitSetPin() {
   const pin  = (document.getElementById('spPin')?.value || '').trim();
@@ -2974,7 +2974,7 @@ async function submitSetPin() {
 
 function openCompleteProfileModal() {
   const modal = document.getElementById('completeProfileModal');
-  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  if (modal) modal.classList.add('open');
   const cpError = document.getElementById('cpError');
   if (cpError) cpError.style.display = 'none';
   ['cpEmail','cpPassword','cpPasswordConfirm'].forEach(id => {
@@ -2984,7 +2984,7 @@ function openCompleteProfileModal() {
 
 function closeCompleteProfileModal() {
   const modal = document.getElementById('completeProfileModal');
-  if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+  if (modal) modal.classList.remove('open');
 }
 
 async function submitCompleteProfile() {
