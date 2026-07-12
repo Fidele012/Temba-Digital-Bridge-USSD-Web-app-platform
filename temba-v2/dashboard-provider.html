@@ -101,6 +101,7 @@
         <div class="stat-card"><div class="stat-icon green"><i class="ti ti-calendar"></i></div><div><div class="stat-num" id="apptCount">0</div><div class="stat-lbl" data-i18n="dash_appointments">Appointments</div></div></div>
         <div class="stat-card"><div class="stat-icon orange"><i class="ti ti-clock"></i></div><div><div class="stat-num" id="pendingCount">0</div><div class="stat-lbl" data-i18n="prov_stat_pending">Pending Actions</div></div></div>
         <div class="stat-card"><div class="stat-icon" style="background:#FFF8E1;color:#F59E0B;"><i class="ti ti-star-filled"></i></div><div><div class="stat-num" id="ratingScore">—</div><div class="stat-lbl">Community Rating</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:#E3F2FD;color:#1565C0;"><i class="ti ti-shield-check"></i></div><div><div class="stat-num" id="accountabilityScore">—</div><div class="stat-lbl">Accountability Score</div></div></div>
       </div>
 
       <div class="two-col" style="gap:1.25rem;">
@@ -1447,6 +1448,18 @@ async function loadApiData() {
           el.style.fontSize = '14px';
         }
       }
+    }
+  }
+  // Fetch accountability score from stats endpoint
+  const statsData = await apiGet('/providers/me/stats');
+  if (statsData) {
+    const acctEl = document.getElementById('accountabilityScore');
+    if (acctEl) {
+      const score = statsData.accountability_score ?? 0;
+      acctEl.textContent = score > 0 ? score.toFixed(0) + '/100' : '—';
+      if (score >= 75) acctEl.style.color = '#1565C0';
+      else if (score >= 50) acctEl.style.color = '#E65100';
+      else if (score > 0) acctEl.style.color = '#C62828';
     }
   }
 }

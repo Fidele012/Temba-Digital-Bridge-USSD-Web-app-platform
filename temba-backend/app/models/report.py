@@ -1,8 +1,8 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -67,6 +67,8 @@ class Report(UUIDMixin, TimestampMixin, Base):
     reference_number: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     sla_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expected_completion_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     overdue_flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     escalation_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reopen_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

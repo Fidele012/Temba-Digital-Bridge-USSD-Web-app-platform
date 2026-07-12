@@ -1890,7 +1890,7 @@ async def _service_flow(
         if confirm != "1":
             return _t("invalid", lang)
 
-        from app.core.sla import classify_priority, sla_deadline_for
+        from app.core.sla import classify_priority, resolution_deadline_for, sla_deadline_for
         from app.models.report import PriorityClass
 
         _loc = ", ".join(filter(None, [user.sector, user.district, user.province])) or "Rwanda"
@@ -1917,6 +1917,7 @@ async def _service_flow(
         db.add(report)
         await db.flush()
         report.sla_deadline = sla_deadline_for(_CAT_MAP[cat].value, report.created_at, priority_class=priority)
+        report.resolution_deadline = resolution_deadline_for(report.created_at, priority_class=priority)
         await db.commit()
         log.info("ussd_report_created", report_id=str(report.id), ref=ref, phone=phoneNumber)
         asyncio.create_task(notify_org_background(

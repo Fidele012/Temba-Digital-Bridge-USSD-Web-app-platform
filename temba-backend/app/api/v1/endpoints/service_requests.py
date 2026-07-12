@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user, require_staff, write_audit
 from app.core.provider_utils import get_provider_for_user
-from app.core.sla import sla_deadline_for
+from app.core.sla import resolution_deadline_for, sla_deadline_for
 from app.db.session import get_db
 from app.models.provider import Provider
 from app.models.service_request import ServiceRequest, ServiceRequestStatus
@@ -58,6 +58,7 @@ async def create_service_request(
     db.add(sr)
     await db.flush()
     sr.sla_deadline = sla_deadline_for(body.request_type.value, sr.created_at, "service_request")
+    sr.resolution_deadline = resolution_deadline_for(sr.created_at, item_type="service_request")
     await write_audit(db, request, "service_request.create", "service_request", str(sr.id), actor=current_user)
     return sr
 

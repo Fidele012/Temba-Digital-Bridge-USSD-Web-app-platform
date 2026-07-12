@@ -1002,7 +1002,8 @@
         <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><i class="ti ti-phone" style="color:var(--green);font-size:16px;"></i><span id="pdPhone"></span></div>
         <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><i class="ti ti-mail" style="color:var(--blue);font-size:16px;"></i><span id="pdEmail"></span></div>
       </div>
-      <div id="pdRating" style="display:none;background:#FFF8E1;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:8px;color:#795548;"><i class="ti ti-star-filled" style="color:#FFC107;"></i><span></span></div>
+      <div id="pdRating" style="display:none;background:#FFF8E1;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;display:flex;align-items:center;gap:8px;color:#795548;"><i class="ti ti-star-filled" style="color:#FFC107;"></i><span></span></div>
+      <div id="pdAccountability" style="display:none;background:#E3F2FD;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:8px;color:#1565C0;"><i class="ti ti-shield-check" style="color:#1565C0;"></i><span></span></div>
     </div>
     <div class="modal-footer" id="pdFooter"></div>
   </div>
@@ -1965,7 +1966,8 @@ function renderProviderCards() {
     services: p.service_categories || [],
     avg_rating: p.avg_rating ?? null,
     total_ratings: p.total_ratings ?? 0,
-  })) : providersData.map(p => ({ ...p, id: null }));
+    accountability_score: p.accountability_score ?? 0,
+  })) : providersData.map(p => ({ ...p, id: null, accountability_score: 0 }));
 
   document.getElementById('providerCards').innerHTML = source.map(p => `
   <div class="provider-card stat-card-link" role="button" tabindex="0" onclick="openProviderDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})" onkeydown="if(event.key==='Enter')this.click()" style="cursor:pointer;">
@@ -1974,6 +1976,7 @@ function renderProviderCards() {
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="pc-name">${p.name}</div>
         ${p.avg_rating ? `<span style="font-size:11.5px;font-weight:700;color:#E65100;background:#FFF3E0;border-radius:10px;padding:1px 8px;">★ ${p.avg_rating.toFixed(1)} <span style="font-weight:400;color:var(--gray-400);">(${p.total_ratings})</span></span>` : ''}
+        ${p.accountability_score > 0 ? `<span style="font-size:11.5px;font-weight:700;color:#1565C0;background:#E3F2FD;border-radius:10px;padding:1px 8px;" title="Accountability score: response + resolution compliance, verification rate, and ratings">⚡ ${p.accountability_score.toFixed(0)}</span>` : ''}
       </div>
       <div class="pc-type">${p.type} · ${p.coverage}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">
@@ -2004,6 +2007,9 @@ function openProviderDetail(p) {
   const ratingEl = document.getElementById('pdRating');
   ratingEl.style.display = p.avg_rating ? 'flex' : 'none';
   if (p.avg_rating) ratingEl.querySelector('span').textContent = `${p.avg_rating.toFixed(1)} / 5 · ${p.total_ratings || 0} rating${p.total_ratings!==1?'s':''}`;
+  const acctEl = document.getElementById('pdAccountability');
+  acctEl.style.display = p.accountability_score > 0 ? 'flex' : 'none';
+  if (p.accountability_score > 0) acctEl.querySelector('span').textContent = `Accountability score: ${p.accountability_score.toFixed(0)} / 100 — response, resolution & community trust`;
   document.getElementById('pdFooter').innerHTML = `
     ${p.phone&&p.phone!=='—'?`<a href="tel:${p.phone.replace(/[\s\-]/g,'')}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`:''}
     ${p.phone&&p.phone!=='—'?`<a href="sms:${p.phone.replace(/[\s\-]/g,'')}&body=Hello%20${encodeURIComponent(p.name)},%20I%20am%20contacting%20you%20via%20Temba." class="btn-sms" style="text-decoration:none;"><i class="ti ti-message"></i> SMS</a>`:''}

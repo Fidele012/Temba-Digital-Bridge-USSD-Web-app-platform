@@ -32,7 +32,7 @@ from app.schemas.appointment import (
     ProviderRescheduleProposal,
 )
 from app.schemas.common import PaginatedResponse, PaginationParams
-from app.core.sla import sla_deadline_for
+from app.core.sla import resolution_deadline_for, sla_deadline_for
 from app.schemas.report import VerificationVerdict
 from app.services.notification_service import notify_org, notify_user
 
@@ -79,6 +79,7 @@ async def book_appointment(
     db.add(appt)
     await db.flush()
     appt.sla_deadline = sla_deadline_for(body.reason.value, appt.created_at, "appointment")
+    appt.resolution_deadline = resolution_deadline_for(appt.created_at, item_type="appointment")
     await write_audit(db, request, "appointment.create", "appointment", str(appt.id), actor=current_user)
 
     await notify_org(

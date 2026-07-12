@@ -22,6 +22,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user, require_admin, require_provider, write_audit
 from app.core.provider_utils import get_provider_for_user
+from app.core.sla import batch_accountability_scores
 from app.db.session import get_db
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.provider import Provider, ProviderServiceArea, ProviderStaff, ProviderStatus
@@ -57,6 +58,7 @@ class ProviderStats(BaseModel):
     overdue_service_requests: int
     avg_rating: float | None = None
     total_ratings: int = 0
+    accountability_score: float = 0.0
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/providers", tags=["providers"])
@@ -206,6 +208,9 @@ async def get_my_stats(
         .where(Rating.provider_id == pid)
     )).one()
 
+    scores = await batch_accountability_scores(db, [pid])
+    acct_score = scores.get(str(pid), 0.0)
+
     return {
         "total_reports": total_reports,
         "resolved_reports": resolved_reports,
@@ -220,6 +225,7 @@ async def get_my_stats(
         "overdue_service_requests": overdue_srs,
         "avg_rating": round(float(rating_row.avg), 1) if rating_row.avg else None,
         "total_ratings": rating_row.cnt or 0,
+        "accountability_score": acct_score,
     }
 
 
@@ -420,24 +426,32 @@ async def list_providers(
             seen[key] = p
     deduped = sorted(seen.values(), key=lambda p: (p.organization_name or "").lower())
 
-    total = len(deduped)
-    page_items = deduped[params.offset : params.offset + params.size]
+    # Compute accountability scores + ratings for ALL deduped providers, then sort by score
+    all_ids = [p.id for p in deduped]
+    acct_scores = await batch_accountability_scores(db, all_ids)
 
-    # Batch-fetch rating aggregates for this page (single query, no N+1)
-    page_ids = [p.id for p in page_items]
     rating_map: dict[str, tuple[float | None, int]] = {}
-    if page_ids:
+    if all_ids:
         rating_rows = (await db.execute(
             select(
                 Rating.provider_id,
                 func.avg(Rating.score).label("avg"),
                 func.count(Rating.id).label("cnt"),
             )
-            .where(Rating.provider_id.in_(page_ids))
+            .where(Rating.provider_id.in_(all_ids))
             .group_by(Rating.provider_id)
         )).all()
         for r in rating_rows:
             rating_map[str(r.provider_id)] = (round(float(r.avg), 1) if r.avg else None, r.cnt or 0)
+
+    # Leaderboard: sort by accountability_score descending, then name ascending as tiebreaker
+    deduped_sorted = sorted(
+        deduped,
+        key=lambda p: (-acct_scores.get(str(p.id), 0.0), (p.organization_name or "").lower()),
+    )
+
+    total = len(deduped_sorted)
+    page_items = deduped_sorted[params.offset : params.offset + params.size]
 
     items_out = []
     for p in page_items:
@@ -445,6 +459,7 @@ async def list_providers(
         avg, cnt = rating_map.get(str(p.id), (None, 0))
         data["avg_rating"] = avg
         data["total_ratings"] = cnt
+        data["accountability_score"] = acct_scores.get(str(p.id), 0.0)
         items_out.append(data)
 
     return {
@@ -468,9 +483,11 @@ async def get_provider(provider_id: UUID, db: Annotated[AsyncSession, Depends(ge
         .where(Rating.provider_id == provider_id)
     )).one()
 
+    scores = await batch_accountability_scores(db, [provider_id])
     data = ProviderPublic.model_validate(provider).model_dump()
     data["avg_rating"] = round(float(row.avg), 1) if row.avg else None
     data["total_ratings"] = row.cnt or 0
+    data["accountability_score"] = scores.get(str(provider_id), 0.0)
     return data
 
 

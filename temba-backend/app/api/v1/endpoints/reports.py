@@ -20,7 +20,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user, require_admin, require_staff, write_audit
 from app.core.provider_utils import get_provider_for_user
-from app.core.sla import classify_priority, sla_deadline_for
+from app.core.sla import classify_priority, resolution_deadline_for, sla_deadline_for
 from app.db.session import get_db
 from app.models.provider import Provider
 from app.models.report import PriorityClass, Report, ReportMedia, ReportStatus
@@ -73,6 +73,7 @@ async def create_report(
     db.add(report)
     await db.flush()
     report.sla_deadline = sla_deadline_for(body.category.value, report.created_at, priority_class=priority)
+    report.resolution_deadline = resolution_deadline_for(report.created_at, priority_class=priority)
     await write_audit(db, request, "report.create", "report", str(report.id), actor=current_user)
     await db.refresh(report, ["media"])
     return report

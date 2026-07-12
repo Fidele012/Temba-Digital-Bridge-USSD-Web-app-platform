@@ -1,6 +1,6 @@
 from typing import Literal
 from uuid import UUID
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import Field
 
@@ -35,6 +35,7 @@ class ReportUpdate(ORMModel):
     urgency: ReportUrgency | None = None
     resolution_notes: str | None = None
     provider_id: UUID | None = None
+    expected_completion_date: date | None = None
 
 
 class ReportMediaPublic(ORMModel):
@@ -68,6 +69,8 @@ class ReportPublic(ORMModel):
     created_at: datetime
     updated_at: datetime
     sla_deadline: datetime | None = None
+    resolution_deadline: datetime | None = None
+    expected_completion_date: date | None = None
     overdue_flagged: bool = False
     reopen_count: int = 0
     first_responded_at: datetime | None = None

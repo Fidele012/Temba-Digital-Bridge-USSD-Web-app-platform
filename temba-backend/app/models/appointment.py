@@ -77,6 +77,7 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
     provider_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     sla_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     overdue_flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     escalation_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     resolution_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -102,9 +102,10 @@ class ProviderPublic(ORMModel):
     unavailable_dates: list[str]
     service_areas: list[ServiceAreaPublic]
     created_at: datetime
-    # Computed aggregate — injected by endpoints, not stored on the model
+    # Computed aggregates — injected by endpoints, not stored on the model
     avg_rating: float | None = None
     total_ratings: int = 0
+    accountability_score: float = 0.0
 
 
 class ProviderStatusUpdate(ORMModel):
