@@ -902,7 +902,11 @@ function saveAppts(d) { localStorage.setItem(APPT_KEY, JSON.stringify(d)); }
 const DISMISSED_APPTS_KEY = `temba_dismissed_appts_${_userKey}`;
 function getDismissedAppts() { return new Set(JSON.parse(localStorage.getItem(DISMISSED_APPTS_KEY) || '[]')); }
 function dismissAppt(id) { const s = getDismissedAppts(); s.add(String(id)); localStorage.setItem(DISMISSED_APPTS_KEY, JSON.stringify([...s])); }
-function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d) ? '—' : d.toLocaleDateString('en-RW',{day:'numeric',month:'short',year:'numeric'});
+}
 
 /* ── API Integration ── */
 const _IS_LOCAL = ['localhost','127.0.0.1'].includes(window.location.hostname);
@@ -1474,7 +1478,7 @@ async function _syncApiNotifs() {
       if (seen.has(mid)) continue;
       const { icon, color } = _ICON[n.notification_type] || { icon: 'ti-bell', color: 'blue' };
       stored.unshift({ id: mid, type: n.notification_type, icon, color,
-        title: n.title, body: n.body, time: n.created_at, read: n.is_read });
+        title: n.title, body: n.body, createdAt: n.created_at, read: n.is_read });
       added++;
     }
     if (added > 0) { saveNotifs(stored); updateNotifBadge(); }
