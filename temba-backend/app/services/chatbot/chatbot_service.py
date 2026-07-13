@@ -37,7 +37,8 @@ TOOLS: list[dict[str, Any]] = [
         "name": "find_water_providers",
         "description": (
             "Search registered water service providers on the Temba platform. "
-            "Use when the user asks about providers in a specific district, city, or area. "
+            "Call this IMMEDIATELY whenever the user asks to find, list, or search for "
+            "water providers — even if no district is specified (pass empty string to get all). "
             "Returns provider names, contacts, services, and district coverage."
         ),
         "input_schema": {
