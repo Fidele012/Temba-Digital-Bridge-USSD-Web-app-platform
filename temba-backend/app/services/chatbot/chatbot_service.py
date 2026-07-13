@@ -260,7 +260,7 @@ async def chat(
 
     for _ in range(5):
         response = await client.chat.completions.create(
-            model="llama-3.3-70b-specdec",
+            model="llama-3.3-70b-versatile",
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
