@@ -246,7 +246,7 @@ async def _ai_create(client, messages: list) -> Any:
     for attempt in range(3):
         try:
             return await client.chat.completions.create(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash",
                 messages=messages,
                 tools=TOOLS,
                 tool_choice="auto",
