@@ -1,6 +1,6 @@
 """
 Temba Water AI Chatbot Service
-Uses Groq (Llama 3.3 70B) with tool calling — free tier at groq.com
+Uses Google Gemini 2.0 Flash via OpenAI-compatible endpoint — free at aistudio.google.com
 """
 import asyncio
 import json
@@ -14,22 +14,25 @@ from .knowledge_base import SYSTEM_PROMPT, is_water_related
 
 logger = logging.getLogger(__name__)
 
-_groq_client = None
+_gemini_client = None
 _tavily_available: bool = True
 
 
-def _get_groq():
-    global _groq_client
-    if _groq_client is None:
-        from groq import AsyncGroq
-        api_key = os.getenv("GROQ_API_KEY")
+def _get_gemini():
+    global _gemini_client
+    if _gemini_client is None:
+        from openai import AsyncOpenAI
+        api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("GROQ_API_KEY environment variable not set")
-        _groq_client = AsyncGroq(api_key=api_key)
-    return _groq_client
+            raise ValueError("GOOGLE_API_KEY environment variable not set")
+        _gemini_client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+    return _gemini_client
 
 
-# ─── Tool definitions (OpenAI/Groq format) ────────────────────────────────────
+# ─── Tool definitions (OpenAI format — Gemini-compatible) ─────────────────────
 
 TOOLS: list[dict[str, Any]] = [
     {
@@ -236,25 +239,25 @@ def _execute_platform_action(tool_name: str, tool_input: dict) -> dict:
     return {"action": action_map.get(tool_name, tool_name), "params": tool_input}
 
 
-# ─── Groq call with 429 retry ────────────────────────────────────────────────
+# ─── Gemini API call with rate-limit retry ────────────────────────────────────
 
-async def _groq_create(client, messages: list) -> Any:
-    from groq import RateLimitError
+async def _ai_create(client, messages: list) -> Any:
+    from openai import RateLimitError
     for attempt in range(3):
         try:
             return await client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="gemini-2.0-flash",
                 messages=messages,
                 tools=TOOLS,
                 tool_choice="auto",
-                max_tokens=600,
+                max_tokens=700,
                 temperature=0.5,
             )
         except RateLimitError:
             if attempt == 2:
                 raise
-            wait = 3 * (attempt + 1)
-            logger.warning("Groq rate-limited, retrying in %ss", wait)
+            wait = 5 * (attempt + 1)
+            logger.warning("Gemini rate-limited, retrying in %ss", wait)
             await asyncio.sleep(wait)
 
 
@@ -278,11 +281,11 @@ async def chat(
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": message})
 
-    client = _get_groq()
+    client = _get_gemini()
     platform_action: dict | None = None
 
     for _ in range(5):
-        response = await _groq_create(client, messages)
+        response = await _ai_create(client, messages)
         choice = response.choices[0]
 
         if choice.finish_reason == "stop":
