@@ -16,10 +16,14 @@ logger = logging.getLogger(__name__)
 
 _tavily_available: bool = True
 
-GEMINI_URL = (
-    "https://generativelanguage.googleapis.com"
-    "/v1beta/models/gemini-1.5-flash:generateContent"
-)
+# Tried in order until one returns 2xx — covers model-name ambiguity across API versions
+_GEMINI_CANDIDATES = [
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
+    "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
+]
 
 # ─── Tool definitions (Gemini function declaration format) ────────────────────
 
@@ -128,12 +132,21 @@ async def _gemini_generate(contents: list[dict], api_key: str) -> dict:
         "toolConfig": _TOOL_CONFIG,
         "generationConfig": {"maxOutputTokens": 700, "temperature": 0.5},
     }
+    last_err: Exception | None = None
     async with httpx.AsyncClient(timeout=30.0) as http:
-        resp = await http.post(GEMINI_URL, json=body, params={"key": api_key})
-        if not resp.is_success:
+        for url in _GEMINI_CANDIDATES:
+            resp = await http.post(url, json=body, params={"key": api_key})
+            if resp.is_success:
+                logger.info("Gemini OK using %s", url)
+                return resp.json()
+            if resp.status_code == 404:
+                logger.warning("Gemini 404 for %s, trying next", url)
+                last_err = httpx.HTTPStatusError(resp.text, request=resp.request, response=resp)
+                continue
+            # Non-404 error (429, 403, 500…) — log and raise immediately
             logger.error("Gemini API error %s: %s", resp.status_code, resp.text[:500])
             resp.raise_for_status()
-        return resp.json()
+    raise last_err or RuntimeError("All Gemini model endpoints returned 404")
 
 
 # ─── Tool execution ───────────────────────────────────────────────────────────
