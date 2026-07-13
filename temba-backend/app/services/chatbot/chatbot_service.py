@@ -1,8 +1,8 @@
 """
 Temba Water AI Chatbot Service
-Uses Google Gemini 2.0 Flash via OpenAI-compatible endpoint — free at aistudio.google.com
+Calls Google Gemini 1.5 Flash directly via REST API (httpx) — no SDK, no compat layer issues.
+Free tier: 15 RPM, 1 500 req/day, 1M tokens/day. API key from aistudio.google.com.
 """
-import asyncio
 import json
 import logging
 import os
@@ -14,131 +14,126 @@ from .knowledge_base import SYSTEM_PROMPT, is_water_related
 
 logger = logging.getLogger(__name__)
 
-_gemini_client = None
 _tavily_available: bool = True
 
+GEMINI_URL = (
+    "https://generativelanguage.googleapis.com"
+    "/v1beta/models/gemini-1.5-flash:generateContent"
+)
 
-def _get_gemini():
-    global _gemini_client
-    if _gemini_client is None:
-        from openai import AsyncOpenAI
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not set")
-        _gemini_client = AsyncOpenAI(
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-    return _gemini_client
+# ─── Tool definitions (Gemini function declaration format) ────────────────────
 
-
-# ─── Tool definitions (OpenAI format — Gemini-compatible) ─────────────────────
-
-TOOLS: list[dict[str, Any]] = [
+_FUNCTION_DECLARATIONS = [
     {
-        "type": "function",
-        "function": {
-            "name": "find_water_providers",
-            "description": (
-                "Search registered water service providers on the Temba platform. "
-                "Call this IMMEDIATELY whenever the user asks to find, list, or search for "
-                "water providers — even if no district is specified (pass empty string to get all). "
-                "Returns provider names, contacts, services, and district coverage."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "district": {
-                        "type": "string",
-                        "description": "Rwanda district name (e.g. 'Gasabo', 'Huye'). Leave empty to get all.",
-                    },
-                    "service_type": {
-                        "type": "string",
-                        "description": "Optional filter: e.g. 'water_supply', 'truck_delivery'",
-                    },
+        "name": "find_water_providers",
+        "description": (
+            "Search registered water service providers on the Temba platform. "
+            "Call this IMMEDIATELY whenever the user asks to find, list, or search for "
+            "water providers — even if no district is specified (pass empty string to get all). "
+            "Returns provider names, contacts, services, and district coverage."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "district": {
+                    "type": "string",
+                    "description": "Rwanda district name (e.g. 'Gasabo', 'Huye'). Leave empty to get all.",
                 },
-                "required": [],
+                "service_type": {
+                    "type": "string",
+                    "description": "Optional filter: e.g. 'water_supply', 'truck_delivery'",
+                },
             },
+            "required": [],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "web_search_providers",
-            "description": (
-                "Search the web for water service providers or water-related information "
-                "not available in the Temba database."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query, e.g. 'water service providers in Rubavu Rwanda'",
-                    }
-                },
-                "required": ["query"],
+        "name": "web_search_providers",
+        "description": (
+            "Search the web for water service providers or water-related information "
+            "not available in the Temba database."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query, e.g. 'water service providers in Rubavu Rwanda'",
+                }
             },
+            "required": ["query"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "file_report_action",
-            "description": (
-                "Trigger the 'File a Report' form on the Temba platform for the user. "
-                "Use when the user confirms they want to report a water issue."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "issue_type": {
-                        "type": "string",
-                        "description": "Type: 'contamination', 'no_supply', 'pipe_burst', 'low_pressure', 'meter_problem', 'billing', 'other'",
-                    },
-                    "suggested_priority": {
-                        "type": "string",
-                        "enum": ["P1", "P2", "P3"],
-                        "description": "P1=emergency, P2=urgent, P3=standard",
-                    },
+        "name": "file_report_action",
+        "description": (
+            "Trigger the 'File a Report' form on the Temba platform for the user. "
+            "Use when the user confirms they want to report a water issue."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "issue_type": {
+                    "type": "string",
+                    "description": "Type: 'contamination', 'no_supply', 'pipe_burst', 'low_pressure', 'meter_problem', 'billing', 'other'",
                 },
-                "required": ["issue_type"],
+                "suggested_priority": {
+                    "type": "string",
+                    "enum": ["P1", "P2", "P3"],
+                    "description": "P1=emergency, P2=urgent, P3=standard",
+                },
             },
+            "required": ["issue_type"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "book_appointment_action",
-            "description": "Trigger the 'Book Appointment' flow on the Temba platform.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "provider_id": {"type": "string", "description": "Provider ID if known"},
-                    "provider_name": {"type": "string", "description": "Provider name"},
-                },
-                "required": [],
+        "name": "book_appointment_action",
+        "description": "Trigger the 'Book Appointment' flow on the Temba platform.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "provider_id": {"type": "string", "description": "Provider ID if known"},
+                "provider_name": {"type": "string", "description": "Provider name"},
             },
+            "required": [],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "request_service_action",
-            "description": "Trigger the 'Request Service' form on the Temba platform.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "service_type": {
-                        "type": "string",
-                        "description": "Service: 'new_connection', 'truck_delivery', 'tank_installation', 'meter_support', 'inspection', 'other'",
-                    }
-                },
-                "required": ["service_type"],
+        "name": "request_service_action",
+        "description": "Trigger the 'Request Service' form on the Temba platform.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "service_type": {
+                    "type": "string",
+                    "description": "Service: 'new_connection', 'truck_delivery', 'tank_installation', 'meter_support', 'inspection', 'other'",
+                }
             },
+            "required": ["service_type"],
         },
     },
 ]
+
+_GEMINI_TOOLS = [{"functionDeclarations": _FUNCTION_DECLARATIONS}]
+_TOOL_CONFIG = {"functionCallingConfig": {"mode": "AUTO"}}
+
+
+# ─── Gemini REST call ─────────────────────────────────────────────────────────
+
+async def _gemini_generate(contents: list[dict], api_key: str) -> dict:
+    body = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": contents,
+        "tools": _GEMINI_TOOLS,
+        "toolConfig": _TOOL_CONFIG,
+        "generationConfig": {"maxOutputTokens": 700, "temperature": 0.5},
+    }
+    async with httpx.AsyncClient(timeout=30.0) as http:
+        resp = await http.post(GEMINI_URL, json=body, params={"key": api_key})
+        if not resp.is_success:
+            logger.error("Gemini API error %s: %s", resp.status_code, resp.text[:500])
+            resp.raise_for_status()
+        return resp.json()
 
 
 # ─── Tool execution ───────────────────────────────────────────────────────────
@@ -167,7 +162,7 @@ async def _execute_find_providers(
         providers = data.get("items", data) if isinstance(data, dict) else data
         if not providers:
             return (
-                f"No providers found on the Temba platform"
+                "No providers found on the Temba platform"
                 + (f" in {district}" if district else "")
                 + ". Try web_search_providers for unlisted operators."
             )
@@ -239,28 +234,6 @@ def _execute_platform_action(tool_name: str, tool_input: dict) -> dict:
     return {"action": action_map.get(tool_name, tool_name), "params": tool_input}
 
 
-# ─── Gemini API call with rate-limit retry ────────────────────────────────────
-
-async def _ai_create(client, messages: list) -> Any:
-    from openai import RateLimitError
-    for attempt in range(3):
-        try:
-            return await client.chat.completions.create(
-                model="gemini-1.5-flash",
-                messages=messages,
-                tools=TOOLS,
-                tool_choice="auto",
-                max_tokens=700,
-                temperature=0.5,
-            )
-        except RateLimitError:
-            if attempt == 2:
-                raise
-            wait = 5 * (attempt + 1)
-            logger.warning("Gemini rate-limited, retrying in %ss", wait)
-            await asyncio.sleep(wait)
-
-
 # ─── Main chat function ───────────────────────────────────────────────────────
 
 async def chat(
@@ -272,91 +245,76 @@ async def chat(
         lang = _detect_language(message)
         return {"reply": _off_topic_reply(lang), "action": None, "language": lang}
 
-    # Build message history
-    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+    # Build Gemini-format contents (role: "user" | "model")
+    contents: list[dict] = []
     for turn in history[-10:]:
         role = turn.get("role", "user")
         content = turn.get("content", "")
         if role in ("user", "assistant") and content:
-            messages.append({"role": role, "content": content})
-    messages.append({"role": "user", "content": message})
+            gemini_role = "model" if role == "assistant" else "user"
+            contents.append({"role": gemini_role, "parts": [{"text": content}]})
+    contents.append({"role": "user", "parts": [{"text": message}]})
 
-    client = _get_gemini()
     platform_action: dict | None = None
 
     for _ in range(5):
-        response = await _ai_create(client, messages)
-        choice = response.choices[0]
+        result = await _gemini_generate(contents, api_key)
 
-        if choice.finish_reason == "stop":
-            text = choice.message.content or ""
+        candidate = result["candidates"][0]
+        resp_parts = candidate["content"]["parts"]
+
+        # Separate text parts from function-call parts
+        fn_calls = [p["functionCall"] for p in resp_parts if "functionCall" in p]
+        text = " ".join(p.get("text", "") for p in resp_parts if "text" in p).strip()
+
+        if not fn_calls:
             return {
-                "reply": text,
+                "reply": text or "I'm having trouble right now. Please try again.",
                 "action": platform_action,
                 "language": _detect_language(message),
             }
 
-        if choice.finish_reason == "tool_calls":
-            tool_calls = choice.message.tool_calls or []
+        # Append model turn (including the functionCall parts)
+        contents.append({"role": "model", "parts": resp_parts})
 
-            # Add assistant message with tool calls
-            messages.append({
-                "role": "assistant",
-                "content": choice.message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                    }
-                    for tc in tool_calls
-                ],
+        # Execute each tool and collect functionResponse parts
+        response_parts = []
+        for fc in fn_calls:
+            fn_name = fc["name"]
+            fn_args = dict(fc.get("args") or {})
+
+            if fn_name in ("file_report_action", "book_appointment_action", "request_service_action"):
+                platform_action = _execute_platform_action(fn_name, fn_args)
+                fn_result = {"result": f"Platform action '{platform_action['action']}' will be triggered."}
+
+            elif fn_name == "find_water_providers":
+                text_out = await _execute_find_providers(
+                    district=fn_args.get("district", ""),
+                    service_type=fn_args.get("service_type", ""),
+                    api_base=api_base,
+                )
+                fn_result = {"result": text_out}
+
+            elif fn_name == "web_search_providers":
+                text_out = await _execute_web_search(query=fn_args.get("query", ""))
+                fn_result = {"result": text_out}
+
+            else:
+                fn_result = {"result": f"Unknown tool: {fn_name}"}
+
+            response_parts.append({
+                "functionResponse": {"name": fn_name, "response": fn_result}
             })
 
-            # Execute each tool and add results
-            for tc in tool_calls:
-                tool_name = tc.function.name
-                try:
-                    tool_input = json.loads(tc.function.arguments)
-                except json.JSONDecodeError:
-                    tool_input = {}
+        # Tool results go back as a "user" turn in Gemini's protocol
+        contents.append({"role": "user", "parts": response_parts})
 
-                if tool_name in ("file_report_action", "book_appointment_action", "request_service_action"):
-                    platform_action = _execute_platform_action(tool_name, tool_input)
-                    result_content = f"Platform action '{platform_action['action']}' will be triggered. Confirm to the user."
-
-                elif tool_name == "find_water_providers":
-                    result_content = await _execute_find_providers(
-                        district=tool_input.get("district", ""),
-                        service_type=tool_input.get("service_type", ""),
-                        api_base=api_base,
-                    )
-
-                elif tool_name == "web_search_providers":
-                    result_content = await _execute_web_search(query=tool_input.get("query", ""))
-
-                else:
-                    result_content = f"Unknown tool: {tool_name}"
-
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": result_content,
-                })
-
-            continue
-
-        break
-
-    # Fallback
-    try:
-        final_content = response.choices[0].message.content or ""
-    except Exception:
-        final_content = ""
-    if not final_content:
-        final_content = "I'm having trouble processing your request right now. Please try again in a moment."
     return {
-        "reply": final_content,
+        "reply": "I'm having trouble processing your request right now. Please try again.",
         "action": platform_action,
         "language": _detect_language(message),
     }
