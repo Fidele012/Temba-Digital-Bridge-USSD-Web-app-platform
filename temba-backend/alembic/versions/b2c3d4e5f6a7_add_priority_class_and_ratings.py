@@ -41,14 +41,14 @@ def upgrade() -> None:
     op.execute("""
         UPDATE reports SET priority_class =
             CASE
-                WHEN category = 'contamination' THEN 'P1'
-                WHEN category = 'pipe_burst'  AND urgency IN ('high','critical') THEN 'P1'
-                WHEN category = 'no_supply'   AND urgency = 'critical'           THEN 'P1'
-                WHEN category = 'pipe_burst'  AND urgency = 'medium'             THEN 'P2'
-                WHEN category = 'no_supply'   AND urgency IN ('high','medium')   THEN 'P2'
-                WHEN category = 'low_pressure' AND urgency IN ('high','critical') THEN 'P2'
-                WHEN category = 'water_quality' AND urgency = 'high'             THEN 'P2'
-                ELSE 'P3'
+                WHEN category::text = 'contamination' THEN 'P1'::priorityclass
+                WHEN category::text = 'pipe_burst'  AND urgency::text IN ('high','critical') THEN 'P1'::priorityclass
+                WHEN category::text = 'no_supply'   AND urgency::text = 'critical'           THEN 'P1'::priorityclass
+                WHEN category::text = 'pipe_burst'  AND urgency::text = 'medium'             THEN 'P2'::priorityclass
+                WHEN category::text = 'no_supply'   AND urgency::text IN ('high','medium')   THEN 'P2'::priorityclass
+                WHEN category::text = 'low_pressure' AND urgency::text IN ('high','critical') THEN 'P2'::priorityclass
+                WHEN category::text = 'water_quality' AND urgency::text = 'high'             THEN 'P2'::priorityclass
+                ELSE 'P3'::priorityclass
             END
         WHERE priority_class IS NULL
     """)
