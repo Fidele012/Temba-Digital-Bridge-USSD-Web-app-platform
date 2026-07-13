@@ -2,6 +2,7 @@
 Temba Water AI Chatbot Service
 Uses Groq (Llama 3.3 70B) with tool calling — free tier at groq.com
 """
+import asyncio
 import json
 import logging
 import os
@@ -235,6 +236,28 @@ def _execute_platform_action(tool_name: str, tool_input: dict) -> dict:
     return {"action": action_map.get(tool_name, tool_name), "params": tool_input}
 
 
+# ─── Groq call with 429 retry ────────────────────────────────────────────────
+
+async def _groq_create(client, messages: list) -> Any:
+    from groq import RateLimitError
+    for attempt in range(3):
+        try:
+            return await client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                tools=TOOLS,
+                tool_choice="auto",
+                max_tokens=600,
+                temperature=0.5,
+            )
+        except RateLimitError:
+            if attempt == 2:
+                raise
+            wait = 3 * (attempt + 1)
+            logger.warning("Groq rate-limited, retrying in %ss", wait)
+            await asyncio.sleep(wait)
+
+
 # ─── Main chat function ───────────────────────────────────────────────────────
 
 async def chat(
@@ -259,15 +282,7 @@ async def chat(
     platform_action: dict | None = None
 
     for _ in range(5):
-        response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            tools=TOOLS,
-            tool_choice="auto",
-            max_tokens=1024,
-            temperature=0.5,
-        )
-
+        response = await _groq_create(client, messages)
         choice = response.choices[0]
 
         if choice.finish_reason == "stop":
@@ -331,7 +346,12 @@ async def chat(
         break
 
     # Fallback
-    final_content = response.choices[0].message.content or "I'm having trouble processing your request. Please try again."
+    try:
+        final_content = response.choices[0].message.content or ""
+    except Exception:
+        final_content = ""
+    if not final_content:
+        final_content = "I'm having trouble processing your request right now. Please try again in a moment."
     return {
         "reply": final_content,
         "action": platform_action,
