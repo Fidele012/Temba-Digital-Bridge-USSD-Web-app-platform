@@ -179,21 +179,16 @@ What can I help you with today?`,
       quickReplies: ['I need water service','How do I report an issue?','Find a provider near me','Use Temba without internet'],
     },
 
-    // KINYARWANDA
+    // KINYARWANDA (fallback only — AI handles Kinyarwanda fully)
     {
       id: 'kinyarwanda',
-      keywords: ['kinyarwanda','ikinyarwanda','ndashaka','nshaka','amazi','ikibazo',
-                 'muraho','mwaramutse','amakuru','bite','impungenge'],
-      response: () => `Muraho! 🇷🇼
+      keywords: ['muraho','mwaramutse','amakuru','bite','impungenge'],
+      response: () => `Muraho! Ndi Umufasha w'Amazi wa Temba.
 
-Nshobora kukufasha mu magambo make y'Ikinyarwanda.
+Nshobora kukufasha mu Kinyarwanda cyangwa Icyongereza — baza ikibazo cyawe!
 
-🇷🇼 **Kinyarwanda:**\n• Raporo y'ikibazo cy'amazi → tandika ikibazo\n• Gukurikirana raporo → shyiraho kode yawe\n• Gutuza umunsi wo guterana → reba abatuzi
-
-🇬🇧 **For full guidance**, please continue in **English** — I cover all platform features in detail.
-
-Ibikubiye muri Temba kandi birahari muri **USSD** (*384*36640#) mu Kinyarwanda.`,
-      quickReplies: ['How do I report? (English)','Find a provider','Use USSD in Kinyarwanda'],
+Ushoboye kandi gukoresha **USSD** (*384*36640#) ku telefoni iyo ari yo yose, nta internet.`,
+      quickReplies: ['Ndashaka urutonde rw\'abatoa amazi','Nshaka gutanga raporo','Gufungura konti'],
     },
 
     // FIND PROVIDER (main intent)
@@ -1275,25 +1270,22 @@ I understand both **English** and **Kinyarwanda**. What can I help you with toda
       appendMessage('user', text);
       showTyping();
 
-      // ── AI path ──────────────────────────────────────────────────────────────
-      if (aiAvailable) {
-        try {
-          const aiResult = await _callAI(text);
-          hideTyping();
-          if (aiResult.action) _handleAction(aiResult.action);
-          appendMessage('bot', aiResult.reply, null, null);
-          aiHistory.push({ role: 'user', content: text });
-          aiHistory.push({ role: 'assistant', content: aiResult.reply });
-          bumpBadge();
-          return;
-        } catch (err) {
-          aiAvailable = false;
-          console.warn('Temba AI unavailable, switching to local KB:', err.message);
-          // fall through to local KB
-        }
+      // ── AI path (always try first) ────────────────────────────────────────
+      try {
+        const aiResult = await _callAI(text);
+        hideTyping();
+        if (aiResult.action) _handleAction(aiResult.action);
+        appendMessage('bot', aiResult.reply, null, null);
+        aiHistory.push({ role: 'user', content: text });
+        aiHistory.push({ role: 'assistant', content: aiResult.reply });
+        bumpBadge();
+        return;
+      } catch (err) {
+        console.warn('Temba AI call failed, using local KB:', err.message);
+        // fall through to local KB for this message only
       }
 
-      // ── Local KB fallback ────────────────────────────────────────────────────
+      // ── Local KB fallback (this message only) ────────────────────────────
       history.push({ role: 'user', text });
       setTimeout(() => {
         hideTyping();
