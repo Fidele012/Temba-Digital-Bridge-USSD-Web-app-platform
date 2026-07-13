@@ -260,12 +260,12 @@ async def chat(
 
     for _ in range(5):
         response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
-            max_tokens=2048,
-            temperature=0.7,
+            max_tokens=1024,
+            temperature=0.5,
         )
 
         choice = response.choices[0]
