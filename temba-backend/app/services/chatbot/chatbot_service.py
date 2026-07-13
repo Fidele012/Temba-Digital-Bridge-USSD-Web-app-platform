@@ -294,8 +294,8 @@ async def chat(
     max_iterations = 5
     for _ in range(max_iterations):
         response = await client.messages.create(
-            model="claude-sonnet-5-20251001",
-            max_tokens=1024,
+            model="claude-sonnet-5",
+            max_tokens=2048,
             system=SYSTEM_PROMPT,
             messages=messages,
             tools=TOOLS,
@@ -386,9 +386,13 @@ def _extract_text(response: anthropic.types.Message) -> str:
 def _detect_language(text: str) -> str:
     """Simple Kinyarwanda detection via common words."""
     rw_tokens = {
-        "amazi", "umuyoboro", "ndi", "niki", "bite", "murakoze", "yego", "oya",
-        "ndashaka", "nsaba", "ikibazo", "serivisi", "akarere", "intara",
-        "ubusarabishe", "raporo", "randevu", "kohereza", "gusaba",
+        "amazi", "mazi", "umuyoboro", "ndi", "niki", "bite", "murakoze",
+        "yego", "oya", "ndashaka", "nshaka", "nsaba", "nasaba", "gusaba",
+        "ikibazo", "serivisi", "akarere", "intara", "ubusarabishe", "raporo",
+        "randevu", "kohereza", "muraho", "mwaramutse", "amakuru", "gute",
+        "nshobora", "gufasha", "batanga", "batoa", "umutoa", "abatoa",
+        "urutonde", "gutuza", "kugenzura", "yanduye", "kunywa", "kubaza",
+        "inkono", "tanki", "ipompe", "inzitizi", "imyuka", "ubushyuhe",
     }
     tokens = set(text.lower().split())
     return "rw" if tokens & rw_tokens else "en"
