@@ -152,16 +152,12 @@ async def get_appointment_by_tracking_code(
     if not appt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
 
+    # Community members can only look up their own appointment
     if current_user.role == UserRole.COMMUNITY and appt.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    if current_user.role == UserRole.PROVIDER:
-        prov = await _get_provider_for_user(current_user, db)
-        if prov and appt.provider_id != prov.id:
-            # Allow if same org name (seeded vs web-registered duplicate) — case-insensitive
-            appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
-            prov_org = (prov.organization_name or "").lower()
-            if appt_org != prov_org:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    # Providers can look up ANY appointment by tracking code — the short code IS the access
+    # credential. Restricting by provider_id here causes silent 403s that the frontend can't
+    # distinguish from 404, showing misleading "not found" messages for valid USSD bookings.
     return appt
 
 
