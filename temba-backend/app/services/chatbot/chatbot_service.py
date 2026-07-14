@@ -1,7 +1,7 @@
 """
 Temba Water AI Chatbot Service
-Calls Google Gemini 1.5 Flash directly via REST API (httpx) — no SDK, no compat layer issues.
-Free tier: 15 RPM, 1 500 req/day, 1M tokens/day. API key from aistudio.google.com.
+Uses Mistral AI (mistral-small-latest) — free tier at console.mistral.ai, no credit card.
+OpenAI-compatible API called directly via httpx.
 """
 import json
 import logging
@@ -16,137 +16,138 @@ logger = logging.getLogger(__name__)
 
 _tavily_available: bool = True
 
-# Tried in order until one returns 2xx — covers model-name ambiguity across API versions
-_GEMINI_CANDIDATES = [
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
-    "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
+MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
+
+# ─── Tool definitions (OpenAI / Mistral format) ───────────────────────────────
+
+TOOLS: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "find_water_providers",
+            "description": (
+                "Search registered water service providers on the Temba platform. "
+                "Call this IMMEDIATELY whenever the user asks to find, list, or search for "
+                "water providers — even if no district is specified (pass empty string to get all). "
+                "Returns provider names, contacts, services, and district coverage."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "district": {
+                        "type": "string",
+                        "description": "Rwanda district name (e.g. 'Gasabo', 'Huye'). Leave empty to get all.",
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "description": "Optional filter: e.g. 'water_supply', 'truck_delivery'",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search_providers",
+            "description": (
+                "Search the web for water service providers or water-related information "
+                "not available in the Temba database."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query, e.g. 'water service providers in Rubavu Rwanda'",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "file_report_action",
+            "description": (
+                "Trigger the 'File a Report' form on the Temba platform for the user. "
+                "Use when the user confirms they want to report a water issue."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "issue_type": {
+                        "type": "string",
+                        "description": "Type: 'contamination', 'no_supply', 'pipe_burst', 'low_pressure', 'meter_problem', 'billing', 'other'",
+                    },
+                    "suggested_priority": {
+                        "type": "string",
+                        "enum": ["P1", "P2", "P3"],
+                        "description": "P1=emergency, P2=urgent, P3=standard",
+                    },
+                },
+                "required": ["issue_type"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "book_appointment_action",
+            "description": "Trigger the 'Book Appointment' flow on the Temba platform.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "provider_id": {"type": "string", "description": "Provider ID if known"},
+                    "provider_name": {"type": "string", "description": "Provider name"},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "request_service_action",
+            "description": "Trigger the 'Request Service' form on the Temba platform.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_type": {
+                        "type": "string",
+                        "description": "Service: 'new_connection', 'truck_delivery', 'tank_installation', 'meter_support', 'inspection', 'other'",
+                    }
+                },
+                "required": ["service_type"],
+            },
+        },
+    },
 ]
 
-# ─── Tool definitions (Gemini function declaration format) ────────────────────
 
-_FUNCTION_DECLARATIONS = [
-    {
-        "name": "find_water_providers",
-        "description": (
-            "Search registered water service providers on the Temba platform. "
-            "Call this IMMEDIATELY whenever the user asks to find, list, or search for "
-            "water providers — even if no district is specified (pass empty string to get all). "
-            "Returns provider names, contacts, services, and district coverage."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "district": {
-                    "type": "string",
-                    "description": "Rwanda district name (e.g. 'Gasabo', 'Huye'). Leave empty to get all.",
-                },
-                "service_type": {
-                    "type": "string",
-                    "description": "Optional filter: e.g. 'water_supply', 'truck_delivery'",
-                },
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "web_search_providers",
-        "description": (
-            "Search the web for water service providers or water-related information "
-            "not available in the Temba database."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query, e.g. 'water service providers in Rubavu Rwanda'",
-                }
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "file_report_action",
-        "description": (
-            "Trigger the 'File a Report' form on the Temba platform for the user. "
-            "Use when the user confirms they want to report a water issue."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "issue_type": {
-                    "type": "string",
-                    "description": "Type: 'contamination', 'no_supply', 'pipe_burst', 'low_pressure', 'meter_problem', 'billing', 'other'",
-                },
-                "suggested_priority": {
-                    "type": "string",
-                    "enum": ["P1", "P2", "P3"],
-                    "description": "P1=emergency, P2=urgent, P3=standard",
-                },
-            },
-            "required": ["issue_type"],
-        },
-    },
-    {
-        "name": "book_appointment_action",
-        "description": "Trigger the 'Book Appointment' flow on the Temba platform.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "provider_id": {"type": "string", "description": "Provider ID if known"},
-                "provider_name": {"type": "string", "description": "Provider name"},
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "request_service_action",
-        "description": "Trigger the 'Request Service' form on the Temba platform.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "service_type": {
-                    "type": "string",
-                    "description": "Service: 'new_connection', 'truck_delivery', 'tank_installation', 'meter_support', 'inspection', 'other'",
-                }
-            },
-            "required": ["service_type"],
-        },
-    },
-]
+# ─── Mistral REST call ────────────────────────────────────────────────────────
 
-_GEMINI_TOOLS = [{"functionDeclarations": _FUNCTION_DECLARATIONS}]
-_TOOL_CONFIG = {"functionCallingConfig": {"mode": "AUTO"}}
-
-
-# ─── Gemini REST call ─────────────────────────────────────────────────────────
-
-async def _gemini_generate(contents: list[dict], api_key: str) -> dict:
-    body = {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": contents,
-        "tools": _GEMINI_TOOLS,
-        "toolConfig": _TOOL_CONFIG,
-        "generationConfig": {"maxOutputTokens": 700, "temperature": 0.5},
+async def _mistral_chat(messages: list[dict], api_key: str) -> dict:
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
     }
-    last_err: Exception | None = None
+    body = {
+        "model": "mistral-small-latest",
+        "messages": messages,
+        "tools": TOOLS,
+        "tool_choice": "auto",
+        "max_tokens": 700,
+        "temperature": 0.5,
+    }
     async with httpx.AsyncClient(timeout=30.0) as http:
-        for url in _GEMINI_CANDIDATES:
-            resp = await http.post(url, json=body, params={"key": api_key})
-            if resp.is_success:
-                logger.info("Gemini OK using %s", url)
-                return resp.json()
-            if resp.status_code == 404:
-                logger.warning("Gemini 404 for %s, trying next", url)
-                last_err = httpx.HTTPStatusError(resp.text, request=resp.request, response=resp)
-                continue
-            # Non-404 error (429, 403, 500…) — log and raise immediately
-            logger.error("Gemini API error %s: %s", resp.status_code, resp.text[:500])
+        resp = await http.post(MISTRAL_URL, json=body, headers=headers)
+        if not resp.is_success:
+            logger.error("Mistral API error %s: %s", resp.status_code, resp.text[:500])
             resp.raise_for_status()
-    raise last_err or RuntimeError("All Gemini model endpoints returned 404")
+        return resp.json()
 
 
 # ─── Tool execution ───────────────────────────────────────────────────────────
@@ -258,76 +259,82 @@ async def chat(
         lang = _detect_language(message)
         return {"reply": _off_topic_reply(lang), "action": None, "language": lang}
 
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("MISTRAL_API_KEY")
     if not api_key:
-        raise ValueError("GOOGLE_API_KEY environment variable not set")
+        raise ValueError("MISTRAL_API_KEY environment variable not set")
 
-    # Build Gemini-format contents (role: "user" | "model")
-    contents: list[dict] = []
+    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     for turn in history[-10:]:
         role = turn.get("role", "user")
         content = turn.get("content", "")
         if role in ("user", "assistant") and content:
-            gemini_role = "model" if role == "assistant" else "user"
-            contents.append({"role": gemini_role, "parts": [{"text": content}]})
-    contents.append({"role": "user", "parts": [{"text": message}]})
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": message})
 
     platform_action: dict | None = None
 
     for _ in range(5):
-        result = await _gemini_generate(contents, api_key)
+        result = await _mistral_chat(messages, api_key)
+        choice = result["choices"][0]
+        finish_reason = choice.get("finish_reason", "stop")
+        msg = choice["message"]
 
-        candidate = result["candidates"][0]
-        resp_parts = candidate["content"]["parts"]
-
-        # Separate text parts from function-call parts
-        fn_calls = [p["functionCall"] for p in resp_parts if "functionCall" in p]
-        text = " ".join(p.get("text", "") for p in resp_parts if "text" in p).strip()
-
-        if not fn_calls:
+        if finish_reason == "stop":
             return {
-                "reply": text or "I'm having trouble right now. Please try again.",
+                "reply": msg.get("content") or "",
                 "action": platform_action,
                 "language": _detect_language(message),
             }
 
-        # Append model turn (including the functionCall parts)
-        contents.append({"role": "model", "parts": resp_parts})
+        if finish_reason == "tool_calls":
+            tool_calls = msg.get("tool_calls") or []
 
-        # Execute each tool and collect functionResponse parts
-        response_parts = []
-        for fc in fn_calls:
-            fn_name = fc["name"]
-            fn_args = dict(fc.get("args") or {})
-
-            if fn_name in ("file_report_action", "book_appointment_action", "request_service_action"):
-                platform_action = _execute_platform_action(fn_name, fn_args)
-                fn_result = {"result": f"Platform action '{platform_action['action']}' will be triggered."}
-
-            elif fn_name == "find_water_providers":
-                text_out = await _execute_find_providers(
-                    district=fn_args.get("district", ""),
-                    service_type=fn_args.get("service_type", ""),
-                    api_base=api_base,
-                )
-                fn_result = {"result": text_out}
-
-            elif fn_name == "web_search_providers":
-                text_out = await _execute_web_search(query=fn_args.get("query", ""))
-                fn_result = {"result": text_out}
-
-            else:
-                fn_result = {"result": f"Unknown tool: {fn_name}"}
-
-            response_parts.append({
-                "functionResponse": {"name": fn_name, "response": fn_result}
+            messages.append({
+                "role": "assistant",
+                "content": msg.get("content"),
+                "tool_calls": tool_calls,
             })
 
-        # Tool results go back as a "user" turn in Gemini's protocol
-        contents.append({"role": "user", "parts": response_parts})
+            for tc in tool_calls:
+                tool_name = tc["function"]["name"]
+                try:
+                    tool_input = json.loads(tc["function"]["arguments"])
+                except (json.JSONDecodeError, TypeError):
+                    tool_input = {}
 
+                if tool_name in ("file_report_action", "book_appointment_action", "request_service_action"):
+                    platform_action = _execute_platform_action(tool_name, tool_input)
+                    result_content = f"Platform action '{platform_action['action']}' will be triggered."
+
+                elif tool_name == "find_water_providers":
+                    result_content = await _execute_find_providers(
+                        district=tool_input.get("district", ""),
+                        service_type=tool_input.get("service_type", ""),
+                        api_base=api_base,
+                    )
+
+                elif tool_name == "web_search_providers":
+                    result_content = await _execute_web_search(query=tool_input.get("query", ""))
+
+                else:
+                    result_content = f"Unknown tool: {tool_name}"
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": result_content,
+                })
+
+            continue
+
+        break
+
+    try:
+        final = result["choices"][0]["message"].get("content") or ""
+    except Exception:
+        final = ""
     return {
-        "reply": "I'm having trouble processing your request right now. Please try again.",
+        "reply": final or "I'm having trouble right now. Please try again.",
         "action": platform_action,
         "language": _detect_language(message),
     }
