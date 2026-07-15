@@ -7,7 +7,6 @@
   <title>Sign Up — Temba Digital Bridge</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="temba.css" />
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div class="auth-page">
@@ -56,13 +55,6 @@
 
       <!-- Step 1: Personal -->
       <div class="form-step active" id="cStep1">
-        <!-- Google Sign-Up shortcut -->
-        <div id="suGoogleBtnContainer" style="display:flex;justify-content:center;min-height:44px;margin-bottom:0.65rem;"></div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
-          <hr style="flex:1;border:none;border-top:1px solid rgba(255,255,255,0.12);">
-          <span style="font-size:12px;color:var(--gray-400);white-space:nowrap;" data-i18n="or_fill_form">or fill in the form below</span>
-          <hr style="flex:1;border:none;border-top:1px solid rgba(255,255,255,0.12);">
-        </div>
         <div class="step-section"><i class="ti ti-user" aria-hidden="true"></i> <span data-i18n="sec_personal_info">Personal Information</span></div>
 
         <div class="field-row">
@@ -785,64 +777,6 @@ window.pGoTo = function(step) {
   if (typeof _origPGoTo === 'function') _origPGoTo(step);
 };
 
-/* ── Google Sign-Up ── */
-const GOOGLE_CLIENT_ID = '54302509809-ko5s83pnj362no68q3nhe9ckbrltq7e4.apps.googleusercontent.com';
-
-function _initGoogleSignUp() {
-  if (!GOOGLE_CLIENT_ID || typeof google === 'undefined' || !google.accounts) return;
-  google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: _handleGoogleCredentialSU });
-  const container = document.getElementById('suGoogleBtnContainer');
-  if (container) {
-    google.accounts.id.renderButton(container, {
-      theme: 'outline', size: 'large', text: 'signup_with',
-      shape: 'rectangular', width: Math.min(container.offsetWidth || 340, 400),
-    });
-  }
-}
-window.addEventListener('load', _initGoogleSignUp);
-
-async function _handleGoogleCredentialSU(response) {
-  const container = document.getElementById('suGoogleBtnContainer');
-  if (container) container.style.opacity = '0.5';
-  try {
-    const resp = await fetch(`${API_BASE}/auth/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: response.credential }),
-    });
-    if (!resp.ok) {
-      const e = await resp.json().catch(() => ({}));
-      const t = document.getElementById('temba-toast');
-      if (t) { t.style.background='#C62828'; t.textContent=e.detail||'Google sign-up failed. Please try again.'; t.style.opacity='1'; clearTimeout(t._tm); t._tm=setTimeout(()=>{t.style.opacity='0';},3000); }
-      if (container) container.style.opacity = '1';
-      return;
-    }
-    const tokenData = await resp.json();
-    localStorage.setItem('temba_token', tokenData.access_token);
-    if (tokenData.refresh_token) localStorage.setItem('temba_refresh_token', tokenData.refresh_token);
-    const meResp = await fetch(`${API_BASE}/users/me`, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
-    if (!meResp.ok) { if (container) container.style.opacity = '1'; return; }
-    const me = await meResp.json();
-    const role = (me.role || 'community').toLowerCase();
-    const name = me.full_name || me.email.split('@')[0];
-    const nameParts = name.trim().split(/\s+/);
-    localStorage.setItem('temba_session', JSON.stringify({
-      loggedIn: true, role, name,
-      firstName: nameParts[0] || null, lastName: nameParts.slice(1).join(' ') || null,
-      email: me.email, phone: me.phone || null,
-      province: me.province || null, district: me.district || null,
-      sector: me.sector || null, cell: me.cell || null, village: me.village || null,
-      is_ussd_profile: false, has_ussd_pin: me.has_ussd_pin || false,
-    }));
-    if (!localStorage.getItem('temba_lang')) localStorage.setItem('temba_lang', 'en');
-    showTembaToast('Account created with Google!', 'success');
-    setTimeout(() => { window.location.href = role === 'provider' ? 'dashboard-provider.html' : 'dashboard-community.html'; }, 600);
-  } catch (_) {
-    const t = document.getElementById('temba-toast');
-    if (t) { t.style.background='#C62828'; t.textContent='Connection error. Please try again.'; t.style.opacity='1'; clearTimeout(t._tm); t._tm=setTimeout(()=>{t.style.opacity='0';},3000); }
-    if (container) container.style.opacity = '1';
-  }
-}
 </script>
 <script src="temba-i18n.js"></script>
 <script src="temba-chatbot.js"></script>
