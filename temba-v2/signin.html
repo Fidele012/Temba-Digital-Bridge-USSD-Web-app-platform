@@ -390,6 +390,7 @@ async function handleSignin(e) {
 
   /* ── Local auth path ── */
   if (usedLocalAuth && localAccount) {
+    if (localAccount.role !== _signinRole) { _roleMismatchError(localAccount.role); return; }
     localStorage.removeItem('temba_token');
     localStorage.setItem('temba_session', JSON.stringify({
       loggedIn:   true,
@@ -441,6 +442,13 @@ async function handleSignin(e) {
   }
 
   const role = (me.role || 'community').toLowerCase();
+
+  /* Block sign-in if the account role doesn't match the selected tab */
+  if (role !== _signinRole) {
+    localStorage.removeItem('temba_token');
+    _roleMismatchError(role);
+    return;
+  }
 
   const name = me.full_name || email.split('@')[0];
 
