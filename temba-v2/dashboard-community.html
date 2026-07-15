@@ -605,9 +605,9 @@
               <p style="color:var(--gray-600);margin-bottom:.5rem;">Your report has been sent to <strong id="rSuccessProv">—</strong>.</p>
               <div style="display:inline-flex;align-items:center;gap:8px;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:20px;padding:6px 16px;font-size:13.5px;font-weight:700;margin-bottom:.5rem;"><i class="ti ti-circle-check"></i> Delivered to Provider</div>
               <div style="display:block;background:var(--sky-light);color:var(--blue);border:1px solid #B3E5FC;border-radius:20px;padding:6px 18px;font-size:14px;font-weight:600;margin-bottom:1.5rem;">Reference: <strong id="rSuccessRef">#—</strong></div>
-              <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                <button onclick="showPanel('my-reports',null)" class="btn-primary" style="width:auto;"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My Reports</button>
-                <button onclick="openNewReport()" class="btn-secondary"><i class="ti ti-plus" aria-hidden="true"></i> Submit Another</button>
+              <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:.25rem;">
+                <button onclick="showPanel('my-reports',null)" class="btn-primary" style="min-width:160px;flex:1;max-width:200px;display:inline-flex;align-items:center;justify-content:center;gap:7px;"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My Reports</button>
+                <button onclick="openNewReport()" class="btn-secondary" style="min-width:160px;flex:1;max-width:200px;display:inline-flex;align-items:center;justify-content:center;gap:7px;"><i class="ti ti-plus" aria-hidden="true"></i> Submit Another</button>
               </div>
             </div>
 
@@ -4034,6 +4034,12 @@ async function submitReportDash() {
   for (let i=1;i<=4;i++) { const el=document.getElementById('rStep'+i); if(el) el.style.display='none'; }
   const suc = document.getElementById('rSuccess'); if (suc) suc.style.display='block';
   document.getElementById('rStepBar')?.style && (document.getElementById('rStepBar').style.display='none');
+
+  // Instant local notification + API sync so bell updates immediately
+  _pushNotif({ type:'report_submitted', icon:'ti-flag', color:'blue',
+    title:'Report Submitted',
+    body:`Your report (${ref}) has been sent to ${rState.provider||'the provider'}. You'll be notified when they respond.` });
+  _syncApiNotifs();
 }
 
 /* Wire showPanel to init report panel when opened */
