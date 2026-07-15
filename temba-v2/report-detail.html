@@ -31,18 +31,16 @@
 
 <nav class="navbar" id="mainNav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-brand">
-      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:38px;width:auto;display:block;">
-      <span style="font-size:15px;font-weight:800;color:var(--navy,#0A2540);white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
+    <a href="dashboard-community.html" class="nav-brand" style="display:flex;align-items:center;gap:10px;">
+      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" style="height:38px;width:auto;display:block;flex-shrink:0;">
+      <span class="nav-brand-text" style="font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-0.01em;">Temba Digital Bridge</span>
     </a>
-    <div class="nav-links">
-      <a href="dashboard-community.html" data-i18n="nav_dashboard">Dashboard</a>
-      <a href="report.html" data-i18n="nav_report">Report Issue</a>
-    </div>
     <div class="nav-actions">
-      <button data-lang-btn="en" onclick="setLang('en')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 6px;">EN</button>
-      <span style="color:var(--gray-300);">|</span>
-      <button data-lang-btn="rw" onclick="setLang('rw')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;padding:4px 6px;">RW</button>
+      <div style="display:flex;align-items:center;gap:4px;font-size:13px;">
+        <button data-lang-btn="en" onclick="setLang('en')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 6px;">EN</button>
+        <span style="color:rgba(255,255,255,0.2);">|</span>
+        <button data-lang-btn="rw" onclick="setLang('rw')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);cursor:pointer;padding:4px 6px;">RW</button>
+      </div>
       <button class="btn-ghost" onclick="signOut()" data-i18n="nav_signout">Sign Out</button>
     </div>
   </div>
