@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Temba Digital Bridge</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f0f4f8; font-family: Arial, Helvetica, sans-serif; }
+    .wrapper { max-width: 580px; margin: 32px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(10,37,64,0.10); }
+    .header { background: linear-gradient(135deg, #0A2540 0%, #1565C0 60%, #29B6F6 100%); padding: 36px 40px; text-align: center; }
+    .header h1 { color: #ffffff; font-size: 22px; font-weight: 800; margin: 0 0 4px; letter-spacing: 0.2px; }
+    .header p { color: rgba(255,255,255,0.80); font-size: 13.5px; margin: 0; }
+    .hero { background: #EFF6FF; padding: 28px 40px 24px; text-align: center; border-bottom: 1px solid #DBEAFE; }
+    .hero h2 { color: #0A2540; font-size: 20px; font-weight: 800; margin: 0 0 8px; }
+    .hero p { color: #374151; font-size: 14px; line-height: 1.7; margin: 0; }
+    .body { padding: 32px 40px; }
+    .greeting { font-size: 15px; color: #0A2540; font-weight: 700; margin-bottom: 12px; }
+    .intro { font-size: 14px; color: #374151; line-height: 1.75; margin-bottom: 28px; }
+    .features { margin-bottom: 28px; }
+    .feature { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+    .feature-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .feature-text h4 { margin: 0 0 2px; font-size: 13.5px; color: #0A2540; font-weight: 700; }
+    .feature-text p { margin: 0; font-size: 13px; color: #6b7280; line-height: 1.55; }
+    .verify-section { background: #F0FDF4; border: 1.5px solid #A7F3D0; border-radius: 8px; padding: 20px 24px; margin-bottom: 28px; text-align: center; }
+    .verify-section p { font-size: 13.5px; color: #065F46; margin: 0 0 16px; line-height: 1.6; }
+    .btn-verify { display: inline-block; background: linear-gradient(135deg, #059669, #10B981); color: #ffffff; text-decoration: none; padding: 13px 32px; border-radius: 7px; font-size: 14px; font-weight: 700; letter-spacing: 0.2px; }
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+    .note { font-size: 12.5px; color: #9ca3af; line-height: 1.6; }
+    .footer { padding: 20px 40px; background: #f8fafc; text-align: center; font-size: 12px; color: #9ca3af; line-height: 1.7; border-top: 1px solid #e5e7eb; }
+    .footer a { color: #6b7280; text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <h1>Temba Digital Bridge</h1>
+    <p>Rwanda Water Services Platform</p>
+  </div>
+
+  <div class="hero">
+    <h2>Welcome, {{ name }}! 🎉</h2>
+    <p>Your community member account has been created. You now have direct access to water services in your area.</p>
+  </div>
+
+  <div class="body">
+    <div class="greeting">Hi {{ name }},</div>
+    <div class="intro">
+      Thank you for joining Temba Digital Bridge. You are now part of a platform that connects Rwandan communities with water service providers — making it easier to report water problems, book appointments, and request services, all in one place.
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon" style="background:#EFF6FF;">🚰</div>
+        <div class="feature-text">
+          <h4>Report Water Problems</h4>
+          <p>Submit reports about contamination, pipe bursts, no water supply, or billing issues and track them to resolution.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" style="background:#F0FDF4;">📅</div>
+        <div class="feature-text">
+          <h4>Book Appointments</h4>
+          <p>Schedule a visit from a water technician for inspections, meter installations, or repairs.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" style="background:#FFF7ED;">🔧</div>
+        <div class="feature-text">
+          <h4>Request Services</h4>
+          <p>Apply for new water connections, pipe repairs, or infrastructure work in your area.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" style="background:#FDF4FF;">📱</div>
+        <div class="feature-text">
+          <h4>USSD Access — No Internet Needed</h4>
+          <p>Dial {{ ussd_code }} on any basic phone to report issues and track cases without a smartphone.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="verify-section">
+      <p><strong>One last step:</strong> Please verify your email address to fully activate your account and start receiving email notifications when providers respond to your cases.</p>
+      <a href="{{ site_url }}/api/v1/auth/verify-email/{{ token }}" class="btn-verify">
+        ✓ Verify My Email Address
+      </a>
+      <p style="margin-top:12px;font-size:12px;color:#6b7280;">This link expires in 24 hours. If you did not create this account, you can safely ignore this email.</p>
+    </div>
+
+    <hr class="divider" />
+    <div class="note">
+      You chose to receive notifications by <strong>email</strong>{% if sms %}, <strong>SMS</strong>{% endif %}, and <strong>in-app alerts</strong>. You will be notified each time you submit a case and whenever a water service provider responds. You can update your preferences at any time from your profile settings.
+    </div>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 Temba Digital Bridge &nbsp;|&nbsp;
+    <a href="https://temba-web-production.up.railway.app/terms-community.html">Terms of Use</a>
+    &nbsp;|&nbsp;
+    <a href="https://temba-web-production.up.railway.app/privacy-community.html">Privacy Policy</a>
+    <br />Kigali, Rwanda
+  </div>
+
+</div>
+</body>
+</html>

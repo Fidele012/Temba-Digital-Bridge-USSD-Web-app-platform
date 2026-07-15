@@ -3,7 +3,7 @@ Hi {{ name }},
 Welcome to Temba Digital Bridge!
 
 Please verify your email by clicking the link below:
-{{ site_url }}/api/v1/auth/verify-email/{{ token }}
+{{ site_url | default('https://temba-api-production.up.railway.app') }}/api/v1/auth/verify-email/{{ token }}
 
 This link expires in 24 hours.
 

@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_NAME: str = "Temba Digital Bridge"
     EMAILS_FROM_EMAIL: EmailStr = "noreply@temba.rw"  # type: ignore[assignment]
+    SITE_URL: str = "https://temba-api-production.up.railway.app"
+    FRONTEND_URL: str = "https://temba-web-production.up.railway.app"
 
     # ── Google OAuth ───────────────────────────────────────────
     GOOGLE_CLIENT_ID: str = ""   # Set in Railway env vars to enable Google Sign-In

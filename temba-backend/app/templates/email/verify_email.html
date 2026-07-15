@@ -10,7 +10,7 @@
       <h2 style="color:#0A2540;font-size:18px;">Hi {{ name }},</h2>
       <p style="color:#475569;line-height:1.7;">Welcome! Please verify your email address to activate your account.</p>
       <div style="text-align:center;margin:32px 0;">
-        <a href="{{ site_url }}/api/v1/auth/verify-email/{{ token }}"
+        <a href="{{ site_url | default('https://temba-api-production.up.railway.app') }}/api/v1/auth/verify-email/{{ token }}"
            style="background:linear-gradient(135deg,#1565C0,#29B6F6);color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">
           Verify Email Address
         </a>

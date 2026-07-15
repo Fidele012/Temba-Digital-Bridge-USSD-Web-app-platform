@@ -129,13 +129,33 @@ async def register(
 
     await write_audit(db, request, "user.register", "user", str(user.id))
 
-    background_tasks.add_task(
-        send_email_background,
-        to=user.email,
-        subject="Verify your Temba account",
-        template="verify_email",
-        context={"name": user.full_name, "token": verification_token},
-    )
+    first_name = user.full_name.split()[0] if user.full_name else "there"
+    if user.role.value == "community":
+        background_tasks.add_task(
+            send_email_background,
+            to=user.email,
+            subject="Welcome to Temba Digital Bridge — verify your account",
+            template="welcome_community",
+            context={
+                "name": first_name,
+                "token": verification_token,
+                "site_url": settings.SITE_URL,
+                "ussd_code": settings.AT_USSD_CODE,
+                "sms": user.sms_notifications,
+            },
+        )
+    else:
+        background_tasks.add_task(
+            send_email_background,
+            to=user.email,
+            subject="Verify your Temba account",
+            template="verify_email",
+            context={
+                "name": first_name,
+                "token": verification_token,
+                "site_url": settings.SITE_URL,
+            },
+        )
     return user
 
 
