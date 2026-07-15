@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import cast, func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -34,7 +34,7 @@ from app.schemas.appointment import (
 from app.schemas.common import PaginatedResponse, PaginationParams
 from app.core.sla import resolution_deadline_for, sla_deadline_for
 from app.schemas.report import VerificationVerdict
-from app.services.notification_service import notify_org, notify_user
+from app.services.notification_service import notify_community_user, notify_org, notify_user
 
 _PROVIDER_APPT_STATUSES = {
     AppointmentStatus.APPROVED,
@@ -67,6 +67,7 @@ async def book_appointment(
     body: AppointmentCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Appointment:
     # Verify provider exists and is approved
@@ -90,6 +91,21 @@ async def book_appointment(
         body=f"A new appointment has been requested for {body.appointment_date} at {body.appointment_time}",
         reference_id=str(appt.id),
         reference_type="appointment",
+    )
+    await notify_community_user(
+        db, background_tasks,
+        user=current_user,
+        notification_type="appointment_update",
+        title="Appointment request submitted",
+        body_text=(
+            f"Your appointment with {provider.organization_name} on "
+            f"{body.appointment_date} at {body.appointment_time} has been submitted and is pending approval."
+        ),
+        email_subject=f"Temba — Appointment request with {provider.organization_name}",
+        sms_message=f"Temba: Your appointment with {provider.organization_name} on {body.appointment_date} at {body.appointment_time} is pending. Track on your dashboard.",
+        reference_id=str(appt.id),
+        reference_type="appointment",
+        email_context={"ref": str(appt.id)[:8].upper()},
     )
     return appt
 
@@ -241,6 +257,7 @@ async def provider_propose_reschedule(
     body: ProviderRescheduleProposal,
     current_user: Annotated[User, Depends(require_provider)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Appointment:
     appt = await _get_appointment_or_404(appt_id, db)
@@ -257,15 +274,20 @@ async def provider_propose_reschedule(
     appt.proposed_time = body.proposed_time
     appt.proposed_message = body.proposed_message
 
-    await notify_user(
-        db,
-        user_id=appt.user_id,
-        notification_type="appointment_update",
-        title="Provider proposed new time",
-        body=f"Your appointment has been rescheduled to {body.proposed_date} {body.proposed_time}. Please accept or reject.",
-        reference_id=str(appt_id),
-        reference_type="appointment",
-    )
+    reschedule_owner = (await db.execute(select(User).where(User.id == appt.user_id))).scalar_one_or_none()
+    if reschedule_owner:
+        await notify_community_user(
+            db, background_tasks,
+            user=reschedule_owner,
+            notification_type="appointment_update",
+            title="Provider proposed a new appointment time",
+            body_text=f"Your appointment has been proposed to be rescheduled to {body.proposed_date} at {body.proposed_time}. Please accept or reject on your dashboard.",
+            email_subject="Temba — Provider proposed a new appointment time",
+            sms_message=f"Temba: Your appointment has been rescheduled to {body.proposed_date} at {body.proposed_time}. Accept or reject on your dashboard.",
+            reference_id=str(appt_id),
+            reference_type="appointment",
+            email_context={"ref": str(appt_id)[:8].upper()},
+        )
     await write_audit(db, request, "appointment.provider_reschedule", "appointment", str(appt_id), actor=current_user)
     return appt
 
@@ -315,6 +337,7 @@ async def update_appointment_status(
     body: AppointmentStatusUpdate,
     current_user: Annotated[User, Depends(require_provider)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Appointment:
     appt = await _get_appointment_or_404(appt_id, db)
@@ -341,15 +364,32 @@ async def update_appointment_status(
     if body.provider_note:
         appt.provider_note = body.provider_note
 
-    await notify_user(
-        db,
-        user_id=appt.user_id,
-        notification_type="appointment_update",
-        title="Appointment updated",
-        body=f"Your appointment status: {body.status.value.replace('_', ' ').title()}",
-        reference_id=str(appt_id),
-        reference_type="appointment",
-    )
+    notif_title = "Appointment updated"
+    notif_body = f"Your appointment status has been updated to: {body.status.value.replace('_', ' ').title()}."
+    if body.status == AppointmentStatus.APPROVED:
+        notif_title = "Appointment approved"
+        notif_body = "Your appointment has been approved by the provider. Please prepare for the scheduled time."
+    elif body.status == AppointmentStatus.REJECTED:
+        notif_title = "Appointment not approved"
+        notif_body = "The provider could not accommodate your appointment at this time. Please book again or contact them directly."
+    elif body.status == AppointmentStatus.RESOLUTION_SUBMITTED:
+        notif_title = "Appointment marked as completed"
+        notif_body = "The provider has marked your appointment as completed. Please confirm on your dashboard whether the service was delivered."
+
+    appt_owner = (await db.execute(select(User).where(User.id == appt.user_id))).scalar_one_or_none()
+    if appt_owner:
+        await notify_community_user(
+            db, background_tasks,
+            user=appt_owner,
+            notification_type="appointment_update",
+            title=notif_title,
+            body_text=notif_body,
+            email_subject=f"Temba — {notif_title}",
+            sms_message=f"Temba: {notif_title}. {notif_body[:100]} Check your dashboard.",
+            reference_id=str(appt_id),
+            reference_type="appointment",
+            email_context={"ref": str(appt_id)[:8].upper()},
+        )
     await write_audit(db, request, f"appointment.{body.status.value}", "appointment", str(appt_id), actor=current_user)
     return appt
 

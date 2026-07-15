@@ -1,0 +1,18 @@
+Temba Digital Bridge — Rwanda Water Services
+============================================
+
+Hi {{ name }},
+
+{{ message }}
+{% if ref %}
+Reference: {{ ref }}
+{% endif %}
+{% if action_url %}
+View on Temba Dashboard: {{ action_url }}
+{% endif %}
+
+---
+You are receiving this because email notifications are enabled on your Temba account.
+You can update your preferences in account settings.
+
+© 2026 Temba Digital Bridge | Kigali, Rwanda

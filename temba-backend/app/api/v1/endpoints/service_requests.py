@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import func, select  # func used for case-insensitive org match
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,7 +25,7 @@ from app.models.user import User, UserRole
 from app.schemas.common import PaginatedResponse, PaginationParams
 from app.schemas.report import VerificationVerdict
 from app.schemas.service_request import ServiceRequestCreate, ServiceRequestPublic, ServiceRequestUpdate
-from app.services.notification_service import notify_org, notify_user
+from app.services.notification_service import notify_community_user, notify_org, notify_user
 
 router = APIRouter(prefix="/service-requests", tags=["service-requests"])
 
@@ -52,6 +52,7 @@ async def create_service_request(
     body: ServiceRequestCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ServiceRequest:
     sr = ServiceRequest(user_id=current_user.id, **body.model_dump())
@@ -60,6 +61,23 @@ async def create_service_request(
     sr.sla_deadline = sla_deadline_for(body.request_type.value, sr.created_at, "service_request")
     sr.resolution_deadline = resolution_deadline_for(sr.created_at, item_type="service_request")
     await write_audit(db, request, "service_request.create", "service_request", str(sr.id), actor=current_user)
+
+    ref = sr.reference_number or str(sr.id)[:8].upper()
+    await notify_community_user(
+        db, background_tasks,
+        user=current_user,
+        notification_type="service_request_update",
+        title=f"Service request {ref} submitted",
+        body_text=(
+            f"Your service request has been received and assigned reference {ref}. "
+            "A water service provider will be assigned and will contact you shortly."
+        ),
+        email_subject=f"Temba — Your service request {ref} has been received",
+        sms_message=f"Temba: Your service request {ref} was submitted. A provider will contact you soon.",
+        reference_id=str(sr.id),
+        reference_type="service_request",
+        email_context={"ref": ref},
+    )
     return sr
 
 
@@ -120,6 +138,7 @@ async def update_service_request(
     body: ServiceRequestUpdate,
     current_user: Annotated[User, Depends(require_staff)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ServiceRequest:
     result = await db.execute(_with_relations(select(ServiceRequest).where(ServiceRequest.id == sr_id)))
@@ -166,15 +185,21 @@ async def update_service_request(
         else:
             notif_title = f"Service request {ref} updated"
             notif_body = f"Status changed to: {body.status.value.replace('_', ' ').title()}"
-        await notify_user(
-            db,
-            user_id=sr.user_id,
-            notification_type="service_request_update",
-            title=notif_title,
-            body=notif_body,
-            reference_id=str(sr_id),
-            reference_type="service_request",
-        )
+
+        sr_owner = (await db.execute(select(User).where(User.id == sr.user_id))).scalar_one_or_none()
+        if sr_owner:
+            await notify_community_user(
+                db, background_tasks,
+                user=sr_owner,
+                notification_type="service_request_update",
+                title=notif_title,
+                body_text=notif_body,
+                email_subject=f"Temba — Update on your service request {ref}",
+                sms_message=f"Temba: {notif_title}. Open your dashboard to take action.",
+                reference_id=str(sr_id),
+                reference_type="service_request",
+                email_context={"ref": ref},
+            )
     return sr
 
 

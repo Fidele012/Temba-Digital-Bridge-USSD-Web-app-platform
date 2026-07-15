@@ -362,10 +362,19 @@ async function handleSubmit(type) {
 
   try {
     const _fetch = (typeof window !== 'undefined' && window._serverFetch) ? window._serverFetch : fetch;
+    const smsNotif   = document.getElementById('cSmsNotif')?.checked   ?? true;
+    const emailNotif = document.getElementById('cEmailNotif')?.checked ?? true;
+    const inAppNotif = document.getElementById('cInAppNotif')?.checked ?? true;
+
     if (isCom) {
       const r = await _fetch(`${_API}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, full_name: fullName, role: 'community', phone })
+        body: JSON.stringify({
+          email, password: pw, full_name: fullName, role: 'community', phone,
+          sms_notifications: smsNotif,
+          email_notifications: emailNotif,
+          in_app_alerts: inAppNotif,
+        })
       });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
@@ -380,7 +389,12 @@ async function handleSubmit(type) {
     } else {
       const rr = await _fetch(`${_API}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, full_name: fullName, role: 'provider' })
+        body: JSON.stringify({
+          email, password: pw, full_name: fullName, role: 'provider',
+          sms_notifications: smsNotif,
+          email_notifications: emailNotif,
+          in_app_alerts: inAppNotif,
+        })
       });
       if (!rr.ok) {
         const e = await rr.json().catch(() => ({}));

@@ -21,6 +21,11 @@ class UserCreate(ORMModel):
     cell: str | None = None
     village: str | None = None
 
+    # Notification preferences
+    sms_notifications: bool = True
+    email_notifications: bool = True
+    in_app_alerts: bool = True
+
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
@@ -41,6 +46,9 @@ class UserUpdate(ORMModel):
     sector: str | None = None
     cell: str | None = None
     village: str | None = None
+    sms_notifications: bool | None = None
+    email_notifications: bool | None = None
+    in_app_alerts: bool | None = None
 
 
 class UserPublic(ORMModel):
@@ -59,6 +67,9 @@ class UserPublic(ORMModel):
     village: str | None
     created_at: datetime
     ussd_pin_hash: str | None = Field(None, exclude=True)
+    sms_notifications: bool = True
+    email_notifications: bool = True
+    in_app_alerts: bool = True
 
     @computed_field
     @property

@@ -30,7 +30,7 @@ from app.models.rating import Rating
 from app.schemas.rating import RatingCreate, RatingPublic
 from app.schemas.report import ReportCreate, ReportPublic, ReportUpdate, VerificationVerdict
 from app.services.file_service import upload_report_media
-from app.services.notification_service import notify_org, notify_user
+from app.services.notification_service import notify_community_user, notify_org, notify_user
 
 _PROVIDER_REPORT_STATUSES = {
     ReportStatus.ACKNOWLEDGED,
@@ -59,6 +59,7 @@ async def create_report(
     body: ReportCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Report:
     suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
@@ -76,6 +77,22 @@ async def create_report(
     report.resolution_deadline = resolution_deadline_for(report.created_at, priority_class=priority)
     await write_audit(db, request, "report.create", "report", str(report.id), actor=current_user)
     await db.refresh(report, ["media"])
+
+    await notify_community_user(
+        db, background_tasks,
+        user=current_user,
+        notification_type="report_update",
+        title=f"Report {ref} submitted",
+        body_text=(
+            f"Your water issue report has been received and assigned reference {ref}. "
+            "A water service provider will respond shortly."
+        ),
+        email_subject=f"Temba — Your report {ref} has been received",
+        sms_message=f"Temba: Your report {ref} was submitted. A provider will respond shortly. Track it on your dashboard.",
+        reference_id=str(report.id),
+        reference_type="report",
+        email_context={"ref": ref},
+    )
     return report
 
 
@@ -147,6 +164,7 @@ async def update_report(
     body: ReportUpdate,
     current_user: Annotated[User, Depends(require_staff)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Report:
     result = await db.execute(_with_relations(select(Report).where(Report.id == report_id)))
@@ -193,15 +211,21 @@ async def update_report(
         else:
             notif_title = f"Report {ref} updated"
             notif_body = f"Your report status changed to: {body.status.value.replace('_', ' ').title()}"
-        await notify_user(
-            db,
-            user_id=report.user_id,
-            notification_type="report_update",
-            title=notif_title,
-            body=notif_body,
-            reference_id=str(report_id),
-            reference_type="report",
-        )
+
+        owner = (await db.execute(select(User).where(User.id == report.user_id))).scalar_one_or_none()
+        if owner:
+            await notify_community_user(
+                db, background_tasks,
+                user=owner,
+                notification_type="report_update",
+                title=notif_title,
+                body_text=notif_body,
+                email_subject=f"Temba — Update on your report {ref}",
+                sms_message=f"Temba: {notif_title}. Open your dashboard to take action.",
+                reference_id=str(report_id),
+                reference_type="report",
+                email_context={"ref": ref},
+            )
     return report
 
 

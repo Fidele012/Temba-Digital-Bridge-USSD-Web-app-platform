@@ -34,6 +34,11 @@ class User(UUIDMixin, TimestampMixin, Base):
     cell: Mapped[str | None] = mapped_column(String(100), nullable=True)
     village: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    # Notification preferences (set during registration, editable in profile)
+    sms_notifications: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    in_app_alerts: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
     # USSD PIN (hashed 4-digit PIN for feature-phone access)
     ussd_pin_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

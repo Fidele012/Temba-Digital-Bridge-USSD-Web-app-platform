@@ -119,6 +119,9 @@ async def register(
         cell=body.cell,
         village=body.village,
         verification_token=verification_token,
+        sms_notifications=body.sms_notifications,
+        email_notifications=body.email_notifications,
+        in_app_alerts=body.in_app_alerts,
     )
     db.add(user)
     await db.flush()

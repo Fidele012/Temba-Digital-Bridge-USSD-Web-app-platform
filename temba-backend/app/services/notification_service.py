@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import structlog
+from fastapi import BackgroundTasks
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,7 @@ from app.models.notification import Notification, NotificationType
 
 if TYPE_CHECKING:
     from app.models.provider import Provider
+    from app.models.user import User
 
 log = structlog.get_logger(__name__)
 
@@ -186,3 +188,52 @@ def send_sms_background(to: str, message: str) -> None:
         log.info("SMS sent", to=to, response=response)
     except Exception:
         log.exception("Failed to send SMS", to=to)
+
+
+# ── Multi-channel community user notification ──────────────────────────────────
+
+async def notify_community_user(
+    db: AsyncSession,
+    background_tasks: BackgroundTasks,
+    *,
+    user: "User",
+    notification_type: str,
+    title: str,
+    body_text: str,
+    email_subject: str | None = None,
+    email_context: dict | None = None,
+    sms_message: str | None = None,
+    reference_id: str | None = None,
+    reference_type: str | None = None,
+) -> None:
+    """Dispatch in-app, email, and SMS notifications respecting the user's preferences."""
+    if user.in_app_alerts:
+        await notify_user(
+            db,
+            user_id=user.id,
+            notification_type=notification_type,
+            title=title,
+            body=body_text,
+            reference_id=reference_id,
+            reference_type=reference_type,
+        )
+
+    if user.email_notifications and user.email and not user.email.endswith("@ussd.temba.rw"):
+        background_tasks.add_task(
+            send_email_background,
+            to=user.email,
+            subject=email_subject or title,
+            template="community_notification",
+            context={
+                "name": user.full_name.split()[0] if user.full_name else "there",
+                "title": title,
+                "message": body_text,
+                **(email_context or {}),
+            },
+        )
+
+    if user.sms_notifications and user.phone:
+        msg = sms_message or f"Temba: {title}. {body_text}"
+        if len(msg) > 160:
+            msg = msg[:157] + "..."
+        background_tasks.add_task(send_sms_background, to=user.phone, message=msg)
