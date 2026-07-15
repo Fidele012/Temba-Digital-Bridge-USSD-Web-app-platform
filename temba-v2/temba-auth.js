@@ -367,10 +367,22 @@ async function handleSubmit(type) {
     const inAppNotif = document.getElementById('cInAppNotif')?.checked ?? true;
 
     if (isCom) {
+      const comGender   = document.querySelector('input[name="cGender"]:checked')?.value || null;
+      const comProvince = fv('cProvince') || null;
+      const comDistrict = fv('cDistrict') || null;
+      const comSector   = fv('cSector')   || null;
+      const comCell     = fv('cCell')     || null;
+      const comVillage  = fv('cVillage')  || null;
       const r = await _fetch(`${_API}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email, password: pw, full_name: fullName, role: 'community', phone,
+          gender:   comGender,
+          province: comProvince,
+          district: comDistrict,
+          sector:   comSector,
+          cell:     comCell,
+          village:  comVillage,
           sms_notifications: smsNotif,
           email_notifications: emailNotif,
           in_app_alerts: inAppNotif,

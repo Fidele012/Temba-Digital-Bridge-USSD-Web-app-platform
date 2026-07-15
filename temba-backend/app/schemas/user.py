@@ -14,6 +14,9 @@ class UserCreate(ORMModel):
     full_name: str = Field(min_length=2, max_length=255)
     role: UserRole = UserRole.COMMUNITY
 
+    # Optional demographics
+    gender: str | None = None
+
     # Optional location
     province: str | None = None
     district: str | None = None
@@ -41,6 +44,7 @@ class UserCreate(ORMModel):
 class UserUpdate(ORMModel):
     full_name: str | None = Field(None, min_length=2, max_length=255)
     phone: str | None = Field(None, pattern=r"^\+?[0-9]{9,15}$")
+    gender: str | None = None
     province: str | None = None
     district: str | None = None
     sector: str | None = None
@@ -60,6 +64,7 @@ class UserPublic(ORMModel):
     is_active: bool
     is_verified: bool
     avatar_url: str | None
+    gender: str | None = None
     province: str | None
     district: str | None
     sector: str | None

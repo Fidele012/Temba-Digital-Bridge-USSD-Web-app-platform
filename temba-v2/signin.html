@@ -282,6 +282,7 @@ async function handleSignin(e) {
       name,
       firstName:      nameParts[0]              || null,
       lastName:       nameParts.slice(1).join(' ') || null,
+      gender:         me.gender                 || null,
       email:          me.email                  || null,
       phone:          me.phone                  || phone,
       province:       me.province               || null,

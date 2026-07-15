@@ -113,6 +113,7 @@ async def register(
         hashed_password=hash_password(body.password),
         full_name=body.full_name,
         role=body.role,
+        gender=body.gender,
         province=body.province,
         district=body.district,
         sector=body.sector,

@@ -27,6 +27,9 @@ class User(UUIDMixin, TimestampMixin, Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Gender (optional — community members only)
+    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Rwanda administrative location (optional — used by community members)
     province: Mapped[str | None] = mapped_column(String(100), nullable=True)
     district: Mapped[str | None] = mapped_column(String(100), nullable=True)
