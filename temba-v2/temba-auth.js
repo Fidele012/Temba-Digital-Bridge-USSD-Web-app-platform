@@ -403,6 +403,7 @@ async function handleSubmit(type) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email, password: pw, full_name: fullName, role: 'provider',
+          phone: adminPhone || orgPhone,
           sms_notifications: smsNotif,
           email_notifications: emailNotif,
           in_app_alerts: inAppNotif,
