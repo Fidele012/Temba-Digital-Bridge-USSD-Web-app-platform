@@ -444,15 +444,30 @@ async function handleSignin(e) {
 
   const name = me.full_name || email.split('@')[0];
 
-  let orgName = null;
+  let orgName = null, orgPhone = null, orgEmail = null, adminPhone = null,
+      licence = null, coverage = null, services = null;
   if (role === 'provider') {
     try {
       const provResp = await fetch(`${API_BASE}/providers/me`, {
         headers: { Authorization: `Bearer ${tokenData.access_token}` }
       });
-      if (provResp.ok) { const prov = await provResp.json(); orgName = prov.organization_name || null; }
-    } catch (_) { /* dashboard will reload org name */ }
+      if (provResp.ok) {
+        const prov = await provResp.json();
+        orgName    = prov.organization_name  || null;
+        orgPhone   = prov.phone              || null;
+        orgEmail   = prov.email              || null;
+        adminPhone = prov.officer_phone      || null;
+        licence    = prov.registration_number|| null;
+        const allCats = [...(prov.service_categories || []), ...(prov.custom_services || [])];
+        services = allCats.length ? allCats : null;
+      }
+    } catch (_) { /* dashboard will reload provider data */ }
   }
+
+  /* Job title is not stored in the API — pull it from locally saved registration data */
+  const _localAccts = JSON.parse(localStorage.getItem('temba_accounts') || '[]');
+  const _localAcct  = _localAccts.find(a => a.email === email.toLowerCase());
+  const title = _localAcct?.title || null;
 
   const nameParts = name.trim().split(/\s+/);
   localStorage.setItem('temba_session', JSON.stringify({
@@ -463,6 +478,13 @@ async function handleSignin(e) {
     lastName:        me.last_name   || nameParts.slice(1).join(' ')       || null,
     gender:          me.gender      || null,
     orgName,
+    orgPhone,
+    orgEmail,
+    adminPhone,
+    title,
+    licence,
+    coverage,
+    services,
     email:           me.email       || email,
     phone:           me.phone       || null,
     province:        me.province    || null,

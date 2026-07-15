@@ -1117,7 +1117,9 @@ function openProfileModal() {
   const firstName = p.first_name         || s.firstName  || (s.name||'').split(' ')[0] || '—';
   const lastName  = p.last_name          || s.lastName   || (s.name||'').split(' ').slice(1).join(' ') || '—';
   const adminName = [firstName !== '—' ? firstName : '', lastName !== '—' ? lastName : ''].filter(Boolean).join(' ') || orgName;
-  const title     = p.position           || s.title      || '—';
+  const _localProvAccts = JSON.parse(localStorage.getItem('temba_accounts') || '[]');
+  const _localProvAcct  = _localProvAccts.find(a => a.email === (s.email || '').toLowerCase());
+  const title     = p.officer_title      || s.title      || _localProvAcct?.title || '—';
   const orgPhone  = p.phone              || s.orgPhone   || s.phone  || '—';
   const orgEmail  = p.email              || s.orgEmail   || s.email  || '—';
   const adminEmail = s.email             || '—';
@@ -1163,10 +1165,10 @@ function openProfileModal() {
   document.getElementById('pm-org-phone').textContent    = orgPhone;
   document.getElementById('pm-org-email').textContent    = orgEmail;
 
-  /* Services — API data takes priority, fall back to session/local */
-  const apiCats = (p.service_categories || []);
+  /* Services — merge standard + custom from API, fall back to session/local */
+  const apiCats   = [...(p.service_categories || []), ...(p.custom_services || [])];
   const localCats = s.services || [];
-  const allCats = apiCats.length ? apiCats : localCats;
+  const allCats   = apiCats.length ? apiCats : localCats;
   document.getElementById('pm-cats').innerHTML = allCats.length
     ? allCats.map(c => {
         const label = c.replace(/_/g,' ').replace(/\b\w/g, l => l.toUpperCase());
