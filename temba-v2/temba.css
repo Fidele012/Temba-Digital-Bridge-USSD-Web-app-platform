@@ -1112,7 +1112,7 @@ body { background: var(--wave-bg); }
 }
 .nav-avatar:hover { box-shadow: 0 0 0 3px rgba(41,182,246,0.6); transform: scale(1.05); }
 /* Language toggles + org name in dark navbar */
-.nav-actions button[data-lang-btn] { color: rgba(255,255,255,0.55) !important; }
+.nav-actions button[data-lang-btn] { color: rgba(255,255,255,0.55) !important; font-size: 12px; padding: 3px 5px; }
 .nav-actions button[data-lang-btn]:hover { color: #fff !important; }
 .nav-actions > span[style*="color:var(--gray"] { color: rgba(255,255,255,0.2) !important; }
 #orgNameNav { color: rgba(255,255,255,0.82) !important; }

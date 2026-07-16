@@ -484,7 +484,7 @@ const T = {
     hero_tag:   'Rwanda · Water &amp; Sanitation Platform',
     hero_h1:    'Your water problems,<br><span class="highlight">heard and resolved</span> faster',
     hero_sub:   'Report broken pipes, shortages &amp; contamination directly to your provider — via web or basic phone USSD. In English and Kinyarwanda.',
-    hero_cta1:  'Report a problem',
+    hero_cta1:  "Sign Up, it's free",
     hero_cta2:  'See how it works',
     hero_note:  'Free for all community members &nbsp;·&nbsp; No smartphone required &nbsp;·&nbsp; Available in English &amp; Kinyarwanda',
 
@@ -1598,7 +1598,7 @@ const T = {
     hero_tag:  "Rwanda · Urubuga rw'Amazi n'Isuku",
     hero_h1:   "Ibibazo byawe by'amazi,<br><span class=\"highlight\">byumvwa kandi bigakemurwa</span> vuba",
     hero_sub:  "Tanga ibibazo by'imiyoboro yangiritse, ibura ry'amazi cyangwa amazi yanduye ku mutanga serivisi wawe mu buryo butaziguye ukoresheje urubuga rwa interineti cyangwa USSD kuri telefone isanzwe. Biboneka mu Cyongereza no mu Kinyarwanda.",
-    hero_cta1: 'Tanga Ikibazo',
+    hero_cta1: 'Iyandikishe, Birabure',
     hero_cta2: 'Reba Uko Bikora',
     hero_note: 'Ubuntu ku baturage bose &nbsp;·&nbsp; Ntukeneye telefone igezweho &nbsp;·&nbsp; Biboneka mu Cyongereza no mu Kinyarwanda',
 

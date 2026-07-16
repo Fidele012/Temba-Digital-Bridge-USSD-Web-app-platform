@@ -476,7 +476,7 @@ button { font-family: var(--font); cursor: pointer; }
   /* Hide brand text on small phones — logo alone identifies the app */
   .nav-logo-name { display: none; }
   /* Compact lang toggle on mobile */
-  .nav-right button[data-lang-btn] { padding: 4px 5px; font-size: 12px; }
+  .nav-right button[data-lang-btn] { padding: 2px 4px; font-size: 11px; letter-spacing: -0.01em; }
 }
 </style>
 </head>
@@ -496,9 +496,9 @@ button { font-family: var(--font); cursor: pointer; }
     <a href="#about"        data-i18n="nav_about">About</a>
   </div>
   <div class="nav-right">
-    <button data-lang-btn="en" onclick="setLang('en')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 8px;">EN</button>
+    <button data-lang-btn="en" onclick="setLang('en')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;padding:4px 8px;">English</button>
       <span style="color:var(--gray-300);">|</span>
-      <button data-lang-btn="rw" onclick="setLang('rw')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;padding:4px 8px;">RW</button>
+      <button data-lang-btn="rw" onclick="setLang('rw')" style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--gray-400);cursor:pointer;padding:4px 8px;">Kinyarwanda</button>
       <button class="btn-ghost-nav" onclick="window.location.href='signin.html'" data-i18n="nav_signin">Sign In</button>
     <a class="btn-cta-nav" href="signup.html" data-i18n="nav_signup">Sign Up</a>
     <button class="hamburger" id="hamburgerBtn" onclick="toggleMenu()" aria-label="Open menu">
@@ -539,7 +539,7 @@ button { font-family: var(--font); cursor: pointer; }
 
   <div class="hero-actions">
     <a class="btn-primary-lg" href="signup.html">
-      <i class="ti ti-flag" style="font-size:16px;" aria-hidden="true"></i> <span data-i18n="hero_cta1">Report a problem</span>
+      <i class="ti ti-user-plus" style="font-size:16px;" aria-hidden="true"></i> <span data-i18n="hero_cta1">Sign Up, it's free</span>
     </a>
     <a class="btn-secondary-lg" href="#how-it-works">
       <i class="ti ti-player-play" style="font-size:15px;" aria-hidden="true"></i> <span data-i18n="hero_cta2">See how it works</span>
