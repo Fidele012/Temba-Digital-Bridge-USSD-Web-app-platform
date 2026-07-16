@@ -50,7 +50,7 @@
     <!-- Provider badge -->
     <div style="padding:0.5rem 1rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:0.5rem;">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#E65100,#FF8F00);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;flex-shrink:0;box-shadow:0 4px 14px rgba(230,81,0,0.45);"><i class="ti ti-building"></i></div>
+        <div style="width:44px;height:44px;border-radius:var(--radius-md);background:#E65100;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;flex-shrink:0;"><i class="ti ti-building"></i></div>
         <div>
           <div style="font-size:14px;font-weight:800;color:rgba(255,204,128,0.95);letter-spacing:0.6px;line-height:1.3;" data-i18n="prov_label">WATER PROVIDER</div>
           <div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,0.4);letter-spacing:0.2px;" data-i18n="service_portal">Service Portal</div>
@@ -60,7 +60,7 @@
     <div class="sidebar-section-label" data-i18n="sidebar_operations">Operations</div>
     <a href="#" class="sidebar-item active" onclick="showPanel('overview',this)"><i class="ti ti-layout-dashboard"></i> <span data-i18n="prov_overview">Overview</span></a>
     <a href="#" class="sidebar-item" onclick="showPanel('inbox',this)">
-      <i class="ti ti-inbox"></i> <span data-i18n="prov_inbox">Reports Inbox</span>
+      <i class="ti ti-clipboard-list"></i> <span data-i18n="prov_inbox">Reports Inbox</span>
       <span class="s-badge" id="inboxBadge" style="display:none">0</span>
     </a>
     <a href="#" class="sidebar-item" onclick="showPanel('service-requests',this)">
@@ -96,15 +96,15 @@
       </div>
 
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-inbox"></i></div><div><div class="stat-num" id="reportCount">0</div><div class="stat-lbl" data-i18n="prov_stat_reports">Total Reports</div></div></div>
-        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-droplet"></i></div><div><div class="stat-num" id="svcReqCount">0</div><div class="stat-lbl" data-i18n="dash_service_requests">Service Requests</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-clipboard-list"></i></div><div><div class="stat-num" id="reportCount">0</div><div class="stat-lbl" data-i18n="prov_stat_reports">Total Reports</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-tool"></i></div><div><div class="stat-num" id="svcReqCount">0</div><div class="stat-lbl" data-i18n="dash_service_requests">Service Requests</div></div></div>
         <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-calendar"></i></div><div><div class="stat-num" id="apptCount">0</div><div class="stat-lbl" data-i18n="dash_appointments">Appointments</div></div></div>
         <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-clock"></i></div><div><div class="stat-num" id="pendingCount">0</div><div class="stat-lbl" data-i18n="prov_stat_pending">Pending Actions</div></div></div>
         <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-star"></i></div><div><div class="stat-num" id="ratingScore">—</div><div class="stat-lbl">Community Rating</div></div></div>
         <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-shield-check"></i></div><div><div class="stat-num" id="accountabilityScore">—</div><div class="stat-lbl">Accountability Score</div></div></div>
       </div>
 
-      <div class="two-col" style="gap:1.25rem;">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.25rem;">
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="ti ti-alert-triangle" style="color:var(--red);"></i> <span data-i18n="prov_urgent_reports">Urgent Reports</span></span>

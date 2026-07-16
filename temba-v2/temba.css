@@ -1230,12 +1230,12 @@ body { background: var(--wave-bg); }
   background: linear-gradient(90deg, var(--blue), var(--sky));
 }
 .stat-card:hover { box-shadow: var(--card-shadow-hover); transform: translateY(-3px); }
-.stat-icon { border-radius: 14px; }
-.stat-icon.blue   { background: linear-gradient(135deg, #E3F2FD, #B3E5FC); color: var(--blue); }
-.stat-icon.green  { background: linear-gradient(135deg, #E8F5E9, #C8E6C9); color: var(--green); }
-.stat-icon.orange { background: linear-gradient(135deg, #FFF8E1, #FFE082); color: var(--orange); }
-.stat-icon.red    { background: linear-gradient(135deg, #FFEBEE, #FFCDD2); color: var(--red); }
-.stat-icon.purple { background: linear-gradient(135deg, #F3E5F5, #E1BEE7); color: var(--purple); }
+.stat-icon { border-radius: var(--radius-md); }
+.stat-icon.blue   { background: var(--sky-light); color: var(--blue); }
+.stat-icon.green  { background: var(--green-light); color: var(--green); }
+.stat-icon.orange { background: var(--orange-light); color: var(--orange); }
+.stat-icon.red    { background: var(--red-light); color: var(--red); }
+.stat-icon.purple { background: #F3E5F5; color: var(--purple); }
 .stat-num { font-size: 30px; }
 
 /* ── Content cards — refined shadows, no border ── */
