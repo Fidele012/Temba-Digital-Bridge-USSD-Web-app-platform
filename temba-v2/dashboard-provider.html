@@ -97,11 +97,11 @@
 
       <div class="stat-grid">
         <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-inbox"></i></div><div><div class="stat-num" id="reportCount">0</div><div class="stat-lbl" data-i18n="prov_stat_reports">Total Reports</div></div></div>
-        <div class="stat-card"><div class="stat-icon purple"><i class="ti ti-tool"></i></div><div><div class="stat-num" id="svcReqCount">0</div><div class="stat-lbl" data-i18n="dash_service_requests">Service Requests</div></div></div>
-        <div class="stat-card"><div class="stat-icon green"><i class="ti ti-calendar"></i></div><div><div class="stat-num" id="apptCount">0</div><div class="stat-lbl" data-i18n="dash_appointments">Appointments</div></div></div>
-        <div class="stat-card"><div class="stat-icon orange"><i class="ti ti-clock"></i></div><div><div class="stat-num" id="pendingCount">0</div><div class="stat-lbl" data-i18n="prov_stat_pending">Pending Actions</div></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:#FFF8E1;color:#F59E0B;"><i class="ti ti-star-filled"></i></div><div><div class="stat-num" id="ratingScore">—</div><div class="stat-lbl">Community Rating</div></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:#E3F2FD;color:#1565C0;"><i class="ti ti-shield-check"></i></div><div><div class="stat-num" id="accountabilityScore">—</div><div class="stat-lbl">Accountability Score</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-droplet"></i></div><div><div class="stat-num" id="svcReqCount">0</div><div class="stat-lbl" data-i18n="dash_service_requests">Service Requests</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-calendar"></i></div><div><div class="stat-num" id="apptCount">0</div><div class="stat-lbl" data-i18n="dash_appointments">Appointments</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-clock"></i></div><div><div class="stat-num" id="pendingCount">0</div><div class="stat-lbl" data-i18n="prov_stat_pending">Pending Actions</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-star"></i></div><div><div class="stat-num" id="ratingScore">—</div><div class="stat-lbl">Community Rating</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="ti ti-shield-check"></i></div><div><div class="stat-num" id="accountabilityScore">—</div><div class="stat-lbl">Accountability Score</div></div></div>
       </div>
 
       <div class="two-col" style="gap:1.25rem;">
@@ -114,7 +114,7 @@
         </div>
         <div class="card">
           <div class="card-header">
-            <span class="card-title"><i class="ti ti-chart-bar" style="color:var(--sky);"></i> <span data-i18n="prov_report_breakdown">Report Breakdown</span></span>
+            <span class="card-title"><i class="ti ti-chart-bar" style="color:var(--gray-400);"></i> <span data-i18n="prov_report_breakdown">Report Breakdown</span></span>
           </div>
           <div id="breakdownChart"></div>
         </div>
@@ -123,14 +123,14 @@
       <div class="two-col" style="gap:1.25rem;margin-top:1.25rem;">
         <div class="card">
           <div class="card-header">
-            <span class="card-title"><i class="ti ti-tool" style="color:var(--purple);"></i> <span data-i18n="prov_pending_svc">Pending Service Requests</span></span>
+            <span class="card-title"><i class="ti ti-tool" style="color:var(--gray-400);"></i> <span data-i18n="prov_pending_svc">Pending Service Requests</span></span>
             <a href="#" class="card-link" onclick="showPanel('service-requests',null);return false;" data-i18n="card_view_all">View all</a>
           </div>
           <div id="overviewSvcReqs"><div class="empty-state"><i class="ti ti-tool"></i><p>No pending service requests</p></div></div>
         </div>
         <div class="card">
           <div class="card-header">
-            <span class="card-title"><i class="ti ti-calendar" style="color:var(--green);"></i> <span data-i18n="prov_pending_appts">Pending Appointments</span></span>
+            <span class="card-title"><i class="ti ti-calendar" style="color:var(--gray-400);"></i> <span data-i18n="prov_pending_appts">Pending Appointments</span></span>
             <a href="#" class="card-link" onclick="showPanel('appointments',null);return false;" data-i18n="card_view_all">View all</a>
           </div>
           <div id="overviewAppts"><div class="empty-state"><i class="ti ti-calendar"></i><p>No pending appointments</p></div></div>
@@ -212,7 +212,7 @@
       <div class="dash-header"><div><h1 data-i18n="prov_announce">Announcements</h1><p data-i18n="prov_announce_sub">Broadcast alerts and notices to communities.</p></div></div>
       <div class="two-col" style="gap:1.25rem;align-items:start;">
         <div class="card">
-          <div class="card-title" style="margin-bottom:1.25rem;"><i class="ti ti-speakerphone" style="color:var(--blue);"></i> <span data-i18n="prov_create_announce">Create Announcement</span></div>
+          <div class="card-title" style="margin-bottom:1.25rem;"><i class="ti ti-speakerphone" style="color:var(--gray-400);"></i> <span data-i18n="prov_create_announce">Create Announcement</span></div>
 
           <div class="field">
             <label class="field-label" style="font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px;" data-i18n="prov_target_area">Target Area</label>
@@ -231,11 +231,11 @@
             <div class="field-wrap sel-wrap">
               <i class="ti ti-tag field-icon"></i>
               <select id="announceType">
-                <option value="interruption" data-i18n="prov_type_interruption">⚠ Water Supply Interruption</option>
-                <option value="maintenance" data-i18n="prov_type_maintenance">🔧 Scheduled Maintenance</option>
-                <option value="quality" data-i18n="prov_type_quality">🧪 Water Quality Notice</option>
-                <option value="restoration" data-i18n="prov_type_restoration">✅ Supply Restoration</option>
-                <option value="general" data-i18n="prov_type_general">📢 General Announcement</option>
+                <option value="interruption" data-i18n="prov_type_interruption">Water Supply Interruption</option>
+                <option value="maintenance" data-i18n="prov_type_maintenance">Scheduled Maintenance</option>
+                <option value="quality" data-i18n="prov_type_quality">Water Quality Notice</option>
+                <option value="restoration" data-i18n="prov_type_restoration">Supply Restoration</option>
+                <option value="general" data-i18n="prov_type_general">General Announcement</option>
               </select>
               <i class="ti ti-chevron-down sel-arrow"></i>
             </div>
@@ -420,7 +420,7 @@
 
         <!-- ── Left: Slot Configuration ── -->
         <div class="card">
-          <div class="card-title" style="margin-bottom:1.25rem;"><i class="ti ti-clock" style="color:var(--blue);"></i> <span data-i18n="prov_working_hours">Working Hours &amp; Slot Settings</span></div>
+          <div class="card-title" style="margin-bottom:1.25rem;"><i class="ti ti-clock" style="color:var(--gray-400);"></i> <span data-i18n="prov_working_hours">Working Hours &amp; Slot Settings</span></div>
 
           <div class="field">
             <label class="field-label"><span data-i18n="prov_working_days">Working Days</span> <span class="req">*</span></label>
@@ -533,7 +533,7 @@
 <div class="modal-overlay" id="provReschedModal">
   <div class="modal-box" style="max-width:440px;">
     <div class="modal-head">
-      <h2><i class="ti ti-calendar-event" style="color:var(--purple);"></i> <span data-i18n="prov_propose_time_title">Propose New Time</span></h2>
+      <h2><i class="ti ti-calendar-event" style="color:var(--gray-400);"></i> <span data-i18n="prov_propose_time_title">Propose New Time</span></h2>
       <button class="modal-close" onclick="closeProvReschedModal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
