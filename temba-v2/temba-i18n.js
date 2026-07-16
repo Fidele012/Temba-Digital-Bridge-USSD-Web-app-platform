@@ -1598,7 +1598,7 @@ const T = {
     hero_tag:  "Rwanda · Urubuga rw'Amazi n'Isuku",
     hero_h1:   "Ibibazo byawe by'amazi,<br><span class=\"highlight\">byumvwa kandi bigakemurwa</span> vuba",
     hero_sub:  "Tanga ibibazo by'imiyoboro yangiritse, ibura ry'amazi cyangwa amazi yanduye ku mutanga serivisi wawe mu buryo butaziguye ukoresheje urubuga rwa interineti cyangwa USSD kuri telefone isanzwe. Biboneka mu Cyongereza no mu Kinyarwanda.",
-    hero_cta1: 'Iyandikishe, Birabure',
+    hero_cta1: 'Iyandikishe Hano',
     hero_cta2: 'Reba Uko Bikora',
     hero_note: 'Ubuntu ku baturage bose &nbsp;·&nbsp; Ntukeneye telefone igezweho &nbsp;·&nbsp; Biboneka mu Cyongereza no mu Kinyarwanda',
 
