@@ -26,8 +26,16 @@
     .r-prov-list{display:flex;flex-direction:column;gap:8px;}
     .prov-opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);cursor:pointer;transition:all .2s;}
     .prov-opt:hover,.prov-opt.active{border-color:var(--blue);background:var(--sky-pale);}
-    .prov-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--sky));display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;}
+    .prov-icon{width:36px;height:36px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;}
     .prov-check{margin-left:auto;color:var(--gray-200);font-size:17px;transition:color .2s;} .prov-opt.active .prov-check{color:var(--blue);}
+    /* Auto-match card */
+    .match-card{background:var(--sky-pale);border:1.5px solid #90CAF9;border-radius:var(--radius-md);padding:14px 16px;}
+    .match-card.no-match{background:var(--orange-light);border-color:#FFCC80;}
+    .match-reason{display:flex;align-items:center;gap:5px;font-size:12px;color:#15803D;margin-top:3px;}
+    .match-reason i{font-size:13px;}
+    .match-warning{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--orange);margin-top:3px;}
+    .match-warning i{font-size:13px;}
+    #rChangeProvBtn:hover{background:var(--sky-pale);}
     .ev-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
     .btn-evidence{display:flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px solid var(--gray-300);border-radius:var(--radius-md);background:#fff;color:var(--navy);font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;}
     .btn-evidence:hover{border-color:var(--blue);color:var(--blue);background:var(--sky-pale);}
@@ -551,10 +559,25 @@
               </div>
             </div>
 
-            <!-- STEP 3 — Provider -->
+            <!-- STEP 3 — Auto-matched Provider -->
             <div class="form-step" id="rStep3">
-              <div class="step-section"><i class="ti ti-building" aria-hidden="true"></i> Select Provider</div>
-              <div class="r-prov-list" id="rProviderList"></div>
+              <div class="step-section"><i class="ti ti-cpu" aria-hidden="true"></i> Provider Matched</div>
+
+              <!-- Auto-match result card (populated by JS) -->
+              <div id="rMatchCard"></div>
+
+              <!-- Change provider toggle -->
+              <div style="text-align:center;margin:10px 0 4px;">
+                <button type="button" id="rChangeProvBtn" onclick="rToggleProviderList()"
+                  style="background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:var(--radius-sm);transition:background 0.15s;">
+                  <i class="ti ti-switch-horizontal" id="rChangeProvIcon" aria-hidden="true"></i>
+                  <span id="rChangeProvLabel">Change provider</span>
+                </button>
+              </div>
+
+              <!-- Filtered override list (hidden initially) -->
+              <div id="rProviderList" class="r-prov-list" style="display:none;margin-top:4px;"></div>
+
               <div class="field" style="margin-top:1.25rem;">
                 <label class="field-label">Contact Phone Number <span class="req">*</span></label>
                 <div class="phone-wrap">
@@ -3769,6 +3792,8 @@ function rGoTo(from, to) {
     if (!sector)   { toast('Please select a Sector.', 'error');   document.getElementById('rSector')?.focus();   return; }
     if (!cell)     { toast('Please select a Cell.', 'error');     document.getElementById('rCell')?.focus();     return; }
     if (!village)  { toast('Please select a Village.', 'error');  document.getElementById('rVillage')?.focus();  return; }
+    // Run intelligent auto-match now that we have both issue type and location
+    setTimeout(() => runAutoMatch(province), 50);
   }
   if (from === 3 && to === 4) {
     const phone = (document.getElementById('rPhone')?.value || '').trim();
@@ -3806,75 +3831,334 @@ function rSelectIssue(el, key) {
   if (key !== 'other') { const inp=document.getElementById('rOtherIssueText'); if(inp) inp.value=''; }
 }
 
-/* Provider selection */
+/* ═══════════════════════════════════════════════════════
+   PROVIDER AUTO-MATCHING ENGINE
+   Priority 1: Province coverage (hard filter)
+   Priority 2: Service relevance (scored)
+   Language: English + Kinyarwanda synonyms
+   ═══════════════════════════════════════════════════════ */
+
 const _R_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function rSelectProvider(el, idOrKey, name) {
-  document.querySelectorAll('#rProviderList .prov-opt').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
-  rState.provider = name;
-  if (_R_UUID_RE.test(idOrKey)) {
-    rState.providerId = idOrKey;
+
+/* Issue type → required service categories */
+const R_ISSUE_TO_CATS = {
+  broken_pipe:    ['water_supply', 'infrastructure'],
+  no_water:       ['water_supply'],
+  contam:         ['water_quality'],
+  pressure:       ['water_supply', 'infrastructure'],
+  flooding:       ['drainage', 'sanitation'],
+  billing:        ['meter_services'],
+  sanitation:     ['sanitation'],
+  long_distance:  ['water_supply', 'infrastructure'],
+  high_cost:      ['water_supply'],
+  seasonal:       ['water_supply'],
+  system_failure: ['infrastructure', 'water_supply'],
+  other:          ['water_supply'],
+};
+
+/* Synonym table — English + Kinyarwanda variations per category */
+const R_SYNONYMS = {
+  water_supply: [
+    'water supply','supply','running water','piped water','tap water',
+    'clean water','drinking water','potable water','water distribution',
+    'amazi','umuyoboro w amazi','amazi y umuyoboro','amazi meza',
+    'inzira y amazi','gutanga amazi','amazi yo kunywa','amazi y iterambere',
+    'water','supplies','provide water','water provision'
+  ],
+  infrastructure: [
+    'infrastructure','pipe','pipes','pipeline','repair','installation',
+    'construction','rehabilitation','fitting','plumbing','network',
+    'maintenance','pipe laying','water network','pipe repair',
+    'umuyoboro','inzira','gusana','guteranya','kubaka','imiyoboro',
+    'gusana umuyoboro','inzira y amazi','ibikorwa bya infirastructure'
+  ],
+  water_quality: [
+    'water quality','quality','testing','test','contamination','treatment',
+    'purification','analysis','safety','chemical','chlorine','turbidity',
+    'ubuziranenge','amazi yanduye','isukura y amazi','ubuzima','isuzuma',
+    'gupima amazi','amazi mabi','ubuziranenge bw amazi','quality testing'
+  ],
+  sanitation: [
+    'sanitation','sewage','drainage','sewer','waste','wastewater',
+    'hygiene','latrine','toilet','septic','solid waste','drainage system',
+    'isuku','isukura','imyanda','inzira y imyanda','ubwiza',
+    'amazi y imyanda','ibikorwa by isuku','isuku ry ibidukikije'
+  ],
+  meter_services: [
+    'meter','meters','metre','billing','bill','invoice','reading',
+    'tariff','payment','charge','account','metering','water bill',
+    'metero','kwishura','fagitire','kwishyura','konti',
+    'metero y amazi','kwishyura amazi','fagitire y amazi'
+  ],
+  borehole: [
+    'borehole','drilling','well','groundwater','bore','drill',
+    'pump','submersible','hand pump','deep well','borehole drilling',
+    'urubanza','kuvoma amazi','pumpu','gucukura','imyoboro y isi',
+    'amazi y isi','kuvumbura amazi'
+  ],
+  rainwater: [
+    'rainwater','rain water','harvest','harvesting','collection',
+    'tank','cistern','catchment','roof water','rain collection',
+    'imvura','gukusanya imvura','rezervori','ikibaya cy amazi',
+    'amazi y imvura','gufata amazi y imvura','gukusanya amazi y imvura'
+  ],
+  truck_delivery: [
+    'truck','delivery','tanker','water truck','transport','water delivery',
+    'imodoka y amazi','gutanga amazi','gutwara amazi','imodoka',
+    'delivery y amazi','guheka amazi'
+  ],
+};
+
+/* Province name normalizer */
+const _R_PROV_MAP = {
+  'kigali':'Kigali City','kigali city':'Kigali City','umujyi wa kigali':'Kigali City',
+  'northern':'Northern Province','north':'Northern Province','amajyaruguru':'Northern Province','intara y amajyaruguru':'Northern Province',
+  'southern':'Southern Province','south':'Southern Province','amajyepfo':'Southern Province','intara y amajyepfo':'Southern Province',
+  'eastern':'Eastern Province','east':'Eastern Province','iburasirazuba':'Eastern Province','intara y iburasirazuba':'Eastern Province',
+  'western':'Western Province','west':'Western Province','iburengerazuba':'Western Province','intara y iburengerazuba':'Western Province',
+};
+function _rNormProv(p) { return _R_PROV_MAP[(p||'').toLowerCase()] || p; }
+
+function _rProvCovers(provider, province) {
+  if (!province) return true;
+  const target = _rNormProv(province);
+  const areas = provider.service_areas || [];
+  if (!areas.length) return false;
+  return areas.some(a => {
+    if (!a.province) return true;
+    const ap = _rNormProv(a.province);
+    return ap === target || ap === 'All Provinces' || ap === 'National';
+  });
+}
+
+/* Tokenizer — strips stop words, handles Kinyarwanda apostrophe prefixes */
+function _rTokenize(text) {
+  const STOP = new Set([
+    'the','a','an','and','or','of','in','at','to','for','with','by','on','is','are','was','that','this',
+    'na','mu','ku','i','y','w','z','n','nk','kandi','cyangwa','ariko','ko','kuba','ari','ni','si','bya','by'
+  ]);
+  return (text||'').toLowerCase()
+    .replace(/[''`]/g,'')
+    .replace(/[^a-z0-9\s]/g,' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOP.has(w));
+}
+
+/* Score a custom-service string against required categories via synonym overlap */
+function _rSynScore(customText, requiredCats) {
+  const tokens = _rTokenize(customText);
+  if (!tokens.length) return 0;
+  let score = 0;
+  for (const cat of requiredCats) {
+    for (const syn of (R_SYNONYMS[cat] || [])) {
+      const synToks = _rTokenize(syn);
+      for (const t of tokens) {
+        if (synToks.some(s => s === t || s.startsWith(t) || t.startsWith(s))) score += 2;
+      }
+    }
+  }
+  return score;
+}
+
+/* Score a provider against required categories */
+function _rScoreProvider(provider, requiredCats) {
+  let score = 0;
+  const provCats = provider.service_categories || [];
+  for (const req of requiredCats) {
+    if (provCats.includes(req)) score += 10;
+  }
+  // Custom / other services — semantic token similarity
+  const custom = provider.custom_services || provider.extra_services || [];
+  for (const cs of (Array.isArray(custom) ? custom : [])) {
+    score += _rSynScore(cs, requiredCats);
+  }
+  // Small boost for accountability / rating
+  score += (provider.accountability_score || 0) * 0.05;
+  score += (provider.avg_rating || 0) * 0.3;
+  return score;
+}
+
+/* Main matching function — returns ranked provider list */
+function rMatchProviders(issueKey, province) {
+  const required = R_ISSUE_TO_CATS[issueKey] || R_ISSUE_TO_CATS['other'];
+  const all = window._apiProviders || [];
+  if (!all.length) return [];
+
+  // Hard filter: province coverage
+  let candidates = all.filter(p => _rProvCovers(p, province));
+  const hadProvMatch = candidates.length > 0;
+  // Fallback: if nothing covers the province, include everyone (tiered fallback)
+  if (!hadProvMatch) candidates = all;
+
+  return candidates
+    .map(p => ({
+      ...p,
+      _score:       _rScoreProvider(p, required),
+      _matchedCats: (p.service_categories || []).filter(c => required.includes(c)),
+      _provMatch:   hadProvMatch && _rProvCovers(p, province),
+    }))
+    .sort((a, b) => b._score - a._score);
+}
+
+/* ── Render auto-match result into Step 3 UI ── */
+let _rProvListOpen = false;
+
+function runAutoMatch(province) {
+  const matches = rMatchProviders(rState.issueKey, province || document.getElementById('rProvince')?.value);
+  const card    = document.getElementById('rMatchCard');
+  const list    = document.getElementById('rProviderList');
+  const btn     = document.getElementById('rChangeProvBtn');
+  if (!card) return;
+
+  // Reset toggle state every time we re-run
+  _rProvListOpen = false;
+  if (list) list.style.display = 'none';
+  const lbl = document.getElementById('rChangeProvLabel');
+  const ico = document.getElementById('rChangeProvIcon');
+  if (lbl) lbl.textContent = 'Change provider';
+  if (ico) ico.className = 'ti ti-switch-horizontal';
+
+  /* No providers registered at all */
+  if (!matches.length) {
+    card.innerHTML = `
+      <div class="match-card no-match">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border-radius:8px;background:var(--orange);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ti-info-circle" style="color:#fff;font-size:17px;" aria-hidden="true"></i>
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#78350F;">No providers registered yet</div>
+            <div style="font-size:12.5px;color:#92400E;margin-top:2px;line-height:1.5;">Your report will be received and a provider will be assigned by the Temba team.</div>
+          </div>
+        </div>
+      </div>`;
+    rState.provider = '';
+    rState.providerId = null;
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+
+  if (btn) btn.style.display = '';
+  const top = matches[0];
+  rState.provider   = top.organization_name;
+  rState.providerId = top.id;
+
+  const isNoProvMatch = province && !top._provMatch;
+  const cats     = (top.service_categories || []).map(s => s.replace(/_/g,' ')).join(' · ') || 'Water services';
+  const areas    = (top.service_areas || []).map(a => a.province).filter(Boolean);
+  const coverage = areas.length ? areas.join(', ') : 'Rwanda';
+
+  // Build match reason lines
+  const reasons = [];
+  if (!isNoProvMatch && province) {
+    reasons.push({ ok:true, text:`Covers ${province}` });
+  } else if (isNoProvMatch) {
+    reasons.push({ ok:false, text:`No provider found in ${province} — using nearest available` });
+  }
+  if (top._matchedCats.length) {
+    reasons.push({ ok:true, text:`Handles ${top._matchedCats.map(c=>c.replace(/_/g,' ')).join(' & ')}` });
   } else {
-    const found = (window._rProviders||[]).find(p=>p.organization_name===name);
-    rState.providerId = found ? found.id : null;
+    reasons.push({ ok:false, text:'Best available provider in your area' });
+  }
+
+  const reasonHTML = reasons.map(r => r.ok
+    ? `<div class="match-reason"><i class="ti ti-circle-check" aria-hidden="true"></i><span>${r.text}</span></div>`
+    : `<div class="match-warning"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>${r.text}</span></div>`
+  ).join('');
+
+  const pill = isNoProvMatch
+    ? `<div style="background:var(--orange-light);border:1px solid #FFCC80;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;">Fallback</div>`
+    : `<div style="background:var(--green-light);border:1px solid #A5D6A7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#15803D;white-space:nowrap;flex-shrink:0;">Auto-matched</div>`;
+
+  card.innerHTML = `
+    <div class="match-card${isNoProvMatch?' no-match':''}">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:8px;background:${isNoProvMatch?'var(--orange)':'var(--blue)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="ti ti-building" style="color:#fff;font-size:18px;" aria-hidden="true"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14.5px;color:var(--navy);">${top.organization_name}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:1px;line-height:1.4;">${cats} &mdash; ${coverage}</div>
+          <div style="margin-top:6px;">${reasonHTML}</div>
+        </div>
+        ${pill}
+      </div>
+    </div>`;
+
+  updateSummaryR();
+
+  /* Populate override shortlist (filtered by province, sorted by score) */
+  if (list) {
+    list.innerHTML = matches.slice(0, 8).map((p, i) => {
+      const pc  = (p.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') || 'Water services';
+      const pa  = (p.service_areas||[]).map(a=>a.province).filter(Boolean);
+      const pco = pa.length ? pa.join(', ') : 'Rwanda';
+      const esc = p.organization_name.replace(/'/g,"\\'");
+      return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProviderOverride(this,'${p.id}','${esc}')">
+        <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13.5px;color:var(--navy);">${p.organization_name}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:1px;">${pc} &mdash; ${pco}</div>
+        </div>
+        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+      </div>`;
+    }).join('');
+    list.innerHTML += `
+      <div class="prov-opt" onclick="rSelectProviderOverride(this,'','Temba will assign a provider')">
+        <div class="prov-icon" style="background:var(--gray-100);"><i class="ti ti-help-circle" style="color:var(--gray-500);" aria-hidden="true"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13.5px;color:var(--navy);">I'm not sure</div>
+          <div style="font-size:12px;color:var(--gray-400);">Temba will assign the right provider</div>
+        </div>
+        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+      </div>`;
   }
 }
 
-/* Load providers into panel */
-function loadReportProvidersD() {
+/* Toggle the override shortlist open/closed */
+function rToggleProviderList() {
+  _rProvListOpen = !_rProvListOpen;
   const list = document.getElementById('rProviderList');
-  if (!list) return;
+  const lbl  = document.getElementById('rChangeProvLabel');
+  const ico  = document.getElementById('rChangeProvIcon');
+  if (list) list.style.display = _rProvListOpen ? 'flex' : 'none';
+  if (lbl)  lbl.textContent    = _rProvListOpen ? 'Hide list' : 'Change provider';
+  if (ico)  ico.className      = _rProvListOpen ? 'ti ti-x' : 'ti ti-switch-horizontal';
+}
 
-  /* Use already-loaded API providers; fall back to hardcoded providersData */
-  const apiProvs = (window._apiProviders || []);
-  const useApi = apiProvs.length > 0;
+/* Manual override selection — updates match card to show user's choice */
+function rSelectProviderOverride(el, id, name) {
+  document.querySelectorAll('#rProviderList .prov-opt').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  rState.provider   = name;
+  rState.providerId = _R_UUID_RE.test(id) ? id : null;
 
-  if (useApi) {
-    /* Build rich cards from live API data */
-    window._rProviders = apiProvs;
-    list.innerHTML = apiProvs.map((p, i) => {
-      const cats = (p.service_categories || []).map(s => s.replace(/_/g,' ')).join(' · ') || 'Water services';
-      const areas = (p.service_areas || []).map(a => a.province).filter(Boolean);
-      const coverage = areas.length ? areas.join(', ') : 'Rwanda';
-      const phone = p.phone ? `<span style="font-size:11.5px;color:var(--gray-400);margin-left:4px;">· ${p.phone}</span>` : '';
-      return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProvider(this,'${p.id}','${p.organization_name.replace(/'/g,"\\'")}')">
-        <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:14px;color:var(--navy);">${p.organization_name}${phone}</div>
-          <div style="font-size:12.5px;color:var(--gray-400);margin-top:2px;">${cats} &mdash; ${coverage}</div>
+  const provObj = (window._apiProviders||[]).find(p => p.id === id);
+  const cats    = provObj ? (provObj.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') : 'Water services';
+
+  const card = document.getElementById('rMatchCard');
+  if (card) card.innerHTML = `
+    <div class="match-card">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="ti ti-building" style="color:#fff;font-size:18px;" aria-hidden="true"></i>
         </div>
-        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
-      </div>`;
-    }).join('');
-    rState.provider = apiProvs[0].organization_name;
-    rState.providerId = apiProvs[0].id;
-  } else {
-    /* Fallback: use hardcoded providersData so the list is never empty */
-    window._rProviders = [];
-    list.innerHTML = providersData.map((p, i) => {
-      const services = p.services.join(' · ');
-      return `<div class="prov-opt${i===0?' active':''}" onclick="rSelectProvider(this,'${p.name.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
-        <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:14px;color:var(--navy);">${p.name} <span style="font-size:11.5px;color:var(--gray-400);">· ${p.phone}</span></div>
-          <div style="font-size:12.5px;color:var(--gray-400);margin-top:2px;">${services} &mdash; ${p.coverage}</div>
+          <div style="font-weight:700;font-size:14.5px;color:var(--navy);">${name}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:1px;">${cats}</div>
+          <div class="match-reason" style="margin-top:6px;"><i class="ti ti-user-check" aria-hidden="true"></i><span>Manually selected</span></div>
         </div>
-        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
-      </div>`;
-    }).join('');
-    rState.provider = providersData[0].name;
-    rState.providerId = null;
-  }
+        <div style="background:var(--sky-pale);border:1px solid #90CAF9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;flex-shrink:0;">Selected</div>
+      </div>
+    </div>`;
 
-  /* Always append an "I'm not sure" option at the bottom */
-  list.innerHTML += `<div class="prov-opt" onclick="rSelectProvider(this,'','I\\'m not sure — route automatically')">
-    <div class="prov-icon" style="background:var(--gray-200);"><i class="ti ti-help-circle" style="color:var(--gray-600);" aria-hidden="true"></i></div>
-    <div style="flex:1;min-width:0;">
-      <div style="font-weight:700;font-size:14px;color:var(--navy);">I'm not sure</div>
-      <div style="font-size:12.5px;color:var(--gray-400);">Temba will route to the right provider</div>
-    </div>
-    <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
-  </div>`;
+  updateSummaryR();
+}
+
+/* Initial provider load — called at form init (province may not be known yet) */
+function loadReportProvidersD() {
+  const province = document.getElementById('rProvince')?.value || null;
+  runAutoMatch(province);
 }
 
 /* Location cascade */
