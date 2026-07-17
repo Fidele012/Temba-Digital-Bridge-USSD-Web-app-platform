@@ -3683,7 +3683,7 @@ const R_EV_MAX_FILES = 5;
 const R_EV_MAX_MB    = 20;
 
 let rCurrentStep = 1;
-let rState = { issueKey:'broken_pipe', issueLabel:'Broken Pipe', urgency:'urgent', provider:'', providerId:null, location:'' };
+let rState = { issueKey:'broken_pipe', issueLabel:'Broken Pipe', urgency:'urgent', provider:'', providerId:null, location:'', _wasacFallback:false };
 let rEvidenceFiles = [];
 
 /* Open/reset the report panel */
@@ -3694,7 +3694,7 @@ function openNewReport() {
 
 function resetReportForm() {
   rCurrentStep = 1;
-  rState = { issueKey:'broken_pipe', issueLabel:'Broken Pipe', urgency:'urgent', provider:'', providerId:null, location:'' };
+  rState = { issueKey:'broken_pipe', issueLabel:'Broken Pipe', urgency:'urgent', provider:'', providerId:null, location:'', _wasacFallback:false };
   rEvidenceFiles = [];
   /* Show step 1, hide all others and success */
   for (let i = 1; i <= 4; i++) {
@@ -3979,25 +3979,66 @@ function _rScoreProvider(provider, requiredCats) {
 }
 
 /* Main matching function — returns ranked provider list */
+/* Find WASAC in the registered provider list:
+   Step 1 — name contains "WASAC" (case-insensitive)
+   Step 2 — provider whose service_areas covers all 5 provinces (national)
+   Step 3 — null (not registered on Temba) */
+function _findWasac() {
+  const all = window._apiProviders || [];
+  const byName = all.find(p => /wasac/i.test(p.organization_name || ''));
+  if (byName) return byName;
+  const ALL5 = ['Kigali City','Northern Province','Southern Province','Eastern Province','Western Province'];
+  const national = all.find(p => {
+    const provs = (p.service_areas || []).map(a => _rNormProv(a.province || ''));
+    return ALL5.every(pr => provs.includes(pr));
+  });
+  return national || null;
+}
+
 function rMatchProviders(issueKey, province) {
   const required = R_ISSUE_TO_CATS[issueKey] || R_ISSUE_TO_CATS['other'];
   const all = window._apiProviders || [];
   if (!all.length) return [];
 
   // Hard filter: province coverage
-  let candidates = all.filter(p => _rProvCovers(p, province));
+  const candidates = all.filter(p => _rProvCovers(p, province));
   const hadProvMatch = candidates.length > 0;
-  // Fallback: if nothing covers the province, include everyone (tiered fallback)
-  if (!hadProvMatch) candidates = all;
 
-  return candidates
+  if (hadProvMatch) {
+    /* Normal path — score and rank province-matched providers */
+    return candidates
+      .map(p => ({
+        ...p,
+        _score:         _rScoreProvider(p, required),
+        _matchedCats:   (p.service_categories || []).filter(c => required.includes(c)),
+        _provMatch:     true,
+        _wasacFallback: false,
+      }))
+      .sort((a, b) => b._score - a._score);
+  }
+
+  /* Fallback path — no provider covers the province */
+  const wasac = _findWasac();
+  const others = all
+    .filter(p => !wasac || p.id !== wasac.id)
     .map(p => ({
       ...p,
-      _score:       _rScoreProvider(p, required),
-      _matchedCats: (p.service_categories || []).filter(c => required.includes(c)),
-      _provMatch:   hadProvMatch && _rProvCovers(p, province),
+      _score:         _rScoreProvider(p, required),
+      _matchedCats:   [],
+      _provMatch:     false,
+      _wasacFallback: false,
     }))
     .sort((a, b) => b._score - a._score);
+
+  if (wasac) {
+    /* WASAC goes first with a special flag so the UI can render the right message */
+    return [
+      { ...wasac, _score: 9999, _matchedCats: [], _provMatch: false, _wasacFallback: true },
+      ...others,
+    ];
+  }
+  /* WASAC not registered — fall back to all providers sorted by score */
+  return others;
 }
 
 /* ── Render auto-match result into Step 3 UI ── */
@@ -4040,25 +4081,46 @@ function runAutoMatch(province) {
 
   if (btn) btn.style.display = '';
   const top = matches[0];
-  rState.provider   = top.organization_name;
-  rState.providerId = top.id;
+  rState.provider         = top.organization_name;
+  rState.providerId       = top.id;
+  rState._wasacFallback   = top._wasacFallback || false;
 
-  const isNoProvMatch = province && !top._provMatch;
+  const isWasacFallback = top._wasacFallback || false;
   const cats     = (top.service_categories || []).map(s => s.replace(/_/g,' ')).join(' · ') || 'Water services';
   const areas    = (top.service_areas || []).map(a => a.province).filter(Boolean);
   const coverage = areas.length ? areas.join(', ') : 'Rwanda';
 
-  // Build match reason lines
-  const reasons = [];
-  if (!isNoProvMatch && province) {
-    reasons.push({ ok:true, text:`Covers ${province}` });
-  } else if (isNoProvMatch) {
-    reasons.push({ ok:false, text:`No provider found in ${province} — using nearest available` });
-  }
-  if (top._matchedCats.length) {
-    reasons.push({ ok:true, text:`Handles ${top._matchedCats.map(c=>c.replace(/_/g,' ')).join(' & ')}` });
+  let reasons = [];
+  let pill, cardClass, iconBg;
+
+  if (isWasacFallback) {
+    /* ── Scenario: WASAC national authority fallback ── */
+    cardClass = ' no-match';
+    iconBg    = '#1565C0';
+    pill = `<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#1565C0;white-space:nowrap;flex-shrink:0;">Via WASAC</div>`;
+    reasons = [
+      { ok:false, text:`No registered provider covers ${province || 'your area'}` },
+      { ok:true,  text:'Routed to WASAC — national water authority' },
+      { ok:true,  text:'WASAC will assign the right local provider for your area' },
+    ];
+  } else if (top._provMatch) {
+    /* ── Scenario: direct match (province + service) ── */
+    cardClass = '';
+    iconBg    = 'var(--blue)';
+    pill = `<div style="background:var(--green-light);border:1px solid #A5D6A7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#15803D;white-space:nowrap;flex-shrink:0;">Auto-matched</div>`;
+    if (province) reasons.push({ ok:true, text:`Covers ${province}` });
+    if (top._matchedCats.length) {
+      reasons.push({ ok:true, text:`Handles ${top._matchedCats.map(c=>c.replace(/_/g,' ')).join(' & ')}` });
+    } else {
+      reasons.push({ ok:true, text:'Best available provider in your area' });
+    }
   } else {
-    reasons.push({ ok:false, text:'Best available provider in your area' });
+    /* ── Scenario: province match failed, no WASAC registered ── */
+    cardClass = ' no-match';
+    iconBg    = 'var(--orange)';
+    pill = `<div style="background:var(--orange-light);border:1px solid #FFCC80;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;">Nearest</div>`;
+    if (province) reasons.push({ ok:false, text:`No provider found in ${province}` });
+    reasons.push({ ok:false, text:'Using nearest available provider' });
   }
 
   const reasonHTML = reasons.map(r => r.ok
@@ -4066,14 +4128,10 @@ function runAutoMatch(province) {
     : `<div class="match-warning"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>${r.text}</span></div>`
   ).join('');
 
-  const pill = isNoProvMatch
-    ? `<div style="background:var(--orange-light);border:1px solid #FFCC80;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;">Fallback</div>`
-    : `<div style="background:var(--green-light);border:1px solid #A5D6A7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#15803D;white-space:nowrap;flex-shrink:0;">Auto-matched</div>`;
-
   card.innerHTML = `
-    <div class="match-card${isNoProvMatch?' no-match':''}">
+    <div class="match-card${cardClass}">
       <div style="display:flex;align-items:flex-start;gap:12px;">
-        <div style="width:40px;height:40px;border-radius:8px;background:${isNoProvMatch?'var(--orange)':'var(--blue)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <div style="width:40px;height:40px;border-radius:8px;background:${iconBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <i class="ti ti-building" style="color:#fff;font-size:18px;" aria-hidden="true"></i>
         </div>
         <div style="flex:1;min-width:0;">
@@ -4130,8 +4188,9 @@ function rToggleProviderList() {
 function rSelectProviderOverride(el, id, name) {
   document.querySelectorAll('#rProviderList .prov-opt').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
-  rState.provider   = name;
-  rState.providerId = _R_UUID_RE.test(id) ? id : null;
+  rState.provider       = name;
+  rState.providerId     = _R_UUID_RE.test(id) ? id : null;
+  rState._wasacFallback = false; // manual override always clears the fallback flag
 
   const provObj = (window._apiProviders||[]).find(p => p.id === id);
   const cats    = provObj ? (provObj.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') : 'Water services';
@@ -4312,6 +4371,7 @@ async function submitReportDash() {
     province, district, sector, cell, village,
   };
   if (affectedScale) body.affected_scale = affectedScale;
+  if (rState._wasacFallback) body.routed_via_national_authority = true;
   if (phone) body.contact_phone = phCode + phone.replace(/\s/g,'');
 
   const result = await apiPost('/reports', body);
