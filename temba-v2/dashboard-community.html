@@ -1918,18 +1918,21 @@ function reportItemHTML(r) {
 }
 
 function alertItemHTML(a) {
-  const icons = { warning:'ti-alert-triangle', info:'ti-info-circle', success:'ti-circle-check' };
-  const colors = { warning:'var(--orange-light)', info:'var(--sky-light)', success:'var(--green-light)' };
-  const ic     = { warning:'var(--orange)', info:'var(--blue)', success:'var(--green)' };
+  const icons     = { warning:'ti-alert-triangle', info:'ti-info-circle', success:'ti-circle-check' };
+  const iconBg    = { warning:'#FFFBEB', info:'#EFF6FF', success:'#F0FDF4' };
+  const iconBdr   = { warning:'1px solid #FDE68A', info:'1px solid #BFDBFE', success:'1px solid #BBF7D0' };
+  const iconColor = { warning:'#B45309', info:'#2563EB', success:'#15803D' };
+  const cardBdr   = { warning:'#FDE68A', info:'#BFDBFE', success:'#BBF7D0' };
   const id = a.id || _alertId(a);
-  return `<div class="alert-item ${a.unread?'unread':''}" role="button" tabindex="0" style="cursor:pointer;" onclick="openAlertDetail('${id}')" onkeydown="if(event.key==='Enter')openAlertDetail('${id}')">
-    <div class="alert-icon" style="background:${colors[a.type]};"><i class="ti ${icons[a.type]}" style="color:${ic[a.type]};" aria-hidden="true"></i></div>
+  const extraBorder = a.unread ? '' : `border-color:${cardBdr[a.type]||'#E5E7EB'};`;
+  return `<div class="alert-item ${a.unread?'unread':''}" role="button" tabindex="0" style="cursor:pointer;${extraBorder}" onclick="openAlertDetail('${id}')" onkeydown="if(event.key==='Enter')openAlertDetail('${id}')">
+    <div class="alert-icon" style="background:${iconBg[a.type]};border:${iconBdr[a.type]};"><i class="ti ${icons[a.type]}" style="color:${iconColor[a.type]};" aria-hidden="true"></i></div>
     <div style="flex:1;min-width:0;">
       <div class="alert-title">${a.title}</div>
       <div class="alert-desc">${a.desc}</div>
-      <div class="alert-meta">${a.provider} · ${a.time}</div>
+      <div class="alert-meta">${a.provider} &middot; ${a.time}</div>
     </div>
-    ${a.unread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:4px;"></div>':'<i class="ti ti-check" style="color:var(--gray-300);font-size:14px;flex-shrink:0;"></i>'}
+    <i class="ti ti-chevron-right" style="color:#D1D5DB;font-size:12px;flex-shrink:0;margin-top:3px;opacity:0.65;" aria-hidden="true"></i>
   </div>`;
 }
 
