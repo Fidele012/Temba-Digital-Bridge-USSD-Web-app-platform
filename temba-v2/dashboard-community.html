@@ -474,13 +474,21 @@
                   <textarea id="rDesc" rows="4" placeholder="Describe what is happening…" style="padding-left:42px;height:auto;"></textarea></div>
               </div>
               <div class="field">
-                <label class="field-label">Affected Households <span class="opt">Optional</span></label>
-                <div class="field-wrap sel-wrap"><i class="ti ti-home field-icon" aria-hidden="true"></i>
+                <label class="field-label">Affected Area Scale <span class="opt">Optional</span></label>
+                <div class="field-wrap sel-wrap"><i class="ti ti-map-pin field-icon" aria-hidden="true"></i>
                   <select id="rHouseholds">
-                    <option value="" disabled selected>Select estimate</option>
-                    <option>Just my household</option><option>2–5 households</option>
-                    <option>6–20 households</option><option>Entire street / cell</option><option>Entire village / sector</option>
+                    <option value="" disabled selected>Select affected scale</option>
+                    <option value="just_household">Just my household</option>
+                    <option value="2_5_households">2–5 households</option>
+                    <option value="6_20_households">6–20 households</option>
+                    <option value="entire_village">Entire village</option>
+                    <option value="multiple_villages">Multiple villages (not the whole cell)</option>
+                    <option value="entire_cell">Entire cell</option>
+                    <option value="multiple_cells">Multiple cells (not the whole sector)</option>
+                    <option value="entire_sector">Entire sector</option>
+                    <option value="multiple_sectors">Multiple sectors / district-wide</option>
                   </select><i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i></div>
+                <div class="field-hint"><i class="ti ti-info-circle" style="font-size:12px;margin-right:3px;"></i>Your best estimate — helps providers prioritise and allocate field teams.</div>
               </div>
               <button class="btn-primary" onclick="rGoTo(1,2)">Continue <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
             </div>
@@ -4009,6 +4017,8 @@ async function submitReportDash() {
     ? (otherDetail ? `Issue type: ${otherDetail}\n\n${desc}` : desc)
     : `${finalLabel} reported${rState.location?' at '+rState.location:''}${landmark?' near '+landmark:''}.`;
 
+  const affectedScale = document.getElementById('rHouseholds')?.value || null;
+
   const body = {
     category: R_ISSUE_CATEGORY_MAP[rState.issueKey]||'other',
     urgency:  R_URGENCY_API_MAP[rState.urgency]||'medium',
@@ -4017,6 +4027,7 @@ async function submitReportDash() {
     provider_id: rState.providerId||null,
     province, district, sector, cell, village,
   };
+  if (affectedScale) body.affected_scale = affectedScale;
   if (phone) body.contact_phone = phCode + phone.replace(/\s/g,'');
 
   const result = await apiPost('/reports', body);
