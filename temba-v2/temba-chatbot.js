@@ -942,32 +942,26 @@ Try rephrasing or tap one of the quick actions below.`,
   style.textContent = `
     #temba-chat-fab {
       position:fixed;bottom:28px;right:28px;z-index:9000;
-      height:52px;width:auto;padding:0 20px 0 15px;
-      border-radius:26px;
-      background:linear-gradient(135deg,#1565C0,#29B6F6);
+      height:48px;width:auto;padding:0 18px 0 14px;
+      border-radius:var(--radius-sm,8px);
+      background:#12355B;
       border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
-      gap:9px;
-      box-shadow:0 4px 28px rgba(21,101,192,.55);
-      transition:transform .25s,box-shadow .25s,padding .3s,border-radius .3s;
-      font-size:14px;font-weight:700;color:#fff;
-      letter-spacing:0.2px;white-space:nowrap;
-      animation:fabGlow 2.8s ease-in-out 3s 3;
+      gap:8px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.14);
+      transition:background .2s,box-shadow .2s,padding .3s,border-radius .3s;
+      font-size:13.5px;font-weight:600;color:#fff;
+      letter-spacing:0px;white-space:nowrap;
     }
-    @keyframes fabGlow{
-      0%{box-shadow:0 4px 28px rgba(21,101,192,.55);}
-      50%{box-shadow:0 4px 28px rgba(21,101,192,.55),0 0 0 10px rgba(41,182,246,.22);}
-      100%{box-shadow:0 4px 28px rgba(21,101,192,.55);}
-    }
-    #temba-chat-fab:hover{transform:scale(1.04);box-shadow:0 6px 36px rgba(21,101,192,.65);}
+    #temba-chat-fab:hover{background:#1A3A6B;box-shadow:0 4px 12px rgba(0,0,0,0.18);}
     #tchat-fab-icon{font-size:22px;line-height:1;flex-shrink:0;}
     #tchat-fab-txt{font-size:13.5px;font-weight:700;color:#fff;transition:opacity .3s,max-width .3s;max-width:150px;overflow:hidden;}
     #temba-chat-fab.icon-only{padding:0;width:52px;border-radius:50%;}
     #temba-chat-fab.icon-only #tchat-fab-txt{max-width:0;opacity:0;}
     #temba-chat-badge{
       position:absolute;top:-5px;right:-5px;
-      background:#C62828;color:#fff;
-      font-size:11px;font-weight:700;
-      width:20px;height:20px;border-radius:50%;
+      background:#DC2626;color:#fff;
+      font-size:11px;font-weight:600;
+      width:18px;height:18px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;
       border:2px solid #fff;
     }
@@ -1000,20 +994,20 @@ Try rephrasing or tap one of the quick actions below.`,
       #temba-chat-fab{width:52px;padding:0;border-radius:50%;}
     }
     #temba-chat-panel{
-      position:fixed;bottom:98px;right:28px;z-index:8999;
+      position:fixed;bottom:88px;right:28px;z-index:8999;
       width:380px;max-height:600px;
-      background:#fff;border-radius:20px;
-      box-shadow:0 8px 48px rgba(10,37,64,.2);
+      background:#fff;border-radius:var(--radius-md,12px);border:1px solid #E5E7EB;
+      box-shadow:0 10px 15px rgba(0,0,0,0.07),0 4px 6px rgba(0,0,0,0.05);
       display:flex;flex-direction:column;
-      transform:translateY(24px) scale(.95);
+      transform:translateY(16px) scale(.97);
       opacity:0;pointer-events:none;
-      transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .25s;
+      transition:transform .25s ease,opacity .2s;
       overflow:hidden;
-      font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+      font-family:'Inter',system-ui,sans-serif;
     }
     #temba-chat-panel.open{transform:translateY(0) scale(1);opacity:1;pointer-events:all;}
     .tchat-header{
-      background:linear-gradient(135deg,#0A2540,#1565C0);
+      background:#12355B;
       padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;
     }
     .tchat-avatar{
@@ -1023,7 +1017,7 @@ Try rephrasing or tap one of the quick actions below.`,
       font-size:19px;color:#fff;flex-shrink:0;
     }
     .tchat-header-info{flex:1;}
-    .tchat-title{font-size:14px;font-weight:700;color:#fff;}
+    .tchat-title{font-size:14px;font-weight:600;color:#fff;}
     .tchat-subtitle{font-size:11px;color:rgba(255,255,255,.75);margin-top:1px;}
     .tchat-online{width:7px;height:7px;border-radius:50%;background:#4CAF50;display:inline-block;margin-right:4px;}
     .tchat-hbtn{background:none;border:none;color:rgba(255,255,255,.8);font-size:17px;cursor:pointer;padding:5px;border-radius:6px;transition:background .15s;}
@@ -1035,8 +1029,8 @@ Try rephrasing or tap one of the quick actions below.`,
     .tchat-msg.user{flex-direction:row-reverse;}
     .tchat-bubble{max-width:84%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.6;word-break:break-word;}
     .tchat-msg.bot .tchat-bubble{background:#F0F4F8;color:#1E293B;border-bottom-left-radius:4px;}
-    .tchat-msg.user .tchat-bubble{background:linear-gradient(135deg,#1565C0,#29B6F6);color:#fff;border-bottom-right-radius:4px;}
-    .tchat-bot-icon{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#0A2540,#1565C0);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;}
+    .tchat-msg.user .tchat-bubble{background:#1E88E5;color:#fff;border-bottom-right-radius:4px;}
+    .tchat-bot-icon{width:30px;height:30px;border-radius:50%;background:#12355B;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;flex-shrink:0;}
     .tchat-msg.user .tchat-bot-icon{display:none;}
     .tchat-time{font-size:10px;color:#94A3B8;margin-top:4px;}
     .tchat-msg.bot .tchat-time{text-align:left;}
@@ -1060,16 +1054,16 @@ Try rephrasing or tap one of the quick actions below.`,
     .tchat-prov-action:hover{opacity:.8;}
     .tchat-prov-call{background:#E8F5E9;color:#1B5E20;}
     .tchat-prov-email{background:#E3F2FD;color:#0D47A1;}
-    .tchat-prov-book{background:linear-gradient(135deg,#1565C0,#29B6F6);color:#fff;}
+    .tchat-prov-book{background:#1E88E5;color:#fff;}
     /* Quick replies */
     .tchat-qrs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
     .tchat-qr{
-      background:#fff;border:1.5px solid #1565C0;color:#1565C0;
-      border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;
+      background:#fff;border:1.5px solid #1E88E5;color:#1E88E5;
+      border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500;
       cursor:pointer;transition:background .15s,color .15s;
-      font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+      font-family:'Inter',system-ui,sans-serif;
     }
-    .tchat-qr:hover{background:#1565C0;color:#fff;}
+    .tchat-qr:hover{background:#1E88E5;color:#fff;}
     /* Professional box */
     .tchat-pro{background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#5D4037;}
     .tchat-pro strong{color:#E65100;}
@@ -1120,18 +1114,18 @@ Try rephrasing or tap one of the quick actions below.`,
   const root = document.createElement('div');
   root.id = 'temba-chat-root';
   root.innerHTML = `
-    <div id="temba-chat-panel" role="dialog" aria-label="Temba Assistant">
+    <div id="temba-chat-panel" role="dialog" aria-label="Water Support Assistant">
       <div class="tchat-header">
-        <div class="tchat-avatar">💧</div>
+        <div class="tchat-avatar"><i class="ti ti-droplet" style="font-size:18px;"></i></div>
         <div class="tchat-header-info">
-          <div class="tchat-title">Temba Assistant</div>
-          <div class="tchat-subtitle"><span class="tchat-online"></span>AI-Powered · English &amp; Kinyarwanda</div>
+          <div class="tchat-title">Water Support Assistant</div>
+          <div class="tchat-subtitle"><span class="tchat-online"></span>English &amp; Kinyarwanda</div>
         </div>
         <button class="tchat-hbtn" onclick="tembaChat.close()" title="Close">✕</button>
       </div>
       <div class="tchat-msgs" id="tchat-msgs"></div>
       <div class="tchat-typing-row" id="tchat-typing" style="display:none;">
-        <div class="tchat-bot-icon" style="width:24px;height:24px;font-size:12px;">💧</div>
+        <div class="tchat-bot-icon" style="width:24px;height:24px;font-size:12px;"><i class="ti ti-droplet"></i></div>
         <div class="tchat-typing-dots"><span></span><span></span><span></span></div>
       </div>
       <div class="tchat-input-row">
@@ -1141,16 +1135,16 @@ Try rephrasing or tap one of the quick actions below.`,
                onkeydown="if(event.key==='Enter')tembaChat.send()">
         <button class="tchat-send" onclick="tembaChat.send()" title="Send">➤</button>
       </div>
-      <div class="tchat-footer">Temba AI · Emergencies: call 912 or provider directly</div>
+      <div class="tchat-footer">Water Support · Emergencies: call 912 or provider directly</div>
     </div>
     <div id="tchat-nudge" style="display:none;" role="tooltip">
-      <span style="font-size:18px;flex-shrink:0;">💧</span>
-      <span>Ask <strong>Temba AI</strong> — I can help with water issues &amp; services!</span>
+      <i class="ti ti-message-circle" style="font-size:16px;color:#1E88E5;flex-shrink:0;"></i>
+      <span>Ask our <strong>Water Support</strong> assistant for help with water issues &amp; services.</span>
       <button id="tchat-nudge-close" onclick="document.getElementById('tchat-nudge').style.display='none'" title="Dismiss" aria-label="Dismiss">✕</button>
     </div>
-    <button id="temba-chat-fab" onclick="tembaChat.toggle()" title="Ask Temba AI Assistant" aria-label="Ask Temba AI Assistant">
-      <span id="tchat-fab-icon">💧</span>
-      <span id="tchat-fab-txt">Ask Temba AI</span>
+    <button id="temba-chat-fab" onclick="tembaChat.toggle()" title="Water Support Assistant" aria-label="Water Support Assistant">
+      <span id="tchat-fab-icon"><i class="ti ti-message-circle" style="font-size:20px;line-height:1;"></i></span>
+      <span id="tchat-fab-txt">Water Support</span>
       <span id="temba-chat-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#C62828;color:#fff;font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;border:2px solid #fff;"></span>
     </button>
   `;
@@ -1172,18 +1166,18 @@ Try rephrasing or tap one of the quick actions below.`,
         <div class="tchat-time">${timeStr()}</div>`;
     } else {
       let inner = `
-        <div class="tchat-bot-icon">💧</div>
+        <div class="tchat-bot-icon"><i class="ti ti-droplet" style="font-size:15px;"></i></div>
         <div>
           <div class="tchat-bubble">${renderMd(content)}</div>
           ${providerCards || ''}`;
 
       if (topic && topic.professional) {
         inner += `<div class="tchat-pro">
-          <strong>⚡ This needs a professional</strong><br>
+          <strong>This needs a professional</strong><br>
           ${topic.professionalMsg}
           <br>
           <button class="tchat-pro-btn" onclick="tembaChat.connectPro()">
-            📞 Connect to Professional
+            Connect to Professional
           </button>
         </div>`;
       }

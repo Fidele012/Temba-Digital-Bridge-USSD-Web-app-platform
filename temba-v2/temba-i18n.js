@@ -647,7 +647,7 @@ const T = {
     stat_appointments_lbl:'Appointments',
 
     /* Overview panel */
-    overview_hero_sub:    "Here's what's happening in your area.",
+    overview_hero_sub:    'Monitor your reports, appointments, and service updates.',
     overview_report_problem: 'Report a Problem',
 
     /* Overview card titles */
@@ -1761,7 +1761,7 @@ const T = {
     stat_appointments_lbl:'Ibiganiro',
 
     /* Overview panel */
-    overview_hero_sub:    'Dore ibyabaye mu karere kawe.',
+    overview_hero_sub:    'Genzura raporo zawe, gahunda, no gutumanahana n\'ibikorwa.',
     overview_report_problem: 'Tanga Ikibazo',
 
     /* Overview card titles */
