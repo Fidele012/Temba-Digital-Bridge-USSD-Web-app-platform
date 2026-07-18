@@ -946,9 +946,11 @@ async function loadProviderProfile() {
   const data = await apiGet('/providers/me');
   if (!data) return;
   window._myProviderProfile = data;
-  // Update nav display
-  const navEl = document.getElementById('orgNameNav');
-  if (navEl) navEl.textContent = data.organization_name;
+  // Update nav display with organisation name (not the admin's personal name)
+  const navEl    = document.getElementById('orgNameNav');
+  const avatarEl = document.getElementById('navAvatar');
+  if (navEl)    navEl.textContent    = data.organization_name;
+  if (avatarEl) avatarEl.textContent = (data.organization_name || 'P')[0].toUpperCase();
   // Update hero greeting + subtitle
   const greet = document.getElementById('providerGreeting');
   const hr = new Date().getHours();
@@ -1649,9 +1651,9 @@ async function removeStaff(staffId) {
 window.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('scroll', () => document.getElementById('mainNav').classList.toggle('shadow', window.scrollY > 8));
   const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
-  const name = s.name || 'Provider';
-  document.getElementById('navAvatar').textContent = name[0].toUpperCase();
-  document.getElementById('orgNameNav').textContent = name;
+  const displayName = s.orgName || s.name || 'Provider';
+  document.getElementById('navAvatar').textContent = displayName[0].toUpperCase();
+  document.getElementById('orgNameNav').textContent = displayName;
   if (CURRENT_PROVIDER) {
     document.getElementById('providerSubtitle').textContent =
       `Showing reports, service requests, and appointments assigned to ${CURRENT_PROVIDER}.`;
