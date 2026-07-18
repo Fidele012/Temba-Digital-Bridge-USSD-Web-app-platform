@@ -575,10 +575,11 @@
           <div class="field-wrap sel-wrap">
             <i class="ti ti-hourglass field-icon"></i>
             <select id="provReschedDuration">
-              <option value="30">30 minutes</option>
-              <option value="60" selected>1 hour</option>
-              <option value="90">1.5 hours</option>
-              <option value="120">2 hours</option>
+              <option value="20">20 minutes</option>
+              <option value="30" selected>30 minutes</option>
+              <option value="45">45 minutes</option>
+              <option value="60">1 hour</option>
+              <option value="90">1 hour 30 minutes</option>
             </select>
             <i class="ti ti-chevron-down sel-arrow"></i>
           </div>
@@ -2261,7 +2262,7 @@ function openProvReschedModal(id) {
   document.getElementById('provReschedTime').value = '';
   document.getElementById('provReschedMsg').value = '';
   const dur = document.getElementById('provReschedDuration');
-  if (dur) dur.value = '60';
+  if (dur) dur.value = '30';
   const intv = document.getElementById('provReschedInterval');
   if (intv) intv.value = 'none';
   document.getElementById('provReschedModal').classList.add('open');
@@ -2274,7 +2275,7 @@ async function submitProvResched() {
   const time     = document.getElementById('provReschedTime').value;
   const duration = document.getElementById('provReschedDuration')?.value || '60';
   const interval = document.getElementById('provReschedInterval')?.value || 'none';
-  const durLabel = duration === '30' ? '30 minutes' : duration === '90' ? '1.5 hours' : duration === '120' ? '2 hours' : '1 hour';
+  const durLabel = duration === '20' ? '20 minutes' : duration === '45' ? '45 minutes' : duration === '60' ? '1 hour' : duration === '90' ? '1 hour 30 minutes' : '30 minutes';
   const intLabel = interval === 'weekly' ? ' (weekly repeat)' : interval === 'biweekly' ? ' (every 2 weeks)' : '';
   const rawMsg   = document.getElementById('provReschedMsg').value.trim();
   const durationNote = `Duration: ${durLabel}${intLabel}`;

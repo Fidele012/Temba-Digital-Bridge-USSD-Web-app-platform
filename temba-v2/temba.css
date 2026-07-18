@@ -752,12 +752,11 @@ label, .field-label, .stat-lbl, .card-title, .sidebar-section-label { font-weigh
    APPOINTMENTS
    ══════════════════════════════════════ */
 .appt-card {
-  background: var(--white); border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg); padding: 1.25rem 1.5rem;
-  margin-bottom: 1rem; transition: box-shadow 0.2s;
-  border-left: 4px solid var(--gray-300);
+  background: var(--white); padding: 1rem 1.25rem;
+  transition: background 0.15s;
 }
-.appt-card:hover { box-shadow: var(--shadow-md); }
+.appt-card:hover { background: var(--gray-50); }
+.appt-card:first-child { border-top: 1px solid var(--gray-100); }
 .appt-card.appt-pending    { border-left-color: var(--blue); }
 .appt-card.appt-approved   { border-left-color: var(--green); }
 .appt-card.appt-rescheduled { border-left-color: var(--purple); }
@@ -1270,8 +1269,8 @@ body { background: var(--wave-bg); }
 /* ── Request + appointment cards ── */
 .request-card { border: none; box-shadow: var(--card-shadow); border-left: 3px solid var(--sky); }
 .request-card:hover { box-shadow: var(--card-shadow-hover); transform: translateY(-2px); }
-.appt-card { border: none; box-shadow: var(--card-shadow); }
-.appt-card:hover { box-shadow: var(--card-shadow-hover); }
+.appt-card { border: none; border-bottom: 1px solid var(--gray-100); border-left: 3px solid var(--gray-300); border-radius: 0; box-shadow: none; margin-bottom: 0; }
+.appt-card:hover { box-shadow: none; background: var(--gray-50); }
 .appt-mgmt-card { border: none; box-shadow: var(--card-shadow); }
 .appt-mgmt-card:hover { box-shadow: var(--card-shadow-hover); }
 .provider-card { border: none; box-shadow: var(--card-shadow); }
@@ -1392,6 +1391,13 @@ html[data-theme="dark"] .appt-mgmt-card,
 html[data-theme="dark"] .provider-card,
 html[data-theme="dark"] .quality-card,
 html[data-theme="dark"] .alert-item { background: #152035; }
+html[data-theme="dark"] .appt-card { border-bottom-color: #1E2F4A; border-left-color: #1E2F4A; }
+html[data-theme="dark"] .appt-card:first-child { border-top-color: #1E2F4A; }
+html[data-theme="dark"] .appt-card:hover { background: #1A2E48; }
+html[data-theme="dark"] .appt-card.appt-pending    { border-left-color: var(--blue); }
+html[data-theme="dark"] .appt-card.appt-approved   { border-left-color: var(--green); }
+html[data-theme="dark"] .appt-card.appt-rescheduled { border-left-color: var(--purple); }
+html[data-theme="dark"] .appt-card.appt-rejected   { border-left-color: var(--red); }
 html[data-theme="dark"] .alert-item.unread { background: #0A2040; border-left-color: var(--sky); }
 html[data-theme="dark"] .filter-btn { background: #152035; border-color: #1E2F4A; color: #A8C4E8; }
 html[data-theme="dark"] .filter-btn:hover:not(.active) { background: #1E2F4A; border-color: var(--sky); color: var(--sky); }

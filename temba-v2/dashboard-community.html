@@ -1003,6 +1003,20 @@
         </div>
       </div>
       <div class="field">
+        <label class="field-label">Duration <span class="req">*</span></label>
+        <div class="field-wrap sel-wrap">
+          <i class="ti ti-hourglass field-icon"></i>
+          <select id="reschedDuration">
+            <option value="20">20 minutes</option>
+            <option value="30" selected>30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60">1 hour</option>
+            <option value="90">1 hour 30 minutes</option>
+          </select>
+          <i class="ti ti-chevron-down sel-arrow"></i>
+        </div>
+      </div>
+      <div class="field">
         <label class="field-label" data-i18n="resched_reason_lbl">Reason for rescheduling</label>
         <div class="field-wrap">
           <i class="ti ti-pencil field-icon" style="top:13px;bottom:auto;"></i>
@@ -2646,25 +2660,29 @@ function openReschedModal(id) {
   document.getElementById('reschedApptId').value = id;
   document.getElementById('reschedDate').value = '';
   document.getElementById('reschedTime').value = '';
+  document.getElementById('reschedDuration').value = '30';
   document.getElementById('reschedReason').value = '';
   document.getElementById('reschedModal').classList.add('open');
 }
 function closeReschedModal() { document.getElementById('reschedModal').classList.remove('open'); }
 
 async function submitResched() {
-  const id   = document.getElementById('reschedApptId').value;
+  const id  = document.getElementById('reschedApptId').value;
   const date = document.getElementById('reschedDate').value;
   const time = document.getElementById('reschedTime').value;
+  const dur  = document.getElementById('reschedDuration').value || '30';
   const rsn  = document.getElementById('reschedReason').value.trim();
   if (!date) { toast('Please select a new date','error'); return; }
   if (!time) { toast('Please select a new time','error'); return; }
+  const durLabel = dur === '20' ? '20 minutes' : dur === '45' ? '45 minutes' : dur === '60' ? '1 hour' : dur === '90' ? '1 hour 30 minutes' : '30 minutes';
 
   const isApiAppt = window._apiAppts.some(a => a.id === id);
   if (isApiAppt) {
     const r = await apiPost(`/appointments/${id}/reschedule-request`, {
       requested_date: date,
       requested_time: convertTo24h(time),
-      reschedule_reason: rsn || null,
+      duration_minutes: parseInt(dur),
+      reschedule_reason: rsn ? `${rsn}\nDuration: ${durLabel}` : `Duration: ${durLabel}`,
     });
     if (r) {
       await loadApiData();
@@ -2676,7 +2694,7 @@ async function submitResched() {
   // Fallback: localStorage
   const all = getAppts();
   const a = all.find(x => x.id === id);
-  if (a) { a.status = 'reschedule_requested'; a.requestedDate = date; a.requestedTime = time; }
+  if (a) { a.status = 'reschedule_requested'; a.requestedDate = date; a.requestedTime = time; a.requestedDuration = durLabel; }
   saveAppts(all);
   closeReschedModal();
   renderApptList('all');
