@@ -52,6 +52,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
@@ -1300,6 +1301,31 @@ _SVC_URG_MAP: dict[str, ServiceRequestUrgency] = {
 _SVC_URG_EN = {"1": "High", "2": "Medium", "3": "Low"}
 _SVC_URG_RW = {"1": "Byihutirwa", "2": "Hagati", "3": "Bike"}
 
+# ── Provider auto-matching constants ──────────────────────────────────────────
+
+_ALL_PROVINCES_LOWER = frozenset([
+    "kigali city", "northern province", "southern province",
+    "eastern province", "western province",
+])
+
+# Maps USSD report category choice → required service categories
+_USSD_CAT_TO_CATS: dict[str, list[str]] = {
+    "1": ["water_quality"],
+    "2": ["water_supply", "infrastructure"],
+    "3": ["water_supply"],
+    "4": ["water_supply", "infrastructure"],
+    "5": ["water_supply"],
+}
+
+# Maps USSD service request type choice → required service categories
+_USSD_SVC_TO_CATS: dict[str, list[str]] = {
+    "1": ["infrastructure", "water_supply"],
+    "2": ["truck_delivery"],
+    "3": ["truck_delivery"],
+    "4": ["meter_services"],
+    "5": ["infrastructure"],
+}
+
 _APPT_REASON_EN: dict[str, str] = {
     "water_connection": "New connection", "meter_reading": "Meter reading",
     "pipe_repair": "Pipe repair", "consultation": "Consultation",
@@ -1428,9 +1454,57 @@ async def _fetch_providers(db: AsyncSession) -> list[Provider]:
     result = await db.execute(
         select(Provider)
         .where(Provider.status == ProviderStatus.APPROVED)
+        .options(selectinload(Provider.service_areas))
         .order_by(Provider.organization_name)
     )
     return list(result.scalars().all())
+
+
+def _prov_norm(p: str) -> str:
+    return (p or "").strip().lower()
+
+
+def _is_wasac_provider(p: Provider) -> bool:
+    if re.search(r"\bwasac\b", p.organization_name or "", re.IGNORECASE):
+        return True
+    covered = {_prov_norm(a.province) for a in p.service_areas}
+    return _ALL_PROVINCES_LOWER.issubset(covered)
+
+
+def _prov_covers(p: Provider, province: str) -> bool:
+    norm = _prov_norm(province)
+    return any(_prov_norm(a.province) == norm for a in p.service_areas)
+
+
+def _cat_score(p: Provider, required: list[str]) -> int:
+    cats = set(p.service_categories or [])
+    return sum(1 for c in required if c in cats)
+
+
+def _ussd_auto_match(
+    providers: list[Provider],
+    required_cats: list[str],
+    province: str | None,
+) -> tuple[Provider | None, bool]:
+    """Return (best_provider, is_wasac_fallback).
+
+    Province filter is applied first. If no local provider covers the user's
+    province, WASAC is returned as the national fallback. If WASAC is absent,
+    the highest-scoring provider globally is returned.
+    """
+    if not providers:
+        return None, False
+    non_wasac = [p for p in providers if not _is_wasac_provider(p)]
+    wasac = next((p for p in providers if _is_wasac_provider(p)), None)
+    if province:
+        local = [p for p in non_wasac if _prov_covers(p, province)]
+        if local:
+            return max(local, key=lambda p: _cat_score(p, required_cats)), False
+    if wasac:
+        return wasac, True
+    if non_wasac:
+        return max(non_wasac, key=lambda p: _cat_score(p, required_cats)), False
+    return (providers[0], False) if providers else (None, False)
 
 
 def _provider_menu(providers: list[Provider], lang: str) -> str:
@@ -1866,25 +1940,25 @@ async def _service_flow(
         if urg not in _URG_MAP:
             return _t("report_urgency", lang)
 
+        # Auto-match provider based on issue category and user's registered province
         providers = await _fetch_providers(db)
-        if sub_depth == 3:
-            return _provider_menu(providers, lang)
-
-        prov_idx = sub_parts[3]
-        if prov_idx == "0":
-            return _t("main_menu", lang)
-        provider = _pick_provider(providers, prov_idx)
+        required_cats = _USSD_CAT_TO_CATS.get(cat, ["water_supply"])
+        provider, is_wasac_fb = _ussd_auto_match(providers, required_cats, user.province)
         if not provider:
-            return _provider_menu(providers, lang)
+            return _t("no_providers", lang)
 
-        if sub_depth == 4:
+        if sub_depth == 3:
             cat_name = (_CAT_EN if lang == "en" else _CAT_RW)[cat]
             urg_name = (_URG_EN if lang == "en" else _URG_RW)[urg]
+            prov_display = (
+                ("WASAC (national auth.)" if lang == "en" else "WASAC (inzego z'igihugu)")
+                if is_wasac_fb else provider.organization_name
+            )
             return _t("report_confirm", lang,
                       cat=cat_name, urgency=urg_name,
-                      provider=provider.organization_name)
+                      provider=prov_display)
 
-        confirm = sub_parts[4]
+        confirm = sub_parts[3]
         if confirm == "0":
             return _t("main_menu", lang)
         if confirm != "1":
@@ -1913,6 +1987,7 @@ async def _service_flow(
             province=user.province,
             district=user.district,
             sector=user.sector,
+            routed_via_national_authority=is_wasac_fb,
         )
         db.add(report)
         await db.flush()
@@ -1945,9 +2020,11 @@ async def _service_flow(
             pass
         # SMS confirmation to community member
         sms_to = _sms_phone(user, phoneNumber)
+        via_note = " via WASAC" if is_wasac_fb else ""
         sms_msg = (
             f"Temba: Your water issue report has been submitted.\n"
             f"Issue: {_CAT_EN[cat]} | Urgency: {_URG_EN[urg]}\n"
+            f"Assigned to: {provider.organization_name}{via_note}\n"
             f"Tracking code: {ref}\n"
             f"Track at temba.rw or dial *384*36640#"
         )
@@ -2250,34 +2327,34 @@ async def _service_flow(
         if svc not in _SVC_MAP:
             return _t("svc_type", lang)
 
-        providers = await _fetch_providers(db)
         if sub_depth == 2:
-            return _provider_menu(providers, lang)
-
-        prov_idx = sub_parts[2]
-        if prov_idx == "0":
-            return _t("main_menu", lang)
-        provider = _pick_provider(providers, prov_idx)
-        if not provider:
-            return _provider_menu(providers, lang)
-
-        if sub_depth == 3:
             return _t("svc_urgency", lang)
 
-        urg = sub_parts[3]
+        urg = sub_parts[2]
         if urg == "0":
             return _t("main_menu", lang)
         if urg not in _SVC_URG_MAP:
             return _t("svc_urgency", lang)
 
-        if sub_depth == 4:
+        # Auto-match provider based on service type and user's registered province
+        providers = await _fetch_providers(db)
+        required_cats = _USSD_SVC_TO_CATS.get(svc, ["water_supply"])
+        provider, is_wasac_fb = _ussd_auto_match(providers, required_cats, user.province)
+        if not provider:
+            return _t("no_providers", lang)
+
+        if sub_depth == 3:
             svc_name = (_SVC_EN if lang == "en" else _SVC_RW)[svc]
             urg_name = (_SVC_URG_EN if lang == "en" else _SVC_URG_RW)[urg]
+            prov_display = (
+                ("WASAC (national auth.)" if lang == "en" else "WASAC (inzego z'igihugu)")
+                if is_wasac_fb else provider.organization_name
+            )
             return _t("svc_confirm", lang,
                       svc=svc_name, urgency=urg_name,
-                      provider=provider.organization_name)
+                      provider=prov_display)
 
-        confirm = sub_parts[4]
+        confirm = sub_parts[3]
         if confirm == "0":
             return _t("main_menu", lang)
         if confirm != "1":

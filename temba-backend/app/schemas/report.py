@@ -19,6 +19,8 @@ class ReportCreate(ORMModel):
     title: str = Field(min_length=5, max_length=255)
     description: str = Field(min_length=10)
     provider_id: UUID | None = None
+    routed_via_national_authority: bool = False
+    affected_scale: str | None = None
 
     # Location
     province: str | None = None
@@ -73,6 +75,8 @@ class ReportPublic(ORMModel):
     expected_completion_date: date | None = None
     overdue_flagged: bool = False
     reopen_count: int = 0
+    routed_via_national_authority: bool = False
+    affected_scale: str | None = None
     first_responded_at: datetime | None = None
     resolution_submitted_at: datetime | None = None
     verified_at: datetime | None = None

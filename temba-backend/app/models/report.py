@@ -76,6 +76,9 @@ class Report(UUIDMixin, TimestampMixin, Base):
     resolution_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    routed_via_national_authority: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    affected_scale: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     # Location
     province: Mapped[str | None] = mapped_column(String(100), nullable=True)
     district: Mapped[str | None] = mapped_column(String(100), nullable=True)
