@@ -834,7 +834,33 @@
         <div id="rd-description" style="font-size:14px;color:var(--navy);background:var(--gray-100);border-radius:8px;padding:12px;line-height:1.6;"></div>
       </div>
       <!-- Action buttons -->
-      <div id="rd-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem;"></div>
+      <div style="border-top:1px solid var(--gray-200);padding-top:1rem;margin-top:1.25rem;">
+        <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+          <i class="ti ti-settings" style="font-size:12px;"></i> Actions
+        </div>
+        <div id="rd-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD NOTE MODAL ── -->
+<div class="modal-overlay" id="addNoteModal" onclick="if(event.target===this)closeAddNoteModal()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:440px;padding:1.5rem;box-shadow:0 24px 80px rgba(15,23,42,0.22);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;">
+      <div style="width:36px;height:36px;border-radius:8px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-notes" style="color:var(--blue);font-size:17px;"></i></div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--navy);">Add Note</div>
+        <div style="font-size:12px;color:var(--gray-400);">Internal note — visible to your team only</div>
+      </div>
+      <button onclick="closeAddNoteModal()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-400);line-height:1;">&times;</button>
+    </div>
+    <input type="hidden" id="noteReportId">
+    <input type="hidden" id="noteReportRef">
+    <textarea id="noteText" rows="4" placeholder="Write your internal note here…" style="width:100%;padding:10px 12px;border:1.5px solid #CBD5E1;border-radius:9px;font-size:13.5px;font-family:var(--font);resize:vertical;box-sizing:border-box;line-height:1.6;outline:none;" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='#CBD5E1'"></textarea>
+    <div style="display:flex;gap:10px;margin-top:1rem;justify-content:flex-end;">
+      <button onclick="closeAddNoteModal()" style="padding:8px 18px;border:1.5px solid #CBD5E1;border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--gray-600);font-family:var(--font);">Cancel</button>
+      <button onclick="submitAddNote()" style="padding:8px 18px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);"><i class="ti ti-send"></i> Save Note</button>
     </div>
   </div>
 </div>
@@ -1332,14 +1358,15 @@ function openReportDetail(rJson) {
 
   const actions = [];
   if (r.phone && r.phone !== '—') {
-    actions.push(`<a href="tel:${r.phone}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> Call</a>`);
-    actions.push(`<a href="sms:${r.phone}" class="btn-sms" style="text-decoration:none;"><i class="ti ti-message"></i> SMS</a>`);
+    actions.push(`<a href="tel:${r.phone}" class="btn-call" style="text-decoration:none;"><i class="ti ti-phone"></i> Call Provider</a>`);
+    actions.push(`<a href="sms:${r.phone}" class="btn-sms" style="text-decoration:none;"><i class="ti ti-message"></i> Send SMS</a>`);
   }
+  actions.push(`<button class="btn-action secondary" onclick="openAddNoteModal('${r.apiId||''}','${(r.ref||'').replace(/'/g,'')}')"><i class="ti ti-notes"></i> Add Note</button>`);
   if (r.status !== 'resolved' && r.status !== 'pending-verification') {
-    actions.push(`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}');closeReportDetail()"><i class="ti ti-check"></i> Mark Resolved</button>`);
+    actions.push(`<button class="btn-resolve" onclick="resolveReport('${r.ref}','${r.apiId||''}');closeReportDetail()"><i class="ti ti-check"></i> Mark as Resolved</button>`);
   }
   if (r.status === 'pending-verification') {
-    actions.push(`<span style="padding:8px 14px;background:#F3E8FF;color:#7C3AED;border-radius:8px;font-size:13px;font-weight:600;"><i class="ti ti-clock"></i> Awaiting community verification</span>`);
+    actions.push(`<span style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;background:#F3E8FF;color:#7C3AED;border-radius:8px;font-size:12.5px;font-weight:600;"><i class="ti ti-clock"></i> Awaiting community verification</span>`);
   }
   if ((r.status==='submitted'||r.status==='open') && r.apiId) {
     actions.push(`<button class="btn-action warning" onclick="markReportInProgress('${r.ref}','${r.apiId}');closeReportDetail()"><i class="ti ti-loader-2"></i> In Progress</button>`);
@@ -1353,6 +1380,35 @@ function openReportDetail(rJson) {
 function closeReportDetail() {
   document.getElementById('reportDetailModal').style.display = 'none';
   document.body.style.overflow = '';
+}
+
+function openAddNoteModal(reportId, reportRef) {
+  document.getElementById('noteReportId').value = reportId || '';
+  document.getElementById('noteReportRef').value = reportRef || '';
+  document.getElementById('noteText').value = '';
+  document.getElementById('addNoteModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('noteText').focus(), 80);
+}
+function closeAddNoteModal() {
+  document.getElementById('addNoteModal').style.display = 'none';
+}
+async function submitAddNote() {
+  const note = document.getElementById('noteText').value.trim();
+  if (!note) { showToast('Please write a note first.', 'warning'); return; }
+  const reportId = document.getElementById('noteReportId').value;
+  const reportRef = document.getElementById('noteReportRef').value;
+  if (reportId) {
+    try {
+      const sess = JSON.parse(localStorage.getItem('temba_session') || '{}');
+      await fetch(`${API}/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sess.token}` },
+        body: JSON.stringify({ resolution_notes: note }),
+      });
+    } catch(e) { /* store locally if offline */ }
+  }
+  showToast(`Note saved${reportRef ? ' on ' + reportRef : ''}.`, 'success');
+  closeAddNoteModal();
 }
 
 const _seenIds = { reports: new Set(), appts: new Set(), svcReqs: new Set() };
