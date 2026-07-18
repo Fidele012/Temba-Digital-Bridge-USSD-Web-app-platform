@@ -2383,9 +2383,29 @@ function renderPosted() {
 }
 
 function toggleArea(el, area) {
-  el.classList.toggle('active');
-  if (el.classList.contains('active')) selectedAreas.push(area);
-  else selectedAreas = selectedAreas.filter(a => a !== area);
+  const chips       = document.querySelectorAll('#areaChips .filter-btn');
+  const nationalEl  = document.querySelector('#areaChips .filter-btn[onclick*="national"]');
+
+  if (area === 'national') {
+    // "All Rwanda" selected — clear every province chip and keep only national
+    chips.forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    selectedAreas = ['national'];
+  } else {
+    // A specific province selected — remove "All Rwanda" first
+    if (nationalEl) nationalEl.classList.remove('active');
+    selectedAreas = selectedAreas.filter(a => a !== 'national');
+
+    el.classList.toggle('active');
+    if (el.classList.contains('active')) selectedAreas.push(area);
+    else selectedAreas = selectedAreas.filter(a => a !== area);
+
+    // If nothing remains selected, fall back to "All Rwanda"
+    if (selectedAreas.length === 0) {
+      if (nationalEl) nationalEl.classList.add('active');
+      selectedAreas = ['national'];
+    }
+  }
 }
 
 const _PUB_ANNOUNCE_KEY = 'temba_pub_announcements';
