@@ -714,15 +714,32 @@
       </div>
 
       <div class="field">
-        <label class="field-label"><span data-i18n="svc_provider_label">Water Service Provider</span> <span class="req">*</span></label>
+        <label class="field-label">Your Province <span class="req">*</span></label>
         <div class="field-wrap sel-wrap">
-          <i class="ti ti-building field-icon" aria-hidden="true"></i>
-          <select id="svcProvider">
-            <option value="" disabled selected data-i18n="appt_select_provider">Select a provider</option>
+          <i class="ti ti-map field-icon" aria-hidden="true"></i>
+          <select id="svcProvince" onchange="runSvcAutoMatch()">
+            <option value="" disabled selected>Select your province</option>
+            <option value="Kigali City">Kigali City</option>
+            <option value="Northern Province">Northern Province</option>
+            <option value="Southern Province">Southern Province</option>
+            <option value="Eastern Province">Eastern Province</option>
+            <option value="Western Province">Western Province</option>
           </select>
           <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
         </div>
       </div>
+
+      <div id="svcMatchSection" style="display:none;">
+        <label class="field-label" style="margin-bottom:6px;">Water Service Provider</label>
+        <div id="svcMatchCard"></div>
+        <button type="button" id="svcChangeProvBtn" class="match-change-btn" onclick="svcToggleProviderList()" style="display:none;margin-top:8px;">
+          <i class="ti ti-switch-horizontal" id="svcChangeProvIcon" aria-hidden="true"></i>
+          <span id="svcChangeProvLabel">Change provider</span>
+        </button>
+        <div id="svcProviderList" class="provider-opts" style="display:none;flex-direction:column;gap:4px;margin-top:8px;"></div>
+      </div>
+      <!-- Hidden: holds the selected provider UUID / name for submitSvcRequest -->
+      <input type="hidden" id="svcProvider" />
 
       <div class="field">
         <label class="field-label"><span data-i18n="lbl_urgency">Urgency Level</span> <span class="req">*</span></label>
@@ -1653,9 +1670,9 @@ function _populateProviderSelects() {
   const source = window._apiProviders.length
     ? window._apiProviders.map(p => ({ id: p.id, name: p.organization_name }))
     : providersData.map(p => ({ id: p.name, name: p.name }));
-  ['svcProvider','apptProvider'].forEach(selId => {
+  ['apptProvider'].forEach(selId => {
     const sel = document.getElementById(selId);
-    if (!sel) return;
+    if (!sel || sel.tagName !== 'SELECT') return;
     // Save selection by display name before wiping options (API may load mid-selection)
     const prevName = sel.selectedIndex > 0 ? (sel.options[sel.selectedIndex]?.text || '') : '';
     sel.innerHTML = `<option value="" disabled selected>${t('appt_select_provider')}</option>`;
@@ -2169,6 +2186,189 @@ function _navToPanel(panelId, reportFilter) {
 
 /* ── SERVICE REQUESTS ── */
 let selectedSvcType = '';
+let _svcMatchedProviderId   = null;
+let _svcMatchedProviderName = '';
+let _svcProvListOpen        = false;
+
+/* Service request type → required provider service categories */
+const SVC_TYPE_TO_CATS = {
+  water_connection: ['water_supply', 'infrastructure'],
+  tank_delivery:    ['rainwater', 'truck_delivery'],
+  truck_delivery:   ['truck_delivery'],
+  meter_support:    ['meter_services'],
+  inspection:       ['infrastructure', 'water_quality'],
+  other:            ['water_supply'],
+};
+
+function runSvcAutoMatch() {
+  const province = document.getElementById('svcProvince')?.value;
+  const section  = document.getElementById('svcMatchSection');
+  const card     = document.getElementById('svcMatchCard');
+  const list     = document.getElementById('svcProviderList');
+  const btn      = document.getElementById('svcChangeProvBtn');
+  if (!selectedSvcType || !province) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
+
+  _svcProvListOpen = false;
+  if (list) list.style.display = 'none';
+  const lbl = document.getElementById('svcChangeProvLabel');
+  const ico = document.getElementById('svcChangeProvIcon');
+  if (lbl) lbl.textContent = 'Change provider';
+  if (ico) ico.className = 'ti ti-switch-horizontal';
+
+  const required = SVC_TYPE_TO_CATS[selectedSvcType] || SVC_TYPE_TO_CATS['other'];
+  const all = window._apiProviders || [];
+
+  const candidates = all.filter(p => _rProvCovers(p, province));
+  const hadProvMatch = candidates.length > 0;
+  let matches;
+
+  if (hadProvMatch) {
+    matches = candidates
+      .map(p => ({
+        ...p,
+        _score:         _rScoreProvider(p, required),
+        _matchedCats:   (p.service_categories || []).filter(c => required.includes(c)),
+        _provMatch:     true,
+        _wasacFallback: false,
+      }))
+      .sort((a, b) => b._score - a._score);
+  } else {
+    const wasac  = _findWasac();
+    const others = all
+      .filter(p => !wasac || p.id !== wasac.id)
+      .map(p => ({ ...p, _score: _rScoreProvider(p, required), _matchedCats: [], _provMatch: false, _wasacFallback: false }))
+      .sort((a, b) => b._score - a._score);
+    matches = wasac
+      ? [{ ...wasac, _score: 9999, _matchedCats: [], _provMatch: false, _wasacFallback: true }, ...others]
+      : others;
+  }
+
+  if (!matches.length) {
+    card.innerHTML = `<div class="match-card no-match"><div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:38px;height:38px;border-radius:8px;background:var(--orange);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-info-circle" style="color:#fff;font-size:17px;"></i></div>
+      <div><div style="font-weight:700;font-size:14px;color:#78350F;">No providers registered yet</div>
+      <div style="font-size:12.5px;color:#92400E;margin-top:2px;line-height:1.5;">Your request will be received and a provider assigned by the Temba team.</div></div>
+    </div></div>`;
+    _svcMatchedProviderId = null; _svcMatchedProviderName = '';
+    document.getElementById('svcProvider').value = '';
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+
+  if (btn) btn.style.display = '';
+  const top = matches[0];
+  _svcMatchedProviderId   = top.id;
+  _svcMatchedProviderName = top.organization_name;
+  document.getElementById('svcProvider').value = top.id;
+
+  const isWasacFb = top._wasacFallback || false;
+  const cats      = (top.service_categories || []).map(s => s.replace(/_/g,' ')).join(' · ') || 'Water services';
+  const areas     = (top.service_areas || []).map(a => a.province).filter(Boolean);
+  const coverage  = areas.length ? areas.join(', ') : 'Rwanda';
+
+  let reasons = [], pill, cardClass, iconBg;
+
+  if (isWasacFb) {
+    cardClass = ' no-match'; iconBg = '#1565C0';
+    pill = `<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#1565C0;white-space:nowrap;flex-shrink:0;">Via WASAC</div>`;
+    reasons = [
+      { ok:false, text:`No registered provider covers ${province}` },
+      { ok:true,  text:'Routed to WASAC — national water authority' },
+      { ok:true,  text:'WASAC will assign the right local provider for your area' },
+    ];
+  } else if (top._provMatch) {
+    cardClass = ''; iconBg = 'var(--blue)';
+    pill = `<div style="background:var(--green-light);border:1px solid #A5D6A7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#15803D;white-space:nowrap;flex-shrink:0;">Auto-matched</div>`;
+    reasons.push({ ok:true, text:`Covers ${province}` });
+    if (top._matchedCats.length) reasons.push({ ok:true, text:`Handles ${top._matchedCats.map(c=>c.replace(/_/g,' ')).join(' & ')}` });
+    else reasons.push({ ok:true, text:'Best available provider in your area' });
+    if ((top.accountability_score || 0) > 0) reasons.push({ ok:true, text:`Accountability score: ${top.accountability_score.toFixed(0)}/100` });
+    if (top.avg_rating) reasons.push({ ok:true, text:`Community rating: ★ ${top.avg_rating.toFixed(1)}` });
+  } else {
+    cardClass = ' no-match'; iconBg = 'var(--orange)';
+    pill = `<div style="background:var(--orange-light);border:1px solid #FFCC80;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;">Nearest</div>`;
+    reasons.push({ ok:false, text:`No provider found in ${province}` });
+    reasons.push({ ok:false, text:'Using nearest available provider' });
+  }
+
+  const reasonHTML = reasons.map(r => r.ok
+    ? `<div class="match-reason"><i class="ti ti-circle-check" aria-hidden="true"></i><span>${r.text}</span></div>`
+    : `<div class="match-warning"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>${r.text}</span></div>`
+  ).join('');
+
+  card.innerHTML = `<div class="match-card${cardClass}">
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <div style="width:40px;height:40px;border-radius:8px;background:${iconBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-building" style="color:#fff;font-size:18px;" aria-hidden="true"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14.5px;color:var(--navy);">${top.organization_name}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:1px;line-height:1.4;">${cats} &mdash; ${coverage}</div>
+        <div style="margin-top:6px;">${reasonHTML}</div>
+      </div>
+      ${pill}
+    </div>
+  </div>`;
+
+  if (list) {
+    list.innerHTML = matches.slice(0, 8).map((p, i) => {
+      const pc  = (p.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') || 'Water services';
+      const pa  = (p.service_areas||[]).map(a=>a.province).filter(Boolean);
+      const pco = pa.length ? pa.join(', ') : 'Rwanda';
+      const esc = p.organization_name.replace(/'/g,"\\'");
+      return `<div class="prov-opt${i===0?' active':''}" onclick="svcSelectProviderOverride(this,'${p.id}','${esc}')">
+        <div class="prov-icon"><i class="ti ti-building" aria-hidden="true"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13.5px;color:var(--navy);">${p.organization_name}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:1px;">${pc} &mdash; ${pco}</div>
+        </div>
+        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+      </div>`;
+    }).join('') + `<div class="prov-opt" onclick="svcSelectProviderOverride(this,'','Temba will assign a provider')">
+        <div class="prov-icon" style="background:var(--gray-100);"><i class="ti ti-help-circle" style="color:var(--gray-500);" aria-hidden="true"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:13.5px;color:var(--navy);">I'm not sure</div>
+          <div style="font-size:12px;color:var(--gray-400);">Temba will assign the right provider</div>
+        </div>
+        <i class="ti ti-circle-check prov-check" aria-hidden="true"></i>
+      </div>`;
+  }
+}
+
+function svcToggleProviderList() {
+  _svcProvListOpen = !_svcProvListOpen;
+  const list = document.getElementById('svcProviderList');
+  const lbl  = document.getElementById('svcChangeProvLabel');
+  const ico  = document.getElementById('svcChangeProvIcon');
+  if (list) list.style.display = _svcProvListOpen ? 'flex' : 'none';
+  if (lbl)  lbl.textContent    = _svcProvListOpen ? 'Hide list' : 'Change provider';
+  if (ico)  ico.className      = _svcProvListOpen ? 'ti ti-x' : 'ti ti-switch-horizontal';
+}
+
+function svcSelectProviderOverride(el, id, name) {
+  document.querySelectorAll('#svcProviderList .prov-opt').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  _svcMatchedProviderId   = _R_UUID_RE.test(id) ? id : null;
+  _svcMatchedProviderName = name;
+  document.getElementById('svcProvider').value = id;
+  const provObj = (window._apiProviders||[]).find(p => p.id === id);
+  const cats    = provObj ? (provObj.service_categories||[]).map(s=>s.replace(/_/g,' ')).join(' · ') : 'Water services';
+  const card = document.getElementById('svcMatchCard');
+  if (card) card.innerHTML = `<div class="match-card">
+    <div style="display:flex;align-items:flex-start;gap:12px;">
+      <div style="width:40px;height:40px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-building" style="color:#fff;font-size:18px;" aria-hidden="true"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14.5px;color:var(--navy);">${name}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:1px;">${cats}</div>
+        <div class="match-reason" style="margin-top:6px;"><i class="ti ti-user-check" aria-hidden="true"></i><span>Manually selected</span></div>
+      </div>
+      <div style="background:var(--sky-pale);border:1px solid #90CAF9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;flex-shrink:0;">Selected</div>
+    </div>
+  </div>`;
+}
 function selectSvcType(type, el) {
   selectedSvcType = type;
   document.querySelectorAll('.svc-type-card').forEach(c => c.classList.remove('selected'));
@@ -2176,6 +2376,7 @@ function selectSvcType(type, el) {
   const rev = document.getElementById('svcOtherReveal');
   if (rev) rev.style.display = type === 'other' ? 'block' : 'none';
   if (type !== 'other') { const inp = document.getElementById('svcOtherType'); if (inp) inp.value = ''; }
+  runSvcAutoMatch();
 }
 
 function onApptReasonChange() {
@@ -2251,8 +2452,15 @@ function filterSvc(filter, btn) {
 
 function openSvcModal() {
   selectedSvcType = '';
+  _svcMatchedProviderId   = null;
+  _svcMatchedProviderName = '';
+  _svcProvListOpen        = false;
   document.querySelectorAll('.svc-type-card').forEach(c => c.classList.remove('selected'));
   if (!window._apiProviders.length) loadProviders(); else _populateProviderSelects();
+  const svcProv = document.getElementById('svcProvince');
+  if (svcProv) svcProv.value = '';
+  const svcMatchSec = document.getElementById('svcMatchSection');
+  if (svcMatchSec) svcMatchSec.style.display = 'none';
   document.getElementById('svcProvider').value = '';
   document.querySelector('input[name="svcUrgency"][value="low"]').checked = true;
   document.getElementById('svcLocation').value = '';
@@ -2272,17 +2480,17 @@ async function submitSvcRequest() {
     document.getElementById('svcOtherType').focus();
     toast('Please describe the service you need','error'); return;
   }
-  const _rawSvcProv = document.getElementById('svcProvider').value;
-  let   providerId  = _resolveProviderId(_rawSvcProv);
-  const location   = document.getElementById('svcLocation').value.trim();
-  const desc       = document.getElementById('svcDesc').value.trim();
-  const urgency    = document.querySelector('input[name="svcUrgency"]:checked')?.value || 'low';
-  if (!_rawSvcProv) { toast('Please select a provider','error'); return; }
+  const province = document.getElementById('svcProvince')?.value;
+  if (!province) { toast('Please select your province','error'); document.getElementById('svcProvince')?.focus(); return; }
+  if (!_svcMatchedProviderName) { toast('Please wait — matching provider to your area…','error'); return; }
+  let providerId = _svcMatchedProviderId;
   if (!providerId) {
     await loadProviders();
-    providerId = _resolveProviderId(_rawSvcProv);
-    if (!providerId) { toast('Provider not found — please try again','error'); return; }
+    providerId = _svcMatchedProviderId;
   }
+  const location = document.getElementById('svcLocation').value.trim();
+  const desc     = document.getElementById('svcDesc').value.trim();
+  const urgency  = document.querySelector('input[name="svcUrgency"]:checked')?.value || 'low';
   if (!location)   { toast('Please enter your location','error'); return; }
   if (desc.length < 10) { toast('Please describe your request (at least 10 characters)','error'); return; }
   const finalDesc = selectedSvcType === 'other' && svcOtherDetail
@@ -2300,7 +2508,7 @@ async function submitSvcRequest() {
     address_detail: location,
   });
 
-  const svcProvName  = (window._apiProviders.find(p => p.id === providerId) || {}).organization_name || providerId;
+  const svcProvName  = _svcMatchedProviderName || (window._apiProviders.find(p => p.id === providerId) || {}).organization_name || providerId;
   const svcTypeLabel = selectedSvcType === 'other' && svcOtherDetail
     ? svcOtherDetail
     : ({ water_connection:'Water Connection', tank_delivery:'Tank Delivery', truck_delivery:'Truck Delivery', meter_support:'Meter Support', inspection:'Inspection' }[selectedSvcType] || selectedSvcType.replace(/_/g,' '));
