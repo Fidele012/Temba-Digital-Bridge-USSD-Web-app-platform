@@ -38,15 +38,25 @@ async def _upsert(user_id: str, token_type: str, value: str, expires_at: datetim
 
 async def _get(user_id: str, token_type: str) -> str | None:
     uid = _to_uuid(user_id)
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
-        row = (await db.execute(
+        # Prune expired rows defensively (handles duplicates from concurrent writes)
+        await db.execute(
+            delete(UserToken).where(
+                UserToken.user_id == uid,
+                UserToken.token_type == token_type,
+                UserToken.expires_at <= now,
+            )
+        )
+        rows = (await db.execute(
             select(UserToken).where(
                 UserToken.user_id == uid,
                 UserToken.token_type == token_type,
-                UserToken.expires_at > datetime.now(timezone.utc),
-            )
-        )).scalar_one_or_none()
-        return row.value if row else None
+                UserToken.expires_at > now,
+            ).order_by(UserToken.expires_at.desc()).limit(1)
+        )).scalars().all()
+        await db.commit()
+        return rows[0].value if rows else None
 
 
 async def _delete(user_id: str, token_type: str) -> None:
