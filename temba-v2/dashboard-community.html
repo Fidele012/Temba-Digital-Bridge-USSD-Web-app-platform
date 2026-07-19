@@ -868,10 +868,11 @@
             <div class="field-wrap sel-wrap">
               <i class="ti ti-hourglass field-icon" aria-hidden="true"></i>
               <select id="apptDuration">
+                <option value="20">20 minutes</option>
                 <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
                 <option value="60" selected>1 hour</option>
-                <option value="90">1.5 hours</option>
-                <option value="120">2 hours</option>
+                <option value="90">1 hour 30 min</option>
               </select>
               <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
             </div>
@@ -890,10 +891,11 @@
           <div class="field-wrap sel-wrap">
             <i class="ti ti-hourglass field-icon" aria-hidden="true"></i>
             <select id="apptDurationSlot">
+              <option value="20">20 minutes</option>
               <option value="30">30 minutes</option>
+              <option value="45">45 minutes</option>
               <option value="60" selected>1 hour</option>
-              <option value="90">1.5 hours</option>
-              <option value="120">2 hours</option>
+              <option value="90">1 hour 30 min</option>
             </select>
             <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
           </div>
@@ -2953,7 +2955,8 @@ async function submitAppt() {
   const durVal = document.getElementById('slotDurationSection')?.style.display !== 'none'
     ? (document.getElementById('apptDurationSlot')?.value || '60')
     : (document.getElementById('apptDuration')?.value || '60');
-  const durLabel = durVal === '30' ? '30 minutes' : durVal === '90' ? '1.5 hours' : durVal === '120' ? '2 hours' : '1 hour';
+  const _DUR_MAP = {'20':'20 minutes','30':'30 minutes','45':'45 minutes','60':'1 hour','90':'1 hour 30 min'};
+  const durLabel = _DUR_MAP[durVal] || '1 hour';
   const durationNote = `Duration: ${durLabel}`;
   const combinedNotes = reason === 'other' && otherReasonDetail
     ? (notes ? `Reason: ${otherReasonDetail}\n${notes}\n${durationNote}` : `Reason: ${otherReasonDetail}\n${durationNote}`)
@@ -3647,10 +3650,21 @@ function filterHistory(filter, btn) {
   renderHistory();
 }
 
+function _getHiddenHistory() { return new Set(JSON.parse(localStorage.getItem('temba_hidden_history') || '[]')); }
+function deleteHistoryEntry(hid, ev) {
+  ev.stopPropagation();
+  const hidden = _getHiddenHistory();
+  hidden.add(hid);
+  localStorage.setItem('temba_hidden_history', JSON.stringify([...hidden]));
+  renderHistory();
+  toast('Removed from history', 'success');
+}
+
 function renderHistory() {
   const DONE_APPT = ['completed','cancelled','rejected'];
   const DONE_REP  = ['resolved','cancelled'];
   const DONE_SVC  = ['completed','rejected','cancelled'];
+  const hidden    = _getHiddenHistory();
 
   const appts = getAllAppts().filter(a => DONE_APPT.includes(a.status));
   const reps  = getAllReports().filter(r => DONE_REP.includes(r.status));
@@ -3659,6 +3673,7 @@ function renderHistory() {
   let entries = [];
   if (_historyFilter === 'all' || _historyFilter === 'appointments') {
     entries.push(...appts.map(a => ({
+      hid: 'appt_' + (a.apiId || a.id || a.createdAt),
       type: 'appt',
       icon: 'ti-calendar',
       dotClass: a.status === 'completed' ? 'completed appt' : 'cancelled appt',
@@ -3670,6 +3685,7 @@ function renderHistory() {
   }
   if (_historyFilter === 'all' || _historyFilter === 'reports') {
     entries.push(...reps.map(r => ({
+      hid: 'rep_' + (r.apiId || r.ref),
       type: 'report',
       ref: r.ref,
       icon: 'ti-flag',
@@ -3682,6 +3698,7 @@ function renderHistory() {
   }
   if (_historyFilter === 'all' || _historyFilter === 'service_requests') {
     entries.push(...svcs.map(s => ({
+      hid: 'svc_' + (s.apiId || s.id || s.createdAt),
       type: 'svc',
       icon: 'ti-tool',
       dotClass: s.status === 'completed' ? 'completed svc' : s.status === 'rejected' ? 'rejected svc' : 'cancelled svc',
@@ -3692,6 +3709,7 @@ function renderHistory() {
     })));
   }
 
+  entries = entries.filter(e => !hidden.has(e.hid));
   entries.sort((a,b) => new Date(b.time||0) - new Date(a.time||0));
 
   const statusColor = { completed:'#2E7D32', resolved:'#2E7D32', cancelled:'#94A3B8', rejected:'#C62828' };
@@ -3699,19 +3717,24 @@ function renderHistory() {
 
   document.getElementById('historyList').innerHTML = entries.length
     ? entries.map(e => {
-        const dest = e.type==='report' && e.ref ? `window.location.href='report-detail.html?ref=${e.ref}'`
-                   : e.type==='appt'   ? `_navToPanel('appointments',null)`
-                   : e.type==='svc'    ? `_navToPanel('service-requests',null)` : '';
-        return `<div class="history-entry stat-card-link" role="button" tabindex="0" style="cursor:pointer;"
-                  ${dest?`onclick="${dest}" onkeydown="if(event.key==='Enter'){${dest}}"`:''}>
+        const dest = e.type==='report' && e.ref ? `window.location.href='report-detail.html?ref=${encodeURIComponent(e.ref)}'` : '';
+        const safeHid = e.hid.replace(/'/g, "\\'");
+        return `<div class="history-entry" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--gray-100);">
           <div class="history-dot ${e.dotClass}"><i class="ti ${e.icon}"></i></div>
-          <div style="flex:1;min-width:0;">
+          <div style="flex:1;min-width:0;cursor:pointer;" ${dest?`onclick="${dest}"`:''}>
             <div class="history-title">${e.title}</div>
             <div class="history-meta">${e.meta} · ${fmtDate(e.time)}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
             <span class="history-status" style="background:${statusBg[e.status]||'#F1F5F9'};color:${statusColor[e.status]||'#94A3B8'};">${_statusLabel(e.status)}</span>
-            ${dest?`<i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:15px;flex-shrink:0;"></i>`:''}
+            ${dest?`<i class="ti ti-chevron-right" style="color:var(--gray-300);font-size:15px;cursor:pointer;" onclick="${dest}"></i>`:''}
+            <button onclick="deleteHistoryEntry('${safeHid}',event)"
+              style="background:none;border:none;cursor:pointer;padding:5px 7px;border-radius:6px;color:var(--gray-300);font-size:15px;line-height:1;transition:color 0.15s,background 0.15s;"
+              onmouseenter="this.style.color='#C62828';this.style.background='#FFEBEE';"
+              onmouseleave="this.style.color='var(--gray-300)';this.style.background='none';"
+              title="Remove from history">
+              <i class="ti ti-trash"></i>
+            </button>
           </div>
         </div>`;
       }).join('')
