@@ -386,7 +386,9 @@
     <!-- ── ALERTS ── -->
     <div class="dash-panel" id="panel-alerts">
       <div class="dash-header"><div><h1 data-i18n="alerts_title">Alerts &amp; Announcements</h1><p data-i18n="alerts_sub">Updates from your water service providers.</p></div></div>
-      <div id="alertsList"></div>
+      <div class="card" style="padding:0 1.25rem;">
+        <div id="alertsList"></div>
+      </div>
     </div>
 
     <!-- ── WATER QUALITY ── -->
@@ -721,13 +723,13 @@
         <label class="field-label">Your Province <span class="req">*</span></label>
         <div class="field-wrap sel-wrap">
           <i class="ti ti-map field-icon" aria-hidden="true"></i>
-          <select id="svcProvince" onchange="runSvcAutoMatch()">
+          <select id="svcProvince" onchange="runSvcAutoMatch();svcCascadeDistrict()">
             <option value="" disabled selected>Select your province</option>
-            <option value="Kigali City">Kigali City</option>
-            <option value="Northern Province">Northern Province</option>
-            <option value="Southern Province">Southern Province</option>
-            <option value="Eastern Province">Eastern Province</option>
-            <option value="Western Province">Western Province</option>
+            <option value="Kigali">Kigali City</option>
+            <option value="North">Northern Province</option>
+            <option value="South">Southern Province</option>
+            <option value="East">Eastern Province</option>
+            <option value="West">Western Province</option>
           </select>
           <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
         </div>
@@ -755,10 +757,63 @@
       </div>
 
       <div class="field">
-        <label class="field-label"><span data-i18n="svc_location_label">Location (Sector / Cell / Village)</span> <span class="req">*</span></label>
-        <div class="field-wrap">
+        <label class="field-label">District <span class="req">*</span></label>
+        <div class="field-wrap sel-wrap">
+          <i class="ti ti-map-2 field-icon" aria-hidden="true"></i>
+          <select id="svcDistrict" onchange="svcCascadeSector()" disabled>
+            <option value="" disabled selected>Select province first</option>
+          </select>
+          <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Sector <span class="req">*</span></label>
+        <div class="field-wrap sel-wrap">
           <i class="ti ti-map-pin field-icon" aria-hidden="true"></i>
-          <input type="text" id="svcLocation" placeholder="e.g. Kimisagara Cell, Nyarugenge, Kigali" />
+          <select id="svcSector" onchange="svcCascadeCell()" disabled>
+            <option value="" disabled selected>Select district first</option>
+          </select>
+          <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Cell <span class="req">*</span></label>
+        <div class="field-wrap sel-wrap">
+          <i class="ti ti-building field-icon" aria-hidden="true"></i>
+          <select id="svcCell" onchange="svcCascadeVillage()" disabled>
+            <option value="" disabled selected>Select sector first</option>
+          </select>
+          <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Village</label>
+        <div class="field-wrap sel-wrap">
+          <i class="ti ti-home field-icon" aria-hidden="true"></i>
+          <select id="svcVillage" disabled>
+            <option value="" disabled selected>Select cell first</option>
+          </select>
+          <i class="ti ti-chevron-down sel-arrow" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="field" style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label class="field-label">Preferred Time</label>
+          <div class="field-wrap">
+            <i class="ti ti-clock field-icon" aria-hidden="true"></i>
+            <input type="time" id="svcTime" />
+          </div>
+        </div>
+        <div style="flex:1;">
+          <label class="field-label">Phone Number</label>
+          <div class="field-wrap">
+            <i class="ti ti-phone field-icon" aria-hidden="true"></i>
+            <input type="tel" id="svcPhone" placeholder="+250 7XX XXX XXX" />
+          </div>
         </div>
       </div>
 
@@ -2099,21 +2154,20 @@ function reportItemHTML(r) {
 }
 
 function alertItemHTML(a) {
-  const icons     = { warning:'ti-alert-triangle', info:'ti-info-circle', success:'ti-circle-check' };
-  const iconBg    = { warning:'#FFFBEB', info:'#EFF6FF', success:'#F0FDF4' };
-  const iconBdr   = { warning:'1px solid #FDE68A', info:'1px solid #BFDBFE', success:'1px solid #BBF7D0' };
-  const iconColor = { warning:'#B45309', info:'#2563EB', success:'#15803D' };
-  const cardBdr   = { warning:'#FDE68A', info:'#BFDBFE', success:'#BBF7D0' };
+  const icons = { warning:'ti-alert-triangle', info:'ti-info-circle', success:'ti-circle-check' };
+  const clr   = { warning:'var(--orange)', info:'var(--blue)', success:'var(--green)' };
   const id = a.id || _alertId(a);
-  const extraBorder = a.unread ? '' : `border-color:${cardBdr[a.type]||'#E5E7EB'};`;
-  return `<div class="alert-item ${a.unread?'unread':''}" role="button" tabindex="0" style="cursor:pointer;${extraBorder}" onclick="openAlertDetail('${id}')" onkeydown="if(event.key==='Enter')openAlertDetail('${id}')">
-    <div class="alert-icon" style="background:${iconBg[a.type]};border:${iconBdr[a.type]};"><i class="ti ${icons[a.type]}" style="color:${iconColor[a.type]};" aria-hidden="true"></i></div>
+  const color = clr[a.type] || 'var(--blue)';
+  return `<div class="alert-item ${a.unread?'unread':''}" role="button" tabindex="0" style="cursor:pointer;" onclick="openAlertDetail('${id}')" onkeydown="if(event.key==='Enter')openAlertDetail('${id}')">
+    <div style="width:3px;align-self:stretch;border-radius:2px;background:${color};opacity:${a.unread?'1':'0.35'};flex-shrink:0;"></div>
+    <i class="ti ${icons[a.type]||'ti-info-circle'}" style="color:${color};font-size:17px;flex-shrink:0;margin-top:1px;" aria-hidden="true"></i>
     <div style="flex:1;min-width:0;">
       <div class="alert-title">${a.title}</div>
       <div class="alert-desc">${a.desc}</div>
       <div class="alert-meta">${a.provider} &middot; ${a.time}</div>
     </div>
-    <i class="ti ti-chevron-right" style="color:#D1D5DB;font-size:12px;flex-shrink:0;margin-top:3px;opacity:0.65;" aria-hidden="true"></i>
+    ${a.unread?`<span style="width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:4px;" aria-label="Unread"></span>`:''}
+    <i class="ti ti-chevron-right" style="color:#D1D5DB;font-size:12px;flex-shrink:0;margin-top:3px;" aria-hidden="true"></i>
   </div>`;
 }
 
@@ -2586,13 +2640,19 @@ function openSvcModal() {
   _svcProvListOpen        = false;
   document.querySelectorAll('.svc-type-card').forEach(c => c.classList.remove('selected'));
   if (!window._apiProviders.length) loadProviders(); else _populateProviderSelects();
+  const sess = JSON.parse(localStorage.getItem('temba_session') || '{}');
   const svcProv = document.getElementById('svcProvince');
-  if (svcProv) svcProv.value = '';
+  if (svcProv) svcProv.value = sess.province || '';
   const svcMatchSec = document.getElementById('svcMatchSection');
   if (svcMatchSec) svcMatchSec.style.display = 'none';
   document.getElementById('svcProvider').value = '';
   document.querySelector('input[name="svcUrgency"][value="low"]').checked = true;
-  document.getElementById('svcLocation').value = '';
+  svcCascadeDistrict();
+  const phoneEl = document.getElementById('svcPhone');
+  if (phoneEl) phoneEl.value = sess.phone || '';
+  const timeEl = document.getElementById('svcTime');
+  if (timeEl) timeEl.value = '';
+  if (sess.province) runSvcAutoMatch();
   document.getElementById('svcDesc').value = '';
   const svcOtherRev = document.getElementById('svcOtherReveal');
   if (svcOtherRev) svcOtherRev.style.display = 'none';
@@ -2601,6 +2661,69 @@ function openSvcModal() {
   document.getElementById('svcModal').classList.add('open');
 }
 function closeSvcModal() { document.getElementById('svcModal').classList.remove('open'); }
+
+function svcCascadeDistrict() {
+  const prov = document.getElementById('svcProvince').value;
+  const dEl  = document.getElementById('svcDistrict');
+  dEl.innerHTML = '<option value="" disabled selected>Select district</option>';
+  ['svcSector','svcCell','svcVillage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const lbl = {svcSector:'Select district first',svcCell:'Select sector first',svcVillage:'Select cell first'}[id]||'Select first';
+    el.innerHTML = `<option value="" disabled selected>${lbl}</option>`; el.disabled = true; el.value = '';
+  });
+  if (prov && RWANDA[prov]) {
+    Object.keys(RWANDA[prov]).sort().forEach(d => dEl.add(new Option(d, d)));
+    dEl.disabled = false;
+  } else { dEl.disabled = true; }
+  dEl.value = '';
+}
+function svcCascadeSector() {
+  const prov = document.getElementById('svcProvince').value;
+  const dist = document.getElementById('svcDistrict').value;
+  const sEl  = document.getElementById('svcSector');
+  ['svcCell','svcVillage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<option value="" disabled selected>${id==='svcCell'?'Select sector first':'Select cell first'}</option>`; el.disabled = true; el.value = '';
+  });
+  sEl.innerHTML = '<option value="" disabled selected>Select sector</option>';
+  const districts = RWANDA[prov];
+  if (prov && dist && districts && districts[dist]) {
+    Object.keys(districts[dist]).sort().forEach(s => sEl.add(new Option(s, s)));
+    sEl.disabled = false;
+  } else { sEl.disabled = true; }
+  sEl.value = '';
+}
+function svcCascadeCell() {
+  const prov = document.getElementById('svcProvince').value;
+  const dist = document.getElementById('svcDistrict').value;
+  const sect = document.getElementById('svcSector').value;
+  const cEl  = document.getElementById('svcCell');
+  const vEl  = document.getElementById('svcVillage');
+  vEl.innerHTML = '<option value="" disabled selected>Select cell first</option>'; vEl.disabled = true; vEl.value = '';
+  cEl.innerHTML = '<option value="" disabled selected>Select cell</option>';
+  const sects = RWANDA[prov]?.[dist];
+  if (prov && dist && sect && sects && sects[sect]) {
+    Object.keys(sects[sect]).sort().forEach(c => cEl.add(new Option(c, c)));
+    cEl.disabled = false;
+  } else { cEl.disabled = true; }
+  cEl.value = '';
+}
+function svcCascadeVillage() {
+  const prov = document.getElementById('svcProvince').value;
+  const dist = document.getElementById('svcDistrict').value;
+  const sect = document.getElementById('svcSector').value;
+  const cell = document.getElementById('svcCell').value;
+  const vEl  = document.getElementById('svcVillage');
+  vEl.innerHTML = '<option value="" disabled selected>Select village</option>';
+  const villages = RWANDA[prov]?.[dist]?.[sect]?.[cell];
+  if (Array.isArray(villages)) {
+    [...villages].sort().forEach(v => vEl.add(new Option(v, v)));
+    vEl.disabled = false;
+  } else { vEl.disabled = true; }
+  vEl.value = '';
+}
 
 async function submitSvcRequest() {
   if (!selectedSvcType) { toast('Please select a service type','error'); return; }
@@ -2617,10 +2740,18 @@ async function submitSvcRequest() {
     await loadProviders();
     providerId = _svcMatchedProviderId;
   }
-  const location = document.getElementById('svcLocation').value.trim();
+  const district = document.getElementById('svcDistrict')?.value || '';
+  const sector   = document.getElementById('svcSector')?.value   || '';
+  const cell     = document.getElementById('svcCell')?.value     || '';
+  const village  = document.getElementById('svcVillage')?.value  || '';
+  const phone    = (document.getElementById('svcPhone')?.value   || '').trim();
+  const prefTime = document.getElementById('svcTime')?.value     || '';
+  if (!district) { toast('Please select your district','error'); document.getElementById('svcDistrict')?.focus(); return; }
+  if (!sector)   { toast('Please select your sector','error');   document.getElementById('svcSector')?.focus();   return; }
+  if (!cell)     { toast('Please select your cell','error');     document.getElementById('svcCell')?.focus();     return; }
+  const location = [village, cell, sector, district, province].filter(Boolean).join(', ');
   const desc     = document.getElementById('svcDesc').value.trim();
   const urgency  = document.querySelector('input[name="svcUrgency"]:checked')?.value || 'low';
-  if (!location)   { toast('Please enter your location','error'); return; }
   if (desc.length < 10) { toast('Please describe your request (at least 10 characters)','error'); return; }
   const finalDesc = selectedSvcType === 'other' && svcOtherDetail
     ? `Service type: ${svcOtherDetail}\n\n${desc}`
@@ -2635,6 +2766,8 @@ async function submitSvcRequest() {
     description: finalDesc,
     provider_id: providerId,
     address_detail: location,
+    ...(phone    ? { contact_phone: phone }        : {}),
+    ...(prefTime ? { preferred_time: prefTime }    : {}),
   });
 
   const svcProvName  = _svcMatchedProviderName || (window._apiProviders.find(p => p.id === providerId) || {}).organization_name || providerId;
