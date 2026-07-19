@@ -24,7 +24,19 @@
     .add-note-panel{display:none;margin-top:1rem;background:var(--sky-pale);border:1px solid #B3E5FC;border-radius:var(--radius-md);padding:1rem;}
     .add-note-panel textarea{width:100%;padding:9px 12px;border:1.5px solid #B3E5FC;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;outline:none;resize:vertical;transition:border-color 0.2s;}
     .add-note-panel textarea:focus{border-color:var(--sky);}
+    .rd-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .rd-btn{display:flex;align-items:center;justify-content:center;gap:7px;height:42px;padding:0 12px;border-radius:10px;font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:none;transition:opacity 0.15s,transform 0.15s;white-space:nowrap;box-sizing:border-box;}
+    .rd-btn:hover{opacity:.88;transform:translateY(-1px);}
+    .rd-btn:active{transform:none !important;}
+    .rd-btn-call{background:linear-gradient(135deg,var(--blue),var(--sky));color:#fff;border:none;box-shadow:0 3px 10px rgba(21,101,192,.25);}
+    .rd-btn-sms{background:#fff;color:var(--blue);border:1.5px solid #CBD5E1;}
+    .rd-btn-sms:hover{background:var(--sky-pale);border-color:var(--blue);}
+    .rd-btn-note{background:#fff;color:var(--gray-600);border:1.5px solid var(--gray-200);}
+    .rd-btn-note:hover{background:var(--gray-100);border-color:var(--gray-300);}
+    .rd-btn-resolve{background:#fff;color:var(--orange);border:1.5px solid #FFCC80;}
+    .rd-btn-resolve:hover{background:#FFF8E1;border-color:var(--orange);}
     @media(max-width:900px){.detail-layout{grid-template-columns:1fr;}.detail-grid{grid-template-columns:1fr;}}
+    @media(max-width:600px){.rd-actions{grid-template-columns:1fr 1fr;}}
   </style>
 </head>
 <body>
@@ -100,11 +112,11 @@
       <!-- Actions -->
       <div class="card">
         <div class="card-header"><span class="card-title"><i class="ti ti-settings" style="color:var(--blue);" aria-hidden="true"></i> Actions</span></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <a id="callProviderBtn" href="#" class="btn-primary" style="width:auto;text-decoration:none;"><i class="ti ti-phone" aria-hidden="true"></i> Call Provider</a>
-          <a id="smsProviderBtn" href="#" class="btn-secondary" style="text-decoration:none;"><i class="ti ti-message" aria-hidden="true"></i> Send SMS</a>
-          <button class="btn-secondary" onclick="document.getElementById('addNotePanel').style.display='block'"><i class="ti ti-note" aria-hidden="true"></i> Add Note</button>
-          <button class="btn-resolve" id="resolveBtn" onclick="resolveReport()"><i class="ti ti-check-double" aria-hidden="true"></i> Mark as Resolved</button>
+        <div class="rd-actions">
+          <a id="callProviderBtn" href="#" class="rd-btn rd-btn-call"><i class="ti ti-phone" aria-hidden="true"></i> Call Provider</a>
+          <a id="smsProviderBtn" href="#" class="rd-btn rd-btn-sms"><i class="ti ti-message" aria-hidden="true"></i> Send SMS</a>
+          <button class="rd-btn rd-btn-note" onclick="document.getElementById('addNotePanel').style.display='block'"><i class="ti ti-note" aria-hidden="true"></i> Add Note</button>
+          <button class="rd-btn rd-btn-resolve" id="resolveBtn" onclick="resolveReport()"><i class="ti ti-check-double" aria-hidden="true"></i> Mark as Resolved</button>
         </div>
         <div class="add-note-panel" id="addNotePanel">
           <textarea id="noteText" rows="3" placeholder="Add a note or update for this report…"></textarea>
