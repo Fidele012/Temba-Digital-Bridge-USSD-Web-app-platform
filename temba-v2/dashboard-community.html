@@ -1457,6 +1457,45 @@ function openAlertDetail(id) {
 }
 function closeAlertDetail() { document.getElementById('alertDetailModal').style.display = 'none'; }
 
+/* ── Announcement API integration ── */
+let _apiAnnouncements = [];  // fetched from backend, merged into getAlertsData()
+
+async function _fetchApiAnnouncements() {
+  try {
+    const token = localStorage.getItem('temba_token');
+    if (!token) return;
+    const sess = JSON.parse(localStorage.getItem('temba_session') || '{}');
+    const p = new URLSearchParams();
+    if (sess.province) p.set('province', sess.province);
+    if (sess.district) p.set('district', sess.district);
+    if (sess.sector)   p.set('sector',   sess.sector);
+    if (sess.cell)     p.set('cell',     sess.cell);
+    if (sess.village)  p.set('village',  sess.village);
+    const resp = await fetch(API_BASE + '/announcements?' + p, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const prevCount = _apiAnnouncements.length;
+    _apiAnnouncements = data.map(a => ({
+      title: a.title,
+      type: a.announcement_type || 'general',
+      message: a.body,
+      postedAt: a.created_at,
+      providerId: a.provider_id || 'Water Provider',
+      target: a.target || { level: 'national' },
+      apiId: a.id,
+    }));
+    renderAlerts();
+    const oa = document.getElementById('overviewAlerts');
+    if (oa) oa.innerHTML = getAlertsData().slice(0,3).map(alertItemHTML).join('');
+    if (_apiAnnouncements.length > prevCount) {
+      const newest = _apiAnnouncements[0];
+      if (newest) toast('New announcement: ' + newest.title, 'info');
+    }
+  } catch (_) { /* offline */ }
+}
+
 function _announceMatchesUser(a) {
   const sess = JSON.parse(localStorage.getItem('temba_session') || '{}');
   // New structured target format
@@ -1481,7 +1520,13 @@ function _announceMatchesUser(a) {
 
 function getAlertsData() {
   const readSet = _getReadAlerts();
-  const provAnnouncements = JSON.parse(localStorage.getItem('temba_pub_announcements') || '[]').filter(_announceMatchesUser).map(a => {
+  // Merge API announcements (deduplicated) + localStorage announcements
+  const apiIds = new Set(_apiAnnouncements.map(a => a.apiId).filter(Boolean));
+  const lsAnnouncements = JSON.parse(localStorage.getItem('temba_pub_announcements') || '[]')
+    .filter(_announceMatchesUser)
+    .filter(a => !a.apiId || !apiIds.has(a.apiId));  // skip dupes already in API list
+  const merged = [..._apiAnnouncements, ...lsAnnouncements];
+  const provAnnouncements = merged.map(a => {
     const al = {
       type: _ANNOUNCE_TYPE_MAP[a.type] || 'info',
       title: a.title,
@@ -1821,6 +1866,8 @@ async function loadApiData() {
     apiGet('/appointments?size=100'),
     apiGet('/service-requests?size=100'),
   ]);
+  // Fetch announcements in parallel (non-blocking — errors handled inside)
+  _fetchApiAnnouncements();
   if (rd && rd.items) {
     window._apiReports = rd.items.map(_normReport);
     _syncReportVerifyFromApi(rd.items);
@@ -1841,7 +1888,7 @@ function _refreshAll() {
   if (activeCnt > 0) { ab.textContent = activeCnt; ab.style.display = 'flex'; }
   else ab.style.display = 'none';
   _updateSvcBadgeAll(); _updateApptBadgeAll();
-  renderOverview(all); renderReportsList(all,'all'); renderSvcList('all'); renderApptList('all');
+  renderOverview(all); renderAlerts(); renderReportsList(all,'all'); renderSvcList('all'); renderApptList('all');
   renderVerifyBanners();
   // Show/hide the top overview "action needed" banner
   const pendingVerify = all.filter(r => r.status === 'pending-verification');
@@ -1920,6 +1967,16 @@ async function _syncApiNotifs() {
 /* ── INIT ── */
 window.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('scroll', () => document.getElementById('mainNav').classList.toggle('shadow', window.scrollY > 8));
+
+  // Re-render alerts when provider posts an announcement in another tab
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'temba_pub_announcements') return;
+    renderAlerts();
+    const oa = document.getElementById('overviewAlerts');
+    if (oa) oa.innerHTML = getAlertsData().slice(0,3).map(alertItemHTML).join('');
+    const unread = getAlertsData().find(a => a.unread);
+    if (unread) toast('New announcement: ' + unread.title, 'info');
+  });
 
   const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
   const name = s.name || 'there';

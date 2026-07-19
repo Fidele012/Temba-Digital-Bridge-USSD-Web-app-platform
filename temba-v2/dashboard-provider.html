@@ -2622,6 +2622,15 @@ function postAnnouncement() {
   // Reset targeting back to All Rwanda
   _annTarget = { level:'national', provinces:[], districts:[], sectors:[], cells:[], villages:[] };
   setAnnounceLevel('national');
+  // Persist to backend (fire-and-forget; localStorage is the offline fallback)
+  const _tok = localStorage.getItem('temba_token');
+  if (_tok) {
+    fetch(API_BASE + '/announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok },
+      body: JSON.stringify({ title, body: msg, announcement_type: type, target: entry.target })
+    }).catch(() => {});
+  }
   toast('Announcement posted and sent to community!', 'success');
 }
 
