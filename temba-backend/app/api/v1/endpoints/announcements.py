@@ -77,13 +77,13 @@ async def create_announcement(
 
 @router.get("", response_model=list[AnnouncementPublic])
 async def list_announcements(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
     province: Annotated[str | None, Query()] = None,
     district: Annotated[str | None, Query()] = None,
     sector: Annotated[str | None, Query()] = None,
     cell: Annotated[str | None, Query()] = None,
     village: Annotated[str | None, Query()] = None,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
 ):
     """Return published announcements that match the caller's location."""
     q = (
