@@ -391,7 +391,11 @@
 
     <!-- ── WATER QUALITY ── -->
     <div class="dash-panel" id="panel-water-quality">
-      <div class="dash-header"><div><h1 data-i18n="dash_quality">Water Quality</h1><p data-i18n="quality_panel_sub">Current water safety information for your area.</p></div></div>
+      <div class="dash-header"><div><h1 data-i18n="dash_quality">Water Quality</h1><p data-i18n="quality_panel_sub">National water quality standards verified and published by WASAC.</p></div></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--gray-500);margin-bottom:1rem;">
+        <i class="ti ti-shield-check" style="color:var(--green);font-size:15px;"></i>
+        <span id="wqCommBadge">Verified by WASAC</span>
+      </div>
       <div class="quality-grid" id="qualityGrid"></div>
     </div>
 
@@ -1474,15 +1478,48 @@ function getAlertsData() {
   ].map(a => { a.id = _alertId(a); a.unread = !readSet.has(a.id); return a; });
   return provAnnouncements.length ? [...provAnnouncements, ...staticAlerts] : staticAlerts;
 }
+const _WQ_NOTES = {
+  ph:        () => t('quality_note_ph'),
+  turbidity: () => t('quality_note_turbidity'),
+  chlorine:  () => t('quality_note_chlorine'),
+  ecoli:     () => t('quality_note_ecoli'),
+  hardness:  () => t('quality_note_hardness'),
+  nitrate:   () => t('quality_note_nitrate'),
+};
+const _WQ_COMM_FALLBACK = [
+  { parameter_key:'ph',        label:null, value:'7.2',  unit:'pH',        status:'good' },
+  { parameter_key:'turbidity', label:null, value:'0.8',  unit:'NTU',       status:'good' },
+  { parameter_key:'chlorine',  label:null, value:'0.4',  unit:'mg/L',      status:'good' },
+  { parameter_key:'ecoli',     label:null, value:'0',    unit:'CFU/100ml', status:'good' },
+  { parameter_key:'hardness',  label:null, value:'148',  unit:'mg/L',      status:'warn' },
+  { parameter_key:'nitrate',   label:null, value:'6.2',  unit:'mg/L',      status:'good' },
+];
+let _wqCommData = JSON.parse(localStorage.getItem('temba_water_quality') || 'null') || _WQ_COMM_FALLBACK;
+
+async function loadWaterQuality() {
+  try {
+    const r = await fetch(API_BASE + '/water-quality');
+    if (r.ok) {
+      _wqCommData = await r.json();
+      localStorage.setItem('temba_water_quality', JSON.stringify(_wqCommData));
+      renderQuality();
+    }
+  } catch (_) {}
+}
+
 function getQualityData() {
-  return [
-    { label:t('quality_ph'),        value:'7.2',  unit:'pH',        status:'good', note:t('quality_note_ph')        },
-    { label:t('quality_turbidity'), value:'0.8',  unit:'NTU',       status:'good', note:t('quality_note_turbidity') },
-    { label:t('quality_chlorine'),  value:'0.4',  unit:'mg/L',      status:'good', note:t('quality_note_chlorine')  },
-    { label:t('quality_ecoli'),     value:'0',    unit:'CFU/100ml', status:'good', note:t('quality_note_ecoli')     },
-    { label:t('quality_hardness'),  value:'148',  unit:'mg/L',      status:'warn', note:t('quality_note_hardness')  },
-    { label:t('quality_nitrate'),   value:'6.2',  unit:'mg/L',      status:'good', note:t('quality_note_nitrate')   },
-  ];
+  const LABELS = {
+    ph: t('quality_ph'), turbidity: t('quality_turbidity'), chlorine: t('quality_chlorine'),
+    ecoli: t('quality_ecoli'), hardness: t('quality_hardness'), nitrate: t('quality_nitrate'),
+  };
+  return _wqCommData.map(q => ({
+    label:  q.label || LABELS[q.parameter_key] || q.parameter_key,
+    value:  q.value,
+    unit:   q.unit,
+    status: q.status,
+    note:   (_WQ_NOTES[q.parameter_key] || (() => ''))(),
+    updated_at: q.updated_at || null,
+  }));
 }
 const providersData = [
   { name:'WASAC',            type:'Water & Sanitation Corporation', coverage:'National',         phone:'+250 788 123 456', email:'info@wasac.rw',      services:['Water Supply','Sanitation','Infrastructure'] },
@@ -1890,6 +1927,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderAlerts();
   renderArea();
   renderQuality();
+  loadWaterQuality();
   renderProviderCards();
   renderReportsList(allReports, 'all');
   renderSvcList('all');
@@ -2016,7 +2054,8 @@ function renderArea() {
   </div>`).join('');
 }
 function renderQuality() {
-  document.getElementById('qualityGrid').innerHTML = getQualityData().map(q => `
+  const data = getQualityData();
+  document.getElementById('qualityGrid').innerHTML = data.map(q => `
   <div class="quality-card">
     <div class="qc-lbl">${q.label}</div>
     <div class="qc-val">${q.value}</div>
@@ -2024,6 +2063,15 @@ function renderQuality() {
     <span class="qc-status qc-${q.status}">${q.status==='good'?'✓ '+t('quality_safe'):q.status==='warn'?'⚠ '+t('quality_monitor'):'✗ '+t('quality_unsafe')}</span>
     <div style="font-size:11.5px;color:var(--gray-400);margin-top:5px;">${q.note}</div>
   </div>`).join('');
+
+  // Verified-by-WASAC badge below the grid
+  const lastUpdated = data.find(q => q.updated_at)?.updated_at;
+  const badgeEl = document.getElementById('wqCommBadge');
+  if (badgeEl) {
+    badgeEl.textContent = lastUpdated
+      ? `Verified by WASAC · Last updated ${new Date(lastUpdated).toLocaleDateString('en-RW', { day:'numeric', month:'short', year:'numeric' })}`
+      : 'Verified by WASAC';
+  }
 }
 function renderProviderCards() {
   const source = window._apiProviders.length ? window._apiProviders.map(p => ({

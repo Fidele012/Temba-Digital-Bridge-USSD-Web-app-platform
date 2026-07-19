@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     track,
     ussd,
     users,
+    water_quality,
 )
 
 api_router = APIRouter()
@@ -29,3 +30,4 @@ api_router.include_router(ussd.router)
 api_router.include_router(track.router)
 api_router.include_router(events.router)
 api_router.include_router(chatbot.router)
+api_router.include_router(water_quality.router)

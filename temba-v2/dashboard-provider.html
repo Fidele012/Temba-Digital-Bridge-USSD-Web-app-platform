@@ -287,10 +287,37 @@
     <!-- ── WATER QUALITY ── -->
     <div class="dash-panel" id="panel-water-quality">
       <div class="dash-header">
-        <div><h1 data-i18n="prov_water_quality_title">Water Quality</h1><p data-i18n="prov_water_quality_sub">Publish quality data for your service area.</p></div>
-        <button class="btn-nav-cta" onclick="toast('Quality report published','success')"><i class="ti ti-upload"></i> <span data-i18n="prov_publish_update">Publish Update</span></button>
+        <div><h1 data-i18n="prov_water_quality_title">Water Quality</h1><p data-i18n="prov_water_quality_sub">National water quality standards verified by WASAC.</p></div>
+        <button class="btn-nav-cta" id="wqUpdateBtn" onclick="openWqModal()" style="display:none;"><i class="ti ti-edit"></i> Update Readings</button>
+      </div>
+      <div id="wqVerifiedBadge" style="display:none;margin-bottom:1rem;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--gray-500);">
+        <i class="ti ti-shield-check" style="color:var(--green);font-size:15px;"></i>
+        <span id="wqVerifiedLabel">Verified by WASAC</span>
       </div>
       <div class="quality-grid" id="qualityGrid"></div>
+    </div>
+
+    <!-- ── WATER QUALITY UPDATE MODAL (WASAC only) ── -->
+    <div class="modal-overlay" id="wqModal">
+      <div class="modal-box" style="max-width:560px;">
+        <div class="modal-head">
+          <h2><i class="ti ti-flask" style="color:var(--blue);"></i> Update National Water Quality</h2>
+          <button class="modal-close" onclick="closeWqModal()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--gray-600);margin-bottom:1.25rem;background:var(--sky-pale);border-radius:8px;padding:10px 14px;border-left:3px solid var(--blue);">
+            <i class="ti ti-info-circle" style="color:var(--blue);"></i>
+            These readings are displayed to <strong>all water service providers and community members</strong> nationwide as the official WASAC standard.
+          </p>
+          <div id="wqEditFields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeWqModal()">Cancel</button>
+          <button class="btn-primary" style="width:auto;height:42px;padding:0 24px;margin-top:0;" onclick="submitWqUpdate()">
+            <i class="ti ti-shield-check"></i> Publish to All
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ── HISTORY ── -->
@@ -905,14 +932,16 @@ function getProviderSvcRequests() {
 /* ── Seed Data (cleared — data comes from API only) ── */
 const reports = [];
 const community = [];
-const quality = [
-  { label:'pH Level',       value:'7.2',  unit:'pH',        status:'good' },
-  { label:'Turbidity',      value:'0.8',  unit:'NTU',       status:'good' },
-  { label:'Chlorine',       value:'0.4',  unit:'mg/L',      status:'good' },
-  { label:'E. coli',        value:'0',    unit:'CFU/100ml', status:'good' },
-  { label:'Total Hardness', value:'148',  unit:'mg/L',      status:'warn' },
-  { label:'Nitrate',        value:'6.2',  unit:'mg/L',      status:'good' },
+const _WQ_FALLBACK = [
+  { parameter_key:'ph',        label:'pH Level',       value:'7.2',  unit:'pH',        status:'good' },
+  { parameter_key:'turbidity', label:'Turbidity',      value:'0.8',  unit:'NTU',       status:'good' },
+  { parameter_key:'chlorine',  label:'Chlorine',       value:'0.4',  unit:'mg/L',      status:'good' },
+  { parameter_key:'ecoli',     label:'E. coli',        value:'0',    unit:'CFU/100ml', status:'good' },
+  { parameter_key:'hardness',  label:'Total Hardness', value:'148',  unit:'mg/L',      status:'warn' },
+  { parameter_key:'nitrate',   label:'Nitrate',        value:'6.2',  unit:'mg/L',      status:'good' },
 ];
+let _wqData = JSON.parse(localStorage.getItem('temba_water_quality') || 'null') || _WQ_FALLBACK;
+const _IS_WASAC = /wasac/i.test(CURRENT_PROVIDER);
 let postedAnnouncements = [];
 let selectedAreas = ['national'];
 let unavailDates = [];
@@ -1666,7 +1695,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderActivity();
   renderInbox(getProviderReports(), 'all');
   renderCommunity();
-  renderQuality();
+  loadWaterQuality();
   renderPosted();
   renderProvSvcList('all');
   renderProvApptList('all');
@@ -2345,14 +2374,96 @@ function renderCommunity() {
   </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:2rem;">No community interactions yet.</td></tr>';
 }
 
+async function loadWaterQuality() {
+  try {
+    const r = await fetch(API_BASE + '/water-quality');
+    if (r.ok) {
+      _wqData = await r.json();
+      localStorage.setItem('temba_water_quality', JSON.stringify(_wqData));
+    }
+  } catch (_) {}
+  renderQuality();
+}
+
 function renderQuality() {
-  document.getElementById('qualityGrid').innerHTML = quality.map(q => `
+  document.getElementById('qualityGrid').innerHTML = _wqData.map(q => `
   <div class="quality-card">
     <div class="qc-lbl">${q.label}</div>
     <div class="qc-val">${q.value}</div>
     <div class="qc-unit">${q.unit}</div>
     <span class="qc-status qc-${q.status}">${q.status==='good'?'✓ Safe':q.status==='warn'?'⚠ Monitor':'✗ Unsafe'}</span>
   </div>`).join('');
+
+  // Show WASAC update button only for WASAC account
+  const btn = document.getElementById('wqUpdateBtn');
+  if (btn) btn.style.display = _IS_WASAC ? '' : 'none';
+
+  // Show verified badge with last-updated timestamp
+  const badge = document.getElementById('wqVerifiedBadge');
+  const lbl   = document.getElementById('wqVerifiedLabel');
+  if (badge && lbl) {
+    badge.style.display = 'flex';
+    const lastUpdated = _wqData.find(q => q.updated_at)?.updated_at;
+    lbl.textContent = lastUpdated
+      ? `Verified by WASAC · Last updated ${new Date(lastUpdated).toLocaleDateString('en-RW', { day:'numeric', month:'short', year:'numeric' })}`
+      : 'Verified by WASAC';
+  }
+}
+
+function openWqModal() {
+  const fields = document.getElementById('wqEditFields');
+  if (!fields) return;
+  fields.innerHTML = _wqData.map(q => `
+    <div style="background:var(--gray-50);border-radius:10px;padding:12px 14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:8px;">${q.label} <span style="font-weight:400;color:var(--gray-400);">(${q.unit})</span></div>
+      <div class="field-wrap" style="margin-bottom:8px;">
+        <input type="number" step="any" id="wq_val_${q.parameter_key}" value="${q.value}"
+               style="padding:8px 12px;font-size:15px;font-weight:700;color:var(--navy);" />
+      </div>
+      <div class="field-wrap sel-wrap">
+        <select id="wq_sts_${q.parameter_key}">
+          <option value="good" ${q.status==='good'?'selected':''}>✓ Safe</option>
+          <option value="warn" ${q.status==='warn'?'selected':''}>⚠ Monitor</option>
+          <option value="unsafe" ${q.status==='unsafe'?'selected':''}>✗ Unsafe</option>
+        </select>
+        <i class="ti ti-chevron-down sel-arrow"></i>
+      </div>
+    </div>`).join('');
+  document.getElementById('wqModal').classList.add('open');
+}
+function closeWqModal() { document.getElementById('wqModal').classList.remove('open'); }
+
+async function submitWqUpdate() {
+  const readings = _wqData.map(q => ({
+    parameter_key: q.parameter_key,
+    value: String(document.getElementById(`wq_val_${q.parameter_key}`)?.value ?? q.value),
+    status: document.getElementById(`wq_sts_${q.parameter_key}`)?.value ?? q.status,
+  }));
+  const token = localStorage.getItem('temba_token');
+  if (!token) { toast('Not authenticated', 'error'); return; }
+  const btn = document.querySelector('#wqModal .btn-primary');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Publishing…'; }
+  try {
+    const r = await fetch(API_BASE + '/water-quality', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ readings }),
+    });
+    if (r.ok) {
+      _wqData = await r.json();
+      localStorage.setItem('temba_water_quality', JSON.stringify(_wqData));
+      closeWqModal();
+      renderQuality();
+      toast('Water quality readings published to all providers and community members.', 'success');
+    } else {
+      const err = await r.json().catch(() => ({}));
+      toast(err.detail || 'Failed to update readings', 'error');
+    }
+  } catch (_) {
+    toast('Network error — please try again', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-shield-check"></i> Publish to All'; }
+  }
 }
 
 /* ── Announcements ── */
