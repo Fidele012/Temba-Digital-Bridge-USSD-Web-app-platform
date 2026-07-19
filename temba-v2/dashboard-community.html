@@ -1457,9 +1457,31 @@ function openAlertDetail(id) {
 }
 function closeAlertDetail() { document.getElementById('alertDetailModal').style.display = 'none'; }
 
+function _announceMatchesUser(a) {
+  const sess = JSON.parse(localStorage.getItem('temba_session') || '{}');
+  // New structured target format
+  if (a.target) {
+    const t = a.target;
+    if (t.level === 'national') return true;
+    if (t.level === 'province') return t.provinces.includes(sess.province);
+    if (t.level === 'district') return t.provinces.includes(sess.province) && t.districts.includes(sess.district);
+    if (t.level === 'sector')   return t.provinces.includes(sess.province) && t.districts.includes(sess.district) && t.sectors.includes(sess.sector);
+    if (t.level === 'cell')     return t.provinces.includes(sess.province) && t.districts.includes(sess.district) && t.sectors.includes(sess.sector) && t.cells.includes(sess.cell);
+    if (t.level === 'village')  return t.provinces.includes(sess.province) && t.districts.includes(sess.district) && t.sectors.includes(sess.sector) && t.cells.includes(sess.cell) && t.villages.includes(sess.village);
+    return false;
+  }
+  // Legacy area string format (backward compat with old announcements)
+  if (!a.area || a.area === 'national') return true;
+  const _OLD = { kigali:'Kigali', eastern:'East', northern:'North', southern:'South', western:'West' };
+  return a.area.split(',').map(s => s.trim()).some(key => {
+    if (key === 'national') return true;
+    return (_OLD[key] || key) === sess.province;
+  });
+}
+
 function getAlertsData() {
   const readSet = _getReadAlerts();
-  const provAnnouncements = JSON.parse(localStorage.getItem('temba_pub_announcements') || '[]').map(a => {
+  const provAnnouncements = JSON.parse(localStorage.getItem('temba_pub_announcements') || '[]').filter(_announceMatchesUser).map(a => {
     const al = {
       type: _ANNOUNCE_TYPE_MAP[a.type] || 'info',
       title: a.title,

@@ -215,15 +215,43 @@
           <div class="card-title" style="margin-bottom:1.25rem;"><i class="ti ti-speakerphone" style="color:var(--gray-400);"></i> <span data-i18n="prov_create_announce">Create Announcement</span></div>
 
           <div class="field">
-            <label class="field-label" style="font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px;" data-i18n="prov_target_area">Target Area</label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;" id="areaChips">
-              <span class="filter-btn active" onclick="toggleArea(this,'national')" style="cursor:pointer;" data-i18n="prov_area_national">All Rwanda</span>
-              <span class="filter-btn" onclick="toggleArea(this,'kigali')" style="cursor:pointer;" data-i18n="prov_area_kigali">Kigali City</span>
-              <span class="filter-btn" onclick="toggleArea(this,'eastern')" style="cursor:pointer;" data-i18n="prov_area_eastern">Eastern</span>
-              <span class="filter-btn" onclick="toggleArea(this,'northern')" style="cursor:pointer;" data-i18n="prov_area_northern">Northern</span>
-              <span class="filter-btn" onclick="toggleArea(this,'southern')" style="cursor:pointer;" data-i18n="prov_area_southern">Southern</span>
-              <span class="filter-btn" onclick="toggleArea(this,'western')" style="cursor:pointer;" data-i18n="prov_area_western">Western</span>
+            <label class="field-label" style="font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:8px;">Target Audience</label>
+            <!-- Granularity level picker (single-select) -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="annLevelPills">
+              <button type="button" class="filter-btn active" data-level="national"  onclick="setAnnounceLevel('national')">All Rwanda</button>
+              <button type="button" class="filter-btn"        data-level="province"  onclick="setAnnounceLevel('province')">Province</button>
+              <button type="button" class="filter-btn"        data-level="district"  onclick="setAnnounceLevel('district')">District</button>
+              <button type="button" class="filter-btn"        data-level="sector"    onclick="setAnnounceLevel('sector')">Sector</button>
+              <button type="button" class="filter-btn"        data-level="cell"      onclick="setAnnounceLevel('cell')">Cell</button>
+              <button type="button" class="filter-btn"        data-level="village"   onclick="setAnnounceLevel('village')">Village</button>
             </div>
+            <!-- Province chips (province / district / sector / cell / village levels) -->
+            <div id="annProvSel" style="display:none;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);margin-bottom:5px;">Province</div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;" id="annProvChips"></div>
+            </div>
+            <!-- District chips -->
+            <div id="annDistSel" style="display:none;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);margin-bottom:5px;">District</div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;max-height:92px;overflow-y:auto;" id="annDistChips"></div>
+            </div>
+            <!-- Sector chips -->
+            <div id="annSectSel" style="display:none;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);margin-bottom:5px;">Sector</div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;max-height:92px;overflow-y:auto;" id="annSectChips"></div>
+            </div>
+            <!-- Cell chips -->
+            <div id="annCellSel" style="display:none;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);margin-bottom:5px;">Cell</div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;max-height:92px;overflow-y:auto;" id="annCellChips"></div>
+            </div>
+            <!-- Village chips -->
+            <div id="annVillSel" style="display:none;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);margin-bottom:5px;">Village</div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;max-height:92px;overflow-y:auto;" id="annVillChips"></div>
+            </div>
+            <!-- Live summary -->
+            <div id="annTargetSummary" style="font-size:11.5px;color:var(--gray-500);font-style:italic;">Reaching: all of Rwanda</div>
           </div>
 
           <div class="field" style="margin-top:1rem;">
@@ -943,7 +971,7 @@ const _WQ_FALLBACK = [
 let _wqData = JSON.parse(localStorage.getItem('temba_water_quality') || 'null') || _WQ_FALLBACK;
 const _IS_WASAC = /wasac/i.test(CURRENT_PROVIDER);
 let postedAnnouncements = [];
-let selectedAreas = ['national'];
+let _annTarget = { level:'national', provinces:[], districts:[], sectors:[], cells:[], villages:[] };
 let unavailDates = [];
 
 const SVC_LABELS = { water_connection:'Water Connection', tank_delivery:'Tank Delivery', truck_delivery:'Water Truck', meter_support:'Meter Support', inspection:'Technical Inspection' };
@@ -2495,30 +2523,76 @@ function renderPosted() {
     : '<div class="empty-state"><i class="ti ti-speakerphone"></i><p>No announcements posted yet.</p></div>';
 }
 
-function toggleArea(el, area) {
-  const chips       = document.querySelectorAll('#areaChips .filter-btn');
-  const nationalEl  = document.querySelector('#areaChips .filter-btn[onclick*="national"]');
-
-  if (area === 'national') {
-    // "All Rwanda" selected — clear every province chip and keep only national
-    chips.forEach(c => c.classList.remove('active'));
-    el.classList.add('active');
-    selectedAreas = ['national'];
-  } else {
-    // A specific province selected — remove "All Rwanda" first
-    if (nationalEl) nationalEl.classList.remove('active');
-    selectedAreas = selectedAreas.filter(a => a !== 'national');
-
-    el.classList.toggle('active');
-    if (el.classList.contains('active')) selectedAreas.push(area);
-    else selectedAreas = selectedAreas.filter(a => a !== area);
-
-    // If nothing remains selected, fall back to "All Rwanda"
-    if (selectedAreas.length === 0) {
-      if (nationalEl) nationalEl.classList.add('active');
-      selectedAreas = ['national'];
-    }
-  }
+/* ── Announcement deep-targeting ── */
+function setAnnounceLevel(level) {
+  _annTarget = { level, provinces:[], districts:[], sectors:[], cells:[], villages:[] };
+  document.querySelectorAll('#annLevelPills .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.level === level));
+  const show = s => s ? '' : 'none';
+  document.getElementById('annProvSel').style.display = show(level !== 'national');
+  document.getElementById('annDistSel').style.display = show(['district','sector','cell','village'].includes(level));
+  document.getElementById('annSectSel').style.display = show(['sector','cell','village'].includes(level));
+  document.getElementById('annCellSel').style.display = show(['cell','village'].includes(level));
+  document.getElementById('annVillSel').style.display = show(level === 'village');
+  _renderAnnProvChips(); _renderAnnDistChips(); _renderAnnSectChips(); _renderAnnCellChips(); _renderAnnVillChips();
+  _updateAnnSummary();
+}
+function _mkAnnChip(label, active, onClick) {
+  const c = document.createElement('span');
+  c.className = 'filter-btn' + (active ? ' active' : '');
+  c.style.cssText = 'cursor:pointer;font-size:12px;padding:4px 10px;';
+  c.textContent = label;
+  c.onclick = onClick;
+  return c;
+}
+function _renderAnnProvChips() {
+  const el = document.getElementById('annProvChips'); if (!el) return;
+  el.innerHTML = '';
+  if (_annTarget.level === 'national' || typeof RWANDA === 'undefined') return;
+  Object.keys(RWANDA).sort().forEach(p => el.appendChild(_mkAnnChip(p, _annTarget.provinces.includes(p), () => _toggleAnnItem('provinces', p, _renderAnnProvChips, () => { _annTarget.districts=[]; _annTarget.sectors=[]; _annTarget.cells=[]; _annTarget.villages=[]; _renderAnnDistChips(); _renderAnnSectChips(); _renderAnnCellChips(); _renderAnnVillChips(); }))));
+}
+function _renderAnnDistChips() {
+  const el = document.getElementById('annDistChips'); if (!el) return;
+  el.innerHTML = '';
+  if (typeof RWANDA === 'undefined' || !_annTarget.provinces.length) return;
+  _annTarget.provinces.forEach(p => { if (!RWANDA[p]) return; Object.keys(RWANDA[p]).sort().forEach(d => el.appendChild(_mkAnnChip(d, _annTarget.districts.includes(d), () => _toggleAnnItem('districts', d, _renderAnnDistChips, () => { _annTarget.sectors=[]; _annTarget.cells=[]; _annTarget.villages=[]; _renderAnnSectChips(); _renderAnnCellChips(); _renderAnnVillChips(); })))); });
+}
+function _renderAnnSectChips() {
+  const el = document.getElementById('annSectChips'); if (!el) return;
+  el.innerHTML = '';
+  if (typeof RWANDA === 'undefined' || !_annTarget.provinces.length || !_annTarget.districts.length) return;
+  _annTarget.provinces.forEach(p => _annTarget.districts.forEach(d => { if (!RWANDA[p]?.[d]) return; Object.keys(RWANDA[p][d]).sort().forEach(s => el.appendChild(_mkAnnChip(s, _annTarget.sectors.includes(s), () => _toggleAnnItem('sectors', s, _renderAnnSectChips, () => { _annTarget.cells=[]; _annTarget.villages=[]; _renderAnnCellChips(); _renderAnnVillChips(); })))); }));
+}
+function _renderAnnCellChips() {
+  const el = document.getElementById('annCellChips'); if (!el) return;
+  el.innerHTML = '';
+  if (typeof RWANDA === 'undefined' || !_annTarget.provinces.length || !_annTarget.districts.length || !_annTarget.sectors.length) return;
+  _annTarget.provinces.forEach(p => _annTarget.districts.forEach(d => _annTarget.sectors.forEach(s => { if (!RWANDA[p]?.[d]?.[s]) return; Object.keys(RWANDA[p][d][s]).sort().forEach(c => el.appendChild(_mkAnnChip(c, _annTarget.cells.includes(c), () => _toggleAnnItem('cells', c, _renderAnnCellChips, () => { _annTarget.villages=[]; _renderAnnVillChips(); })))); })));
+}
+function _renderAnnVillChips() {
+  const el = document.getElementById('annVillChips'); if (!el) return;
+  el.innerHTML = '';
+  if (typeof RWANDA === 'undefined' || !_annTarget.provinces.length || !_annTarget.districts.length || !_annTarget.sectors.length || !_annTarget.cells.length) return;
+  _annTarget.provinces.forEach(p => _annTarget.districts.forEach(d => _annTarget.sectors.forEach(s => _annTarget.cells.forEach(c => { const vs = RWANDA[p]?.[d]?.[s]?.[c]; if (!Array.isArray(vs)) return; vs.sort().forEach(v => el.appendChild(_mkAnnChip(v, _annTarget.villages.includes(v), () => _toggleAnnItem('villages', v, _renderAnnVillChips, () => {})))); }))));
+}
+function _toggleAnnItem(key, val, rerender, cascade) {
+  const idx = _annTarget[key].indexOf(val);
+  if (idx >= 0) _annTarget[key].splice(idx, 1); else _annTarget[key].push(val);
+  cascade();
+  rerender();
+  _updateAnnSummary();
+}
+function _updateAnnSummary() {
+  const el = document.getElementById('annTargetSummary'); if (!el) return;
+  const t = _annTarget;
+  const none = s => `<span style="color:var(--orange);">${s}</span>`;
+  let msg = '';
+  if (t.level === 'national') { msg = 'Reaching: <strong>all of Rwanda</strong>'; }
+  else if (t.level === 'province') { msg = t.provinces.length ? `Reaching: <strong>${t.provinces.join(', ')}</strong>` : none('Select at least one province'); }
+  else if (t.level === 'district') { msg = t.districts.length ? `Reaching: <strong>${t.districts.length} district(s)</strong> in ${t.provinces.join(', ')||'—'}` : none('Select province(s) then districts'); }
+  else if (t.level === 'sector')   { msg = t.sectors.length ? `Reaching: <strong>${t.sectors.length} sector(s)</strong>` : none('Select province → district → sectors'); }
+  else if (t.level === 'cell')     { msg = t.cells.length ? `Reaching: <strong>${t.cells.length} cell(s)</strong>` : none('Select province → district → sector → cells'); }
+  else if (t.level === 'village')  { msg = t.villages.length ? `Reaching: <strong>${t.villages.length} village(s)</strong>` : none('Select province → district → sector → cell → villages'); }
+  el.innerHTML = msg;
 }
 
 const _PUB_ANNOUNCE_KEY = 'temba_pub_announcements';
@@ -2528,7 +2602,14 @@ function postAnnouncement() {
   const msg   = document.getElementById('announceMsg').value.trim();
   const type  = document.getElementById('announceType').value;
   if (!title || !msg) { toast('Please fill in title and message','error'); return; }
-  const entry = { title, type, area:selectedAreas.join(', '), message:msg, time:'Just now', postedAt:new Date().toISOString(), providerId:CURRENT_PROVIDER, unread:true };
+  // Validate that a meaningful target is configured
+  const _tv = _annTarget;
+  if (_tv.level === 'province' && !_tv.provinces.length)  { toast('Select at least one province','error'); return; }
+  if (_tv.level === 'district' && !_tv.districts.length)  { toast('Select at least one district','error'); return; }
+  if (_tv.level === 'sector'   && !_tv.sectors.length)    { toast('Select at least one sector','error'); return; }
+  if (_tv.level === 'cell'     && !_tv.cells.length)      { toast('Select at least one cell','error'); return; }
+  if (_tv.level === 'village'  && !_tv.villages.length)   { toast('Select at least one village','error'); return; }
+  const entry = { title, type, target: Object.assign({}, _annTarget), message:msg, time:'Just now', postedAt:new Date().toISOString(), providerId:CURRENT_PROVIDER, unread:true };
   postedAnnouncements.unshift(entry);
   // Persist to shared key readable by community dashboard
   const pubList = JSON.parse(localStorage.getItem(_PUB_ANNOUNCE_KEY) || '[]');
@@ -2538,6 +2619,9 @@ function postAnnouncement() {
   renderPosted();
   document.getElementById('announceTitle').value = '';
   document.getElementById('announceMsg').value = '';
+  // Reset targeting back to All Rwanda
+  _annTarget = { level:'national', provinces:[], districts:[], sectors:[], cells:[], villages:[] };
+  setAnnounceLevel('national');
   toast('Announcement posted and sent to community!', 'success');
 }
 
@@ -2951,6 +3035,7 @@ function clearAllNotifs() {
   _renderNotifList();
 }
 </script>
+<script src="rwanda_data.js"></script>
 <script src="temba-i18n.js"></script>
 <script src="temba-server.js"></script>
 <script src="temba-chatbot.js"></script>
