@@ -64,7 +64,13 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 10
 
     # ── Email ──────────────────────────────────────────────────
-    RESEND_API_KEY: str = ""           # Preferred on Railway (HTTPS, no port blocking)
+    # Gmail API (HTTPS) — sends FROM your Gmail address, works on Railway
+    GMAIL_CLIENT_ID: str = ""
+    GMAIL_CLIENT_SECRET: str = ""
+    GMAIL_REFRESH_TOKEN: str = ""
+    # Resend fallback (if Gmail API not configured)
+    RESEND_API_KEY: str = ""
+    # SMTP (local dev only — Railway blocks port 587)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

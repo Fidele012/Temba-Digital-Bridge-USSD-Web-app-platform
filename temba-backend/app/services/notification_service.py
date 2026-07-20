@@ -1,8 +1,8 @@
 """
 Notification service — creates in-app notification rows and dispatches
 SMS via Africa's Talking (fire-and-forget in a background task).
-Email: uses Resend API (HTTPS) when RESEND_API_KEY is set, otherwise falls back to SMTP.
-Railway blocks outbound SMTP (port 587/465), so Resend is required in production.
+Email priority: Gmail REST API (HTTPS, sends FROM tembadigitalbridge@gmail.com)
+→ Resend API (HTTPS fallback) → SMTP (local dev only; Railway blocks port 587).
 """
 from __future__ import annotations
 
@@ -153,6 +153,46 @@ def _effective_from_email() -> str:
     return settings.SMTP_USER or settings.EMAILS_FROM_EMAIL
 
 
+def _get_gmail_access_token() -> str:
+    """Exchange the stored refresh token for a short-lived Gmail access token."""
+    resp = httpx.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": settings.GMAIL_CLIENT_ID,
+            "client_secret": settings.GMAIL_CLIENT_SECRET,
+            "refresh_token": settings.GMAIL_REFRESH_TOKEN,
+            "grant_type": "refresh_token",
+        },
+        timeout=10,
+    )
+    resp.raise_for_status()
+    return resp.json()["access_token"]
+
+
+def _send_via_gmail_api(to: str, subject: str, html_body: str, txt_body: str) -> None:
+    """Send via Gmail REST API (HTTPS port 443) — FROM address is tembadigitalbridge@gmail.com."""
+    import base64
+
+    from_addr = settings.SMTP_USER or settings.EMAILS_FROM_EMAIL
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{settings.EMAILS_FROM_NAME} <{from_addr}>"
+    msg["To"] = to
+    msg.attach(MIMEText(txt_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+
+    access_token = _get_gmail_access_token()
+    with httpx.Client(timeout=15) as client:
+        resp = client.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"raw": raw},
+        )
+        resp.raise_for_status()
+    log.info("Email sent via Gmail API", to=to, subject=subject, from_addr=from_addr)
+
+
 def _send_via_resend(to: str, subject: str, html_body: str, txt_body: str) -> None:
     """Send via Resend HTTPS API — works on Railway (no port 587 blocking)."""
     from_addr = _effective_from_email()
@@ -197,8 +237,8 @@ def _send_via_smtp(to: str, subject: str, html_body: str, txt_body: str) -> None
 def send_email_background(to: str, subject: str, template: str, context: dict) -> None:
     """Called as a BackgroundTask — runs in a thread, not async.
 
-    Tries Resend first (works on Railway over HTTPS).
-    Falls back to SMTP if no Resend key is configured (local dev only).
+    Priority: Gmail API (sends FROM tembadigitalbridge@gmail.com, HTTPS) →
+    Resend (HTTPS, different From address) → SMTP (local dev only, Railway blocks 587).
     """
     env = _get_jinja()
     try:
@@ -208,6 +248,17 @@ def send_email_background(to: str, subject: str, template: str, context: dict) -
         log.exception("Failed to render email template", template=template)
         return
 
+    # Priority 1: Gmail API — sends FROM tembadigitalbridge@gmail.com, works on Railway
+    if settings.GMAIL_CLIENT_ID and settings.GMAIL_REFRESH_TOKEN:
+        try:
+            _send_via_gmail_api(to, subject, html_body, txt_body)
+        except httpx.HTTPStatusError as exc:
+            log.error("Gmail API error", to=to, status=exc.response.status_code, body=exc.response.text)
+        except Exception:
+            log.exception("Failed to send email via Gmail API", to=to)
+        return
+
+    # Priority 2: Resend — works on Railway but FROM is a Resend/custom domain address
     if settings.RESEND_API_KEY:
         try:
             _send_via_resend(to, subject, html_body, txt_body)
@@ -217,18 +268,22 @@ def send_email_background(to: str, subject: str, template: str, context: dict) -
             log.exception("Failed to send email via Resend", to=to)
         return
 
+    # Priority 3: SMTP — local dev only (Railway blocks port 587)
     if settings.SMTP_USER and settings.SMTP_PASSWORD not in ("", "change-me"):
         try:
             _send_via_smtp(to, subject, html_body, txt_body)
         except smtplib.SMTPAuthenticationError:
             log.error("SMTP auth failed — check SMTP_USER / SMTP_PASSWORD", smtp_user=settings.SMTP_USER)
         except smtplib.SMTPException as exc:
-            log.error("SMTP error (Railway likely blocks port 587 — use Resend instead)", error=str(exc))
+            log.error("SMTP error (Railway blocks port 587 — configure GMAIL_* vars instead)", error=str(exc))
         except Exception:
             log.exception("Failed to send email via SMTP", to=to)
         return
 
-    log.warning("No email provider configured — set RESEND_API_KEY in Railway env vars", to=to)
+    log.warning(
+        "No email provider configured — add GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET + GMAIL_REFRESH_TOKEN to Railway",
+        to=to,
+    )
 
 
 # ── SMS via Africa's Talking ───────────────────────────────────────────────────
