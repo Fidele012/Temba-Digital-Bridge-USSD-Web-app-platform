@@ -258,16 +258,18 @@ function checkStrength(val) {
   const fill = document.getElementById('cStrFill');
   const lbl  = document.getElementById('cStrLbl');
   if (!fill) return;
+  const hasLetters = /[A-Za-z]/.test(val);
+  const hasDigits  = /[0-9]/.test(val);
   let score = 0;
-  if (val.length >= 8)          score++;
-  if (/[A-Z]/.test(val))        score++;
-  if (/[0-9]/.test(val))        score++;
-  if (/[^A-Za-z0-9]/.test(val)) score++;
+  if (val.length >= 8)  score = 1;
+  if (val.length >= 8  && hasLetters && hasDigits) score = 2;
+  if (val.length >= 10 && hasLetters && hasDigits) score = 3;
+  if (val.length >= 14) score = 4;
   const levels = [
     { w:'0%',   bg:'#ddd',     txt:'',       col:'' },
-    { w:'25%',  bg:'#C62828',  txt:'Weak',   col:'#C62828' },
-    { w:'50%',  bg:'#E65100',  txt:'Fair',   col:'#E65100' },
-    { w:'75%',  bg:'#29B6F6',  txt:'Good',   col:'#1565C0' },
+    { w:'30%',  bg:'#E53935',  txt:'Weak',   col:'#C62828' },
+    { w:'55%',  bg:'#FB8C00',  txt:'Fair',   col:'#E65100' },
+    { w:'80%',  bg:'#29B6F6',  txt:'Good',   col:'#1565C0' },
     { w:'100%', bg:'#2E7D32',  txt:'Strong', col:'#2E7D32' },
   ];
   const l = levels[score];
@@ -315,11 +317,8 @@ async function handleSubmit(type) {
   const pw    = document.getElementById(isCom ? 'cPw'    : 'pPw')?.value;
   const conf  = document.getElementById(isCom ? 'cPwConf': 'pPwConf')?.value;
   const terms = document.getElementById(isCom ? 'cTerms' : 'pTerms');
-  if (!pw || pw.length < 8)                              { showTembaToast('Password must be at least 8 characters'); return; }
-  if (!/[A-Z]/.test(pw))                                { showTembaToast('Password must contain at least one uppercase letter (e.g. A–Z)'); return; }
-  if (!/[0-9]/.test(pw))                                { showTembaToast('Password must contain at least one number (e.g. 1, 2, 3)'); return; }
-  if (!/[!@#$%^&*()\-_=+\[\]{}|;:'",.<>?/]/.test(pw)) { showTembaToast('Password must contain at least one special character (e.g. @, !, #, $)'); return; }
-  if (pw !== conf)                                       { showTembaToast('Passwords do not match'); return; }
+  if (!pw || pw.length < 8) { showTembaToast('Password must be at least 8 characters'); return; }
+  if (pw !== conf)          { showTembaToast('Passwords do not match'); return; }
   if (!terms?.checked)                                   { showTembaToast('Please accept the Terms of Use to continue'); return; }
 
   const _API = ['localhost','127.0.0.1'].includes(window.location.hostname)

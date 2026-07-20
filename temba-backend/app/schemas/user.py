@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import EmailStr, Field, computed_field, field_validator
+from pydantic import EmailStr, Field, computed_field
 
 from app.models.user import UserRole
 from app.schemas.common import ORMModel
@@ -29,16 +29,6 @@ class UserCreate(ORMModel):
     email_notifications: bool = True
     in_app_alerts: bool = True
 
-    @field_validator("password")
-    @classmethod
-    def password_strength(cls, v: str) -> str:
-        if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
-        if not any(c in "!@#$%^&*()-_=+[]{}|;:',.<>?/" for c in v):
-            raise ValueError("Password must contain at least one special character")
-        return v
 
 
 class UserUpdate(ORMModel):

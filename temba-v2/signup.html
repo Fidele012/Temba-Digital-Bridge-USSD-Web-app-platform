@@ -258,14 +258,14 @@
           <label class="field-label"><span data-i18n="lbl_password">Password</span> <span class="req">*</span></label>
           <div class="field-wrap">
             <i class="ti ti-lock field-icon" aria-hidden="true"></i>
-            <input type="password" id="cPw" data-i18n-placeholder="ph_create_pw" placeholder="Create a strong password (min. 8 chars)" oninput="checkStrength(this.value,'cStrFill','cStrLbl'); checkMatch('cPw','cPwConf','cMatchMsg')" autocomplete="new-password" />
+            <input type="password" id="cPw" data-i18n-placeholder="ph_create_pw" placeholder="Create a password (min. 8 characters)" oninput="checkStrength(this.value,'cStrFill','cStrLbl'); checkMatch('cPw','cPwConf','cMatchMsg')" autocomplete="new-password" />
             <button type="button" class="eye-btn" onclick="togglePw('cPw',this)"><i class="ti ti-eye" aria-hidden="true"></i></button>
           </div>
           <div class="strength-wrap">
             <div class="strength-track"><div class="strength-fill" id="cStrFill"></div></div>
             <span class="strength-lbl" id="cStrLbl"></span>
           </div>
-          <div class="field-hint" data-i18n="hint_pw_rules">Must include uppercase letter, digit, and special character (e.g. <strong>Temba@2024</strong>)</div>
+          <div class="field-hint" data-i18n="hint_pw_rules">Minimum 8 characters — letters, numbers, or a mix are all accepted</div>
         </div>
 
         <div class="field">
@@ -592,14 +592,14 @@
           <label class="field-label"><span data-i18n="lbl_password">Password</span> <span class="req">*</span></label>
           <div class="field-wrap">
             <i class="ti ti-lock field-icon" aria-hidden="true"></i>
-            <input type="password" id="pPw" data-i18n-placeholder="ph_create_pw" placeholder="Create a strong password (min. 8 chars)" oninput="checkStrength(this.value,'pStrFill','pStrLbl'); checkMatch('pPw','pPwConf','pMatchMsg')" autocomplete="new-password" />
+            <input type="password" id="pPw" data-i18n-placeholder="ph_create_pw" placeholder="Create a password (min. 8 characters)" oninput="checkStrength(this.value,'pStrFill','pStrLbl'); checkMatch('pPw','pPwConf','pMatchMsg')" autocomplete="new-password" />
             <button type="button" class="eye-btn" onclick="togglePw('pPw',this)"><i class="ti ti-eye" aria-hidden="true"></i></button>
           </div>
           <div class="strength-wrap">
             <div class="strength-track"><div class="strength-fill" id="pStrFill"></div></div>
             <span class="strength-lbl" id="pStrLbl"></span>
           </div>
-          <div class="field-hint" data-i18n="hint_pw_rules">Must include uppercase letter, digit, and special character (e.g. <strong>Temba@2024</strong>)</div>
+          <div class="field-hint" data-i18n="hint_pw_rules">Minimum 8 characters — letters, numbers, or a mix are all accepted</div>
         </div>
 
         <div class="field">
@@ -700,18 +700,20 @@ function checkStrength(pw, fillId, lblId) {
   const lbl  = document.getElementById(lblId);
   if (!fill || !lbl) return;
 
-  const hasLen  = pw.length >= 8;
-  const hasUp   = /[A-Z]/.test(pw);
-  const hasDig  = /[0-9]/.test(pw);
-  const hasSpc  = /[!@#$%^&*()\-_=+\[\]{}|;:'",.<>?/]/.test(pw);
-  const score   = [hasLen, hasUp, hasDig, hasSpc].filter(Boolean).length;
+  const hasLetters = /[A-Za-z]/.test(pw);
+  const hasDigits  = /[0-9]/.test(pw);
+  let score = 0;
+  if (pw.length >= 8)  score = 1;
+  if (pw.length >= 8  && hasLetters && hasDigits) score = 2;
+  if (pw.length >= 10 && hasLetters && hasDigits) score = 3;
+  if (pw.length >= 14) score = 4;
 
   const levels = [
     { pct:'20%',  bg:'#E53935', label:'Too short',  color:'#E53935' },
     { pct:'40%',  bg:'#FB8C00', label:'Weak',        color:'#FB8C00' },
-    { pct:'65%',  bg:'#FDD835', label:'Fair',         color:'#F9A825' },
-    { pct:'85%',  bg:'#43A047', label:'Good',         color:'#2E7D32' },
-    { pct:'100%', bg:'#1E88E5', label:'Strong',       color:'#1565C0' },
+    { pct:'65%',  bg:'#FDD835', label:'Fair',        color:'#F9A825' },
+    { pct:'85%',  bg:'#43A047', label:'Good',        color:'#2E7D32' },
+    { pct:'100%', bg:'#1E88E5', label:'Strong',      color:'#1565C0' },
   ];
   const lvl = pw.length === 0 ? null : levels[score];
   fill.style.width      = lvl ? lvl.pct : '0';
