@@ -295,15 +295,15 @@ async def forgot_password(
         user = result.scalar_one_or_none()
         channel = "sms"
 
+    dev_otp: str | None = None
     if user:
         otp = f"{random.randint(0, 999_999):06d}"
         await store_reset_otp(str(user.id), otp)
-        # Always log the OTP so it is visible in docker logs during development
         log.info(
             "Password reset OTP generated",
             user_id=str(user.id),
             channel=channel,
-            otp=otp,  # visible in: docker logs temba-backend-api-1 | grep otp
+            otp=otp,  # always visible in Railway / docker logs
         )
 
         if channel == "email":
@@ -325,8 +325,14 @@ async def forgot_password(
                 ),
             )
 
-    # Always 200 — prevents account enumeration
-    return {"message": "If that account exists, a 6-digit reset code has been sent."}
+        # Expose OTP in development so the flow can be tested without working SMTP/SMS
+        if settings.ENVIRONMENT == "development":
+            dev_otp = otp
+
+    msg = "If that account exists, a 6-digit reset code has been sent."
+    if dev_otp:
+        msg = f"[DEV] Reset code: {dev_otp}"
+    return {"message": msg}
 
 
 @router.post("/reset-password", response_model=MessageResponse)

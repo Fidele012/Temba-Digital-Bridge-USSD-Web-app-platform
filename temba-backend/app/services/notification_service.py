@@ -144,11 +144,26 @@ async def notify_org_background(
 
 # ── Email ──────────────────────────────────────────────────────────────────────
 
+def _effective_from_email() -> str:
+    """Return the address to use in the From header.
+
+    Gmail rejects sends where the From address doesn't match the authenticated
+    SMTP account. When EMAILS_FROM_EMAIL is still the placeholder default
+    ('noreply@temba.rw') but SMTP_USER is a real Gmail address, use SMTP_USER
+    so the From header always matches the authenticated account.
+    """
+    if settings.EMAILS_FROM_EMAIL and settings.EMAILS_FROM_EMAIL != "noreply@temba.rw":
+        return settings.EMAILS_FROM_EMAIL
+    return settings.SMTP_USER or settings.EMAILS_FROM_EMAIL
+
+
 def send_email_background(to: str, subject: str, template: str, context: dict) -> None:
     """Called as a BackgroundTask — runs in a thread, not async."""
     if not settings.SMTP_USER or settings.SMTP_PASSWORD in ("", "change-me"):
         log.warning("SMTP not configured, skipping email", to=to, subject=subject)
         return
+
+    from_email = _effective_from_email()
 
     try:
         env = _get_jinja()
@@ -157,7 +172,7 @@ def send_email_background(to: str, subject: str, template: str, context: dict) -
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
+        msg["From"] = f"{settings.EMAILS_FROM_NAME} <{from_email}>"
         msg["To"] = to
         msg.attach(MIMEText(txt_body, "plain", "utf-8"))
         msg.attach(MIMEText(html_body, "html", "utf-8"))
@@ -165,10 +180,19 @@ def send_email_background(to: str, subject: str, template: str, context: dict) -
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
             server.ehlo()
             server.starttls()
+            server.ehlo()  # re-identify after STARTTLS — required by some SMTP servers
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.EMAILS_FROM_EMAIL, to, msg.as_string())
+            server.sendmail(from_email, to, msg.as_string())
 
-        log.info("Email sent", to=to, subject=subject)
+        log.info("Email sent", to=to, subject=subject, from_email=from_email)
+    except smtplib.SMTPAuthenticationError:
+        log.error(
+            "SMTP authentication failed — check SMTP_USER and SMTP_PASSWORD in Railway env vars",
+            smtp_user=settings.SMTP_USER,
+            to=to,
+        )
+    except smtplib.SMTPException as exc:
+        log.error("SMTP error while sending email", to=to, error=str(exc))
     except Exception:
         log.exception("Failed to send email", to=to)
 
