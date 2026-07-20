@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 10
 
     # ── Email ──────────────────────────────────────────────────
+    RESEND_API_KEY: str = ""           # Preferred on Railway (HTTPS, no port blocking)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
