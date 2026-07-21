@@ -252,38 +252,35 @@ def send_email_background(to: str, subject: str, template: str, context: dict) -
     if settings.GMAIL_CLIENT_ID and settings.GMAIL_REFRESH_TOKEN:
         try:
             _send_via_gmail_api(to, subject, html_body, txt_body)
+            return  # success — stop here
         except httpx.HTTPStatusError as exc:
-            log.error("Gmail API error", to=to, status=exc.response.status_code, body=exc.response.text)
+            log.error("Gmail API error — falling back to Resend", to=to, status=exc.response.status_code, body=exc.response.text)
         except Exception:
-            log.exception("Failed to send email via Gmail API", to=to)
-        return
+            log.exception("Failed to send email via Gmail API — falling back to Resend", to=to)
 
-    # Priority 2: Resend — works on Railway but FROM is a Resend/custom domain address
+    # Priority 2: Resend — works on Railway (falls back here if Gmail API fails)
     if settings.RESEND_API_KEY:
         try:
             _send_via_resend(to, subject, html_body, txt_body)
+            return  # success — stop here
         except httpx.HTTPStatusError as exc:
-            log.error("Resend API error", to=to, status=exc.response.status_code, body=exc.response.text)
+            log.error("Resend API error — falling back to SMTP", to=to, status=exc.response.status_code, body=exc.response.text)
         except Exception:
-            log.exception("Failed to send email via Resend", to=to)
-        return
+            log.exception("Failed to send email via Resend — falling back to SMTP", to=to)
 
     # Priority 3: SMTP — local dev only (Railway blocks port 587)
     if settings.SMTP_USER and settings.SMTP_PASSWORD not in ("", "change-me"):
         try:
             _send_via_smtp(to, subject, html_body, txt_body)
+            return  # success — stop here
         except smtplib.SMTPAuthenticationError:
             log.error("SMTP auth failed — check SMTP_USER / SMTP_PASSWORD", smtp_user=settings.SMTP_USER)
         except smtplib.SMTPException as exc:
-            log.error("SMTP error (Railway blocks port 587 — configure GMAIL_* vars instead)", error=str(exc))
+            log.error("SMTP error (Railway blocks port 587)", error=str(exc))
         except Exception:
             log.exception("Failed to send email via SMTP", to=to)
-        return
 
-    log.warning(
-        "No email provider configured — add GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET + GMAIL_REFRESH_TOKEN to Railway",
-        to=to,
-    )
+    log.warning("All email providers failed or unconfigured — email not sent", to=to)
 
 
 # ── SMS via Africa's Talking ───────────────────────────────────────────────────
