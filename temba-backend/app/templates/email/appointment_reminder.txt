@@ -1,0 +1,20 @@
+Temba Digital Bridge — Appointment Reminder
+============================================
+
+Hi {{ name }},
+
+Your {{ meeting_type }} is in 30 minutes.
+
+Date:     {{ appointment_date }} at {{ appointment_time }}
+Provider: {{ provider_name }}
+Type:     {{ meeting_type }}
+Ref:      {{ ref }}
+
+{{ meeting_hint }}
+
+Open your dashboard to view full details:
+https://temba-web-production.up.railway.app/dashboard-community.html
+
+---
+You are receiving this reminder because you have email notifications enabled.
+© 2026 Temba Digital Bridge | Kigali, Rwanda

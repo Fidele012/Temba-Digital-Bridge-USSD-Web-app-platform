@@ -1,5 +1,6 @@
 from uuid import UUID
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import Field
 
@@ -35,6 +36,22 @@ class AppointmentStatusUpdate(ORMModel):
     provider_note: str | None = None
 
 
+class AppointmentCancel(ORMModel):
+    """Required cancellation reason — both community and provider must supply one."""
+    reason: str = Field(min_length=5, max_length=500)
+
+
+class AppointmentConfirmBody(ORMModel):
+    """Confirm whether the appointment actually took place."""
+    confirmed: bool
+
+
+class AppointmentOutcomeBody(ORMModel):
+    """Record post-appointment outcome. Community fills outcome; provider fills notes."""
+    community_outcome: Literal["yes", "partially", "no"] | None = None
+    provider_outcome_notes: str | None = Field(None, max_length=1000)
+
+
 class AppointmentPublic(ORMModel):
     id: UUID
     user_id: UUID
@@ -61,3 +78,12 @@ class AppointmentPublic(ORMModel):
     user_name: str | None = None
     user_phone: str | None = None
     provider_name: str | None = None
+    # New meeting enhancement fields
+    cancellation_reason: str | None = None
+    community_confirmed: bool | None = None
+    provider_confirmed: bool | None = None
+    conflict_flagged: bool = False
+    auto_complete_at: datetime | None = None
+    community_outcome: str | None = None
+    provider_outcome_notes: str | None = None
+    reminder_sent: bool = False

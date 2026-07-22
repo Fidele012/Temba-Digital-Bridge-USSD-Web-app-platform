@@ -834,6 +834,32 @@
   </div>
 </div>
 
+<!-- ── CANCEL APPOINTMENT MODAL ── -->
+<div class="modal-overlay" id="cancelApptModal" style="display:none;" onclick="if(event.target===this)closeCancelApptModal()">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-header">
+      <h2><i class="ti ti-calendar-x" style="color:var(--red);"></i> Cancel Appointment</h2>
+      <button class="modal-close" onclick="closeCancelApptModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="padding:0 0 8px;">
+      <p id="cancelApptInfo" style="font-size:13px;color:var(--gray-500);margin:0 0 16px;"></p>
+      <input type="hidden" id="cancelApptId" />
+      <label class="field-label">Reason for cancellation <span class="req">*</span></label>
+      <div class="input-wrap">
+        <i class="ti ti-message-circle input-icon"></i>
+        <textarea id="cancelApptReason" rows="3" maxlength="500" style="padding-left:42px;resize:vertical;" placeholder="Please explain why you are cancelling this appointment…"></textarea>
+      </div>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:4px;">The provider will be notified with this reason.</div>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--gray-200);margin-top:8px;">
+      <button class="btn-outline" onclick="closeCancelApptModal()">Keep appointment</button>
+      <button id="cancelApptSubmitBtn" class="btn-nav-cta" style="background:var(--red);border-color:var(--red);" onclick="submitCancelAppt()">
+        <i class="ti ti-x"></i> Cancel appointment
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── APPOINTMENT BOOKING MODAL ── -->
 <div class="modal-overlay" id="apptModal">
   <div class="modal-box">
@@ -1882,7 +1908,7 @@ const _MEETING_REVERSE = { in_person:'in-person', phone_call:'phone', site_visit
 function _normAppt(a) {
   const reason = (a.reason||'consultation').toLowerCase();
   const meetingType = _MEETING_REVERSE[a.meeting_type] || 'in-person';
-  return { id:a.id, apiId:a.id, provider:a.provider_name||(a.provider&&a.provider.organization_name)||'Provider', reason, date:a.appointment_date||'', time:a.appointment_time||'', meetingType, status:(a.status||'pending').toLowerCase(), notes:a.notes||'', proposedDate:a.proposed_date||null, proposedTime:a.proposed_time||null, createdAt:a.created_at, fromApi:true };
+  return { id:a.id, apiId:a.id, provider:a.provider_name||(a.provider&&a.provider.organization_name)||'Provider', reason, date:a.appointment_date||'', time:a.appointment_time||'', meetingType, status:(a.status||'pending').toLowerCase(), notes:a.notes||'', proposedDate:a.proposed_date||null, proposedTime:a.proposed_time||null, createdAt:a.created_at, fromApi:true, communityConfirmed:a.community_confirmed, providerConfirmed:a.provider_confirmed, conflictFlagged:a.conflict_flagged, communityOutcome:a.community_outcome, cancellationReason:a.cancellation_reason };
 }
 function _normSvc(s) {
   const tl = { WATER_CONNECTION:'water_connection', water_connection:'water_connection', TANK_DELIVERY:'tank_delivery', tank_delivery:'tank_delivery', TRUCK_DELIVERY:'truck_delivery', truck_delivery:'truck_delivery', METER_SUPPORT:'meter_support', meter_support:'meter_support', INSPECTION:'inspection', inspection:'inspection' };
@@ -2840,13 +2866,17 @@ function renderApptList(filter) {
   document.getElementById('apptList').innerHTML = list.slice().reverse().map(a => {
     const canModify = a.status === 'pending' || a.status === 'approved';
     const hasReschNotice = a.status === 'rescheduled' && a.proposedDate;
+    const inWindow = _apptInWindow(a.date, a.time);
+    const pastAppt = _apptIsPast(a.date, a.time);
+    const canConfirm = a.status === 'approved' && pastAppt && a.communityConfirmed === null || a.communityConfirmed === undefined;
+    const canOutcome = (a.status === 'resolution_submitted' || a.status === 'verified') && !a.communityOutcome;
     return `
   <div class="appt-card appt-${a.status}">
     <div class="appt-header stat-card-link" role="button" tabindex="0" style="cursor:pointer;border-radius:8px;padding:4px;margin:-4px;transition:background 0.15s;"
          onclick="_apptToggleDetail(this.closest('.appt-card'))"
          onkeydown="if(event.key==='Enter')_apptToggleDetail(this.closest('.appt-card'))">
       <div>
-        <div class="appt-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${_apptReasonLabel(a.reason)} ${_slaBadge('appointment', a.createdAt, a.status)}</div>
+        <div class="appt-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${_apptReasonLabel(a.reason)} ${_slaBadge('appointment', a.createdAt, a.status)}${a.conflictFlagged?'<span class="badge" style="background:#FEF3C7;color:#92400E;font-size:10px;">⚠ Disputed</span>':''}</div>
         <div class="appt-provider"><i class="ti ti-building" style="color:var(--blue);font-size:13px;"></i> ${a.provider} &nbsp;·&nbsp; ${({'in-person':t('appt_type_inperson'),phone:t('appt_type_phone'),'site-visit':'Site Visit'}[a.meetingType]||t('appt_type_inperson'))}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
@@ -2862,9 +2892,27 @@ function renderApptList(filter) {
       </div>
       ${(()=>{const _lines=(a.notes||'').split('\n').filter(l=>l&&!l.startsWith('Duration:')&&!l.startsWith('Reason:'));const _dur=(a.notes||'').split('\n').find(l=>l.startsWith('Duration:'));return (_lines.length?`<div class="appt-note">${_lines.join(' · ')}</div>`:'') + (_dur?`<div class="appt-detail" style="margin-top:4px;"><div class="appt-detail-item"><i class="ti ti-hourglass"></i> ${_dur}</div></div>`:'');})()}
       ${hasReschNotice?`<div class="appt-reschedule-notice"><i class="ti ti-calendar-event"></i> ${t('appt_resched_notice')} <strong>${a.proposedDate} at ${a.proposedTime}</strong> — <a href="#" onclick="acceptResched('${a.id}');return false;" style="color:var(--green);font-weight:700;">${t('btn_accept')}</a> or <a href="#" onclick="rejectResched('${a.id}');return false;" style="color:var(--red);font-weight:700;">${t('btn_decline')}</a></div>`:''}
+      ${a.communityOutcome?`<div class="appt-note" style="background:var(--sky-pale);border-color:var(--blue);"><i class="ti ti-check" style="color:var(--blue);"></i> You rated this appointment: <strong>${{yes:'Issue resolved ✓',partially:'Partially resolved',no:'Not resolved'}[a.communityOutcome]||a.communityOutcome}</strong></div>`:''}
+      ${a.cancellationReason?`<div class="appt-note" style="background:var(--red-light);border-color:var(--red);"><i class="ti ti-info-circle" style="color:var(--red);"></i> Cancellation reason: ${a.cancellationReason}</div>`:''}
+      ${(a.meetingType==='phone'||a.meetingType==='phone_call')&&a.status==='approved'&&inWindow?`<div id="provPhone_${a.id}" style="margin:10px 0 4px;"><button class="btn-action secondary" onclick="revealProviderPhone('${a.id}',this)"><i class="ti ti-phone"></i> Reveal provider phone number</button></div>`:''}
+      ${canConfirm?`<div style="margin:10px 0 4px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px 14px;">
+        <div style="font-size:13px;font-weight:600;color:#9A3412;margin-bottom:8px;"><i class="ti ti-help-circle"></i> Did your appointment take place?</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-action" style="background:#16A34A;color:#fff;border-color:#16A34A;" onclick="confirmAppt('${a.id}',true)"><i class="ti ti-check"></i> Yes, it happened</button>
+          <button class="btn-action danger" onclick="confirmAppt('${a.id}',false)"><i class="ti ti-x"></i> No, it didn't</button>
+        </div>
+      </div>`:''}
+      ${canOutcome?`<div style="margin:10px 0 4px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 14px;">
+        <div style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:8px;"><i class="ti ti-star"></i> Was your issue addressed?</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-action" style="background:#16A34A;color:#fff;border-color:#16A34A;" onclick="submitOutcome('${a.id}','yes')">✓ Yes, fully</button>
+          <button class="btn-action warning" onclick="submitOutcome('${a.id}','partially')">Partially</button>
+          <button class="btn-action danger" onclick="submitOutcome('${a.id}','no')">Not resolved</button>
+        </div>
+      </div>`:''}
       <div class="appt-detail" style="gap:8px;" onclick="event.stopPropagation()">
         ${canModify?`<button class="btn-action warning" onclick="openReschedModal('${a.id}')"><i class="ti ti-calendar-event"></i> ${t('btn_reschedule')}</button>`:''}
-        ${canModify?`<button class="btn-action danger" onclick="cancelAppt('${a.id}')"><i class="ti ti-x"></i> ${t('btn_cancel')}</button>`:''}
+        ${canModify?`<button class="btn-action danger" onclick="openCancelApptModal('${a.id}')"><i class="ti ti-x"></i> ${t('btn_cancel')}</button>`:''}
         ${'cancelled completed rejected'.split(' ').includes(a.status)?`<button class="btn-action danger" onclick="deleteAppt('${a.id}','${a.apiId||''}',this)"><i class="ti ti-trash"></i> Delete</button>`:''}
         ${(ph=>ph?`<a href="tel:${ph}" class="btn-action secondary" style="text-decoration:none;"><i class="ti ti-phone"></i> ${t('btn_call_provider')}</a>`:'' )(_provPhone(a.provider))}
       </div>
@@ -2879,6 +2927,139 @@ function _apptToggleDetail(card) {
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
   if (icon) icon.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function _apptDatetimeMs(date, time) {
+  if (!date || !time) return 0;
+  return new Date(`${date}T${time}:00`).getTime();
+}
+
+function _apptIsPast(date, time) {
+  return Date.now() > _apptDatetimeMs(date, time);
+}
+
+function _apptInWindow(date, time) {
+  const apptMs = _apptDatetimeMs(date, time);
+  const now = Date.now();
+  return now >= apptMs - 30 * 60000 && now <= apptMs + 120 * 60000;
+}
+
+async function revealProviderPhone(id, btn) {
+  const token = localStorage.getItem('temba_token');
+  if (!token) { toast('Please log in first.', 'error'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite;"></i> Loading…';
+  try {
+    const r = await fetch(API_BASE + `/appointments/${id}/contact`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (r.ok) {
+      const d = await r.json();
+      const ph = d.provider_phone;
+      const box = document.getElementById(`provPhone_${id}`);
+      if (box) {
+        box.innerHTML = ph
+          ? `<a href="tel:${ph}" class="btn-action secondary" style="text-decoration:none;font-weight:700;"><i class="ti ti-phone"></i> Call provider: ${ph}</a>`
+          : `<span style="font-size:13px;color:var(--gray-500);">Provider phone not available.</span>`;
+      }
+    } else {
+      const err = await r.json().catch(()=>({}));
+      toast(err.detail || 'Contact not available yet — try within 30 min of appointment.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-phone"></i> Reveal provider phone number';
+    }
+  } catch {
+    toast('Could not load contact info. Check your connection.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-phone"></i> Reveal provider phone number';
+  }
+}
+
+async function confirmAppt(id, confirmed) {
+  const token = localStorage.getItem('temba_token');
+  if (!token) { toast('Please log in first.', 'error'); return; }
+  try {
+    const r = await fetch(API_BASE + `/appointments/${id}/confirm`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmed }),
+    });
+    if (r.ok) {
+      await loadApiData();
+      toast(confirmed ? 'Thank you — appointment confirmed.' : 'Noted — we have recorded that the appointment did not take place.', 'info');
+    } else {
+      const err = await r.json().catch(()=>({}));
+      toast(err.detail || 'Could not submit confirmation.', 'error');
+    }
+  } catch {
+    toast('Network error. Please try again.', 'error');
+  }
+}
+
+async function submitOutcome(id, outcome) {
+  const token = localStorage.getItem('temba_token');
+  if (!token) { toast('Please log in first.', 'error'); return; }
+  try {
+    const r = await fetch(API_BASE + `/appointments/${id}/outcome`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ community_outcome: outcome }),
+    });
+    if (r.ok) {
+      await loadApiData();
+      const label = { yes: 'fully resolved', partially: 'partially resolved', no: 'not resolved' }[outcome] || outcome;
+      toast(`Thank you — your feedback (${label}) has been recorded.`, 'info');
+    } else {
+      const err = await r.json().catch(()=>({}));
+      toast(err.detail || 'Could not submit outcome.', 'error');
+    }
+  } catch {
+    toast('Network error. Please try again.', 'error');
+  }
+}
+
+/* ── Cancel appointment with reason modal ── */
+function openCancelApptModal(id) {
+  const apptInfo = window._apiAppts.find(a => a.id === id);
+  document.getElementById('cancelApptId').value = id;
+  document.getElementById('cancelApptReason').value = '';
+  document.getElementById('cancelApptInfo').textContent = apptInfo
+    ? `${apptInfo.appointment_date || apptInfo.date || ''} at ${apptInfo.appointment_time || apptInfo.time || ''} — ${apptInfo.provider_name || apptInfo.provider || 'Provider'}`
+    : '';
+  document.getElementById('cancelApptModal').style.display = 'flex';
+}
+
+function closeCancelApptModal() {
+  document.getElementById('cancelApptModal').style.display = 'none';
+}
+
+async function submitCancelAppt() {
+  const id = document.getElementById('cancelApptId').value;
+  const reason = document.getElementById('cancelApptReason').value.trim();
+  if (!reason || reason.length < 5) { toast('Please enter a cancellation reason (at least 5 characters).', 'error'); return; }
+  const token = localStorage.getItem('temba_token');
+  if (!token) { toast('Please log in first.', 'error'); return; }
+  const submitBtn = document.getElementById('cancelApptSubmitBtn');
+  submitBtn.disabled = true;
+  try {
+    const r = await fetch(API_BASE + `/appointments/${id}/cancel`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    });
+    if (r.ok) {
+      closeCancelApptModal();
+      await loadApiData();
+      toast('Appointment cancelled.', 'info');
+    } else {
+      const err = await r.json().catch(()=>({}));
+      toast(err.detail || 'Could not cancel appointment.', 'error');
+    }
+  } catch {
+    toast('Network error. Please try again.', 'error');
+  } finally {
+    submitBtn.disabled = false;
+  }
 }
 
 function filterAppts(filter, btn) {

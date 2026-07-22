@@ -3,13 +3,17 @@ Appointment endpoints.
 POST   /appointments                         → book (community)
 GET    /appointments                         → list (own / provider's / all)
 GET    /appointments/{id}
+GET    /appointments/{id}/contact            → reveal phone numbers during meeting window
+POST   /appointments/{id}/cancel            → cancel with required reason (community or provider)
 POST   /appointments/{id}/reschedule-request → user asks for new slot
 POST   /appointments/{id}/provider-reschedule → provider proposes new slot
 POST   /appointments/{id}/accept-reschedule  → user accepts provider's proposal
 POST   /appointments/{id}/reject-reschedule  → user rejects provider's proposal
 PUT    /appointments/{id}/status             → approve/reject/complete/cancel (provider)
+POST   /appointments/{id}/confirm            → both parties confirm meeting took place
+POST   /appointments/{id}/outcome            → record post-meeting outcome
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -25,7 +29,10 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.provider import Provider
 from app.models.user import User, UserRole
 from app.schemas.appointment import (
+    AppointmentCancel,
+    AppointmentConfirmBody,
     AppointmentCreate,
+    AppointmentOutcomeBody,
     AppointmentPublic,
     AppointmentRescheduleRequest,
     AppointmentStatusUpdate,
@@ -42,6 +49,10 @@ _PROVIDER_APPT_STATUSES = {
     AppointmentStatus.CANCELLED,
     AppointmentStatus.RESOLUTION_SUBMITTED,
 }
+
+# How wide (minutes) the contact-reveal window is around the appointment time
+_CONTACT_WINDOW_BEFORE_MIN = 30
+_CONTACT_WINDOW_AFTER_MIN = 120
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -62,6 +73,32 @@ async def _get_provider_for_user(user: User, db: AsyncSession) -> Provider | Non
     return await get_provider_for_user(user, db)
 
 
+def _is_same_org(appt: Appointment, prov: Provider) -> bool:
+    if appt.provider_id == prov.id:
+        return True
+    appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
+    return appt_org == (prov.organization_name or "").lower()
+
+
+def _appt_datetime_utc(appt: Appointment) -> datetime:
+    """Return appointment date+time as an aware UTC datetime (Africa/Kigali = UTC+2)."""
+    h, m = map(int, appt.appointment_time.split(":"))
+    dt_naive = datetime(
+        appt.appointment_date.year,
+        appt.appointment_date.month,
+        appt.appointment_date.day,
+        h, m,
+    )
+    kigali_offset = timedelta(hours=2)
+    return dt_naive.replace(tzinfo=timezone(kigali_offset)).astimezone(timezone.utc)
+
+
+def _in_contact_window(appt: Appointment) -> bool:
+    now = datetime.now(timezone.utc)
+    appt_dt = _appt_datetime_utc(appt)
+    return (appt_dt - timedelta(minutes=_CONTACT_WINDOW_BEFORE_MIN)) <= now <= (appt_dt + timedelta(minutes=_CONTACT_WINDOW_AFTER_MIN))
+
+
 @router.post("", response_model=AppointmentPublic, status_code=status.HTTP_201_CREATED)
 async def book_appointment(
     body: AppointmentCreate,
@@ -70,7 +107,6 @@ async def book_appointment(
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Appointment:
-    # Verify provider exists and is approved
     prov_result = await db.execute(select(Provider).where(Provider.id == body.provider_id))
     provider = prov_result.scalar_one_or_none()
     if not provider:
@@ -83,12 +119,14 @@ async def book_appointment(
     appt.resolution_deadline = resolution_deadline_for(appt.created_at, item_type="appointment")
     await write_audit(db, request, "appointment.create", "appointment", str(appt.id), actor=current_user)
 
+    meeting_label = {"in_person": "In-Person", "phone_call": "Phone Call", "site_visit": "Site Visit"}.get(body.meeting_type.value, body.meeting_type.value)
+
     await notify_org(
         db,
         provider=provider,
         notification_type="appointment_update",
         title="New appointment request",
-        body=f"A new appointment has been requested for {body.appointment_date} at {body.appointment_time}",
+        body=f"New {meeting_label} appointment request for {body.appointment_date} at {body.appointment_time}",
         reference_id=str(appt.id),
         reference_type="appointment",
     )
@@ -98,14 +136,20 @@ async def book_appointment(
         notification_type="appointment_update",
         title="Appointment request submitted",
         body_text=(
-            f"Your appointment with {provider.organization_name} on "
+            f"Your {meeting_label} appointment with {provider.organization_name} on "
             f"{body.appointment_date} at {body.appointment_time} has been submitted and is pending approval."
         ),
         email_subject=f"Temba — Appointment request with {provider.organization_name}",
         sms_message=f"Temba: Your appointment with {provider.organization_name} on {body.appointment_date} at {body.appointment_time} is pending. Track on your dashboard.",
         reference_id=str(appt.id),
         reference_type="appointment",
-        email_context={"ref": str(appt.id)[:8].upper()},
+        email_context={
+            "ref": str(appt.id)[:8].upper(),
+            "meeting_type": meeting_label,
+            "appointment_date": str(body.appointment_date),
+            "appointment_time": body.appointment_time,
+            "provider_name": provider.organization_name,
+        },
     )
     return appt
 
@@ -124,8 +168,6 @@ async def list_appointments(
     elif current_user.role == UserRole.PROVIDER:
         prov = await _get_provider_for_user(current_user, db)
         if prov:
-            # Include appointments from all providers sharing the same org name
-            # (handles seeded vs web-registered provider duplicate scenario)
             same_org_provs = (await db.execute(
                 select(Provider.id).where(
                     func.lower(Provider.organization_name) == func.lower(prov.organization_name)
@@ -159,7 +201,6 @@ async def get_appointment_by_tracking_code(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Appointment:
-    """Look up an appointment by its 8-character tracking code (USSD reference)."""
     code = tracking_code.strip().upper()
     q = _with_relations(
         select(Appointment).where(func.upper(cast(Appointment.id, String)).like(f"{code}%"))
@@ -168,12 +209,8 @@ async def get_appointment_by_tracking_code(
     if not appt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
 
-    # Community members can only look up their own appointment
     if current_user.role == UserRole.COMMUNITY and appt.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    # Providers can look up ANY appointment by tracking code — the short code IS the access
-    # credential. Restricting by provider_id here causes silent 403s that the frontend can't
-    # distinguish from 404, showing misleading "not found" messages for valid USSD bookings.
     return appt
 
 
@@ -189,13 +226,139 @@ async def get_appointment(
     return appt
 
 
-@router.delete("/{appt_id}", response_model=AppointmentPublic)
+@router.get("/{appt_id}/contact")
+async def get_contact_info(
+    appt_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Return the other party's phone number — only available during the meeting window
+    (30 min before → 2 hours after the scheduled appointment time)."""
+    appt = await _get_appointment_or_404(appt_id, db)
+
+    # Access control
+    is_community = current_user.role == UserRole.COMMUNITY
+    if is_community and appt.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if not is_community:
+        prov = await _get_provider_for_user(current_user, db)
+        if not prov or not _is_same_org(appt, prov):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if appt.status not in {AppointmentStatus.APPROVED, AppointmentStatus.RESCHEDULED}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contact information is only available for approved appointments.",
+        )
+
+    if not _in_contact_window(appt):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Contact information is only revealed {_CONTACT_WINDOW_BEFORE_MIN} minutes before "
+                f"and {_CONTACT_WINDOW_AFTER_MIN} minutes after the scheduled appointment time."
+            ),
+        )
+
+    # Load provider's user to get their phone number
+    prov_user: User | None = None
+    if appt.provider and appt.provider.user_id:
+        prov_user = (await db.execute(select(User).where(User.id == appt.provider.user_id))).scalar_one_or_none()
+
+    community_phone = appt.user.phone if appt.user else None
+    provider_phone = prov_user.phone if prov_user else None
+
+    return {
+        "community_phone": community_phone,
+        "provider_phone": provider_phone,
+        "meeting_type": appt.meeting_type.value,
+        "appointment_date": str(appt.appointment_date),
+        "appointment_time": appt.appointment_time,
+    }
+
+
+@router.post("/{appt_id}/cancel", response_model=AppointmentPublic)
 async def cancel_appointment(
+    appt_id: UUID,
+    body: AppointmentCancel,
+    current_user: Annotated[User, Depends(get_current_user)],
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Appointment:
+    """Cancel with a required reason. Both community members and providers may cancel."""
+    appt = await _get_appointment_or_404(appt_id, db)
+
+    is_community = current_user.role == UserRole.COMMUNITY
+    is_provider = current_user.role == UserRole.PROVIDER
+
+    if is_community and appt.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if is_provider:
+        prov = await _get_provider_for_user(current_user, db)
+        if not prov or not _is_same_org(appt, prov):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if appt.status not in {
+        AppointmentStatus.PENDING,
+        AppointmentStatus.APPROVED,
+        AppointmentStatus.RESCHEDULE_REQUESTED,
+        AppointmentStatus.RESCHEDULED,
+    }:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot cancel at this stage")
+
+    appt.status = AppointmentStatus.CANCELLED
+    appt.cancellation_reason = body.reason
+
+    cancelled_by = "community" if is_community else "provider"
+
+    if is_community:
+        # Notify provider org
+        prov = (await db.execute(select(Provider).where(Provider.id == appt.provider_id))).scalar_one_or_none()
+        if prov:
+            await notify_org(
+                db,
+                provider=prov,
+                notification_type="appointment_update",
+                title="Appointment cancelled",
+                body=f"A community member cancelled their appointment on {appt.appointment_date}. Reason: {body.reason}",
+                reference_id=str(appt_id),
+                reference_type="appointment",
+            )
+    else:
+        # Notify community member
+        appt_owner = (await db.execute(select(User).where(User.id == appt.user_id))).scalar_one_or_none()
+        if appt_owner:
+            await notify_community_user(
+                db, background_tasks,
+                user=appt_owner,
+                notification_type="appointment_update",
+                title="Appointment cancelled by provider",
+                body_text=(
+                    f"Your appointment on {appt.appointment_date} at {appt.appointment_time} was cancelled by the provider. "
+                    f"Reason: {body.reason}"
+                ),
+                email_subject="Temba — Your appointment has been cancelled",
+                sms_message=f"Temba: Your appointment on {appt.appointment_date} was cancelled by the provider. {body.reason[:80]}",
+                reference_id=str(appt_id),
+                reference_type="appointment",
+            )
+
+    await write_audit(db, request, f"appointment.cancel.{cancelled_by}", "appointment", str(appt_id), actor=current_user)
+    return appt
+
+
+# Keep DELETE for backward compatibility with existing frontend code
+@router.delete("/{appt_id}", response_model=AppointmentPublic)
+async def cancel_appointment_legacy(
     appt_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Appointment:
+    """Legacy cancel endpoint — no reason required. Use POST /cancel instead."""
     appt = await _get_appointment_or_404(appt_id, db)
     if appt.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -264,10 +427,8 @@ async def provider_propose_reschedule(
     prov = await _get_provider_for_user(current_user, db)
     if not prov:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    if appt.provider_id != prov.id:
-        appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
-        if appt_org != (prov.organization_name or "").lower():
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if not _is_same_org(appt, prov):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     appt.status = AppointmentStatus.RESCHEDULED
     appt.proposed_date = body.proposed_date
@@ -344,10 +505,8 @@ async def update_appointment_status(
     prov = await _get_provider_for_user(current_user, db)
     if not prov:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    if appt.provider_id != prov.id:
-        appt_org = (appt.provider.organization_name or "").lower() if appt.provider else ""
-        if appt_org != (prov.organization_name or "").lower():
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if not _is_same_org(appt, prov):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     if body.status not in _PROVIDER_APPT_STATUSES:
         raise HTTPException(
@@ -391,6 +550,179 @@ async def update_appointment_status(
             email_context={"ref": str(appt_id)[:8].upper()},
         )
     await write_audit(db, request, f"appointment.{body.status.value}", "appointment", str(appt_id), actor=current_user)
+    return appt
+
+
+@router.post("/{appt_id}/confirm", response_model=AppointmentPublic)
+async def confirm_appointment(
+    appt_id: UUID,
+    body: AppointmentConfirmBody,
+    current_user: Annotated[User, Depends(get_current_user)],
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Appointment:
+    """Both parties independently confirm whether the appointment took place.
+
+    - Community calls this after the scheduled time to confirm the meeting happened.
+    - Provider calls this to confirm from their side.
+    - If both confirm True → auto-advance to RESOLUTION_SUBMITTED.
+    - If one confirms True and the other hasn't responded → set 24h auto-complete window.
+    - If responses conflict (one True, one False) → flag for follow-up.
+    """
+    appt = await _get_appointment_or_404(appt_id, db)
+
+    is_community = current_user.role == UserRole.COMMUNITY
+    is_provider = current_user.role == UserRole.PROVIDER
+
+    if is_community and appt.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if is_provider:
+        prov = await _get_provider_for_user(current_user, db)
+        if not prov or not _is_same_org(appt, prov):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    # Only valid when the appointment is approved (meeting time should have passed)
+    if appt.status not in {AppointmentStatus.APPROVED, AppointmentStatus.RESCHEDULED}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmation is only available for approved appointments after the scheduled time.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    if is_community:
+        appt.community_confirmed = body.confirmed
+    else:
+        appt.provider_confirmed = body.confirmed
+
+    community_conf = appt.community_confirmed
+    provider_conf = appt.provider_confirmed
+
+    # Determine new state based on both parties' responses
+    if community_conf is True and provider_conf is True:
+        # Both confirmed → meeting happened → auto-advance to resolution submitted
+        appt.status = AppointmentStatus.RESOLUTION_SUBMITTED
+        appt.resolution_submitted_at = now
+        appt.conflict_flagged = False
+        appt.auto_complete_at = None
+        state = "both_confirmed"
+    elif community_conf is True and provider_conf is False:
+        appt.conflict_flagged = True
+        appt.auto_complete_at = None
+        state = "conflict"
+    elif community_conf is False and provider_conf is True:
+        appt.conflict_flagged = True
+        appt.auto_complete_at = None
+        state = "conflict"
+    elif community_conf is True and provider_conf is None:
+        # Community confirmed, waiting for provider (or vice versa)
+        appt.auto_complete_at = now + timedelta(hours=24)
+        state = "community_confirmed_waiting"
+    elif community_conf is None and provider_conf is True:
+        appt.auto_complete_at = now + timedelta(hours=24)
+        state = "provider_confirmed_waiting"
+    else:
+        # Neither or one/both said no
+        state = "pending_or_denied"
+
+    # Notify the other party
+    if is_community:
+        prov_obj = (await db.execute(select(Provider).where(Provider.id == appt.provider_id))).scalar_one_or_none()
+        if prov_obj:
+            notif_title = "Community confirmed the appointment" if body.confirmed else "Community denied the appointment"
+            notif_body = (
+                f"The community member confirmed the appointment on {appt.appointment_date} took place."
+                if body.confirmed else
+                f"The community member reported the appointment on {appt.appointment_date} did not take place."
+            )
+            if state == "both_confirmed":
+                notif_body += " The case has been moved to resolution for verification."
+            elif state == "conflict":
+                notif_body += " Responses conflict — this appointment has been flagged for follow-up."
+            await notify_org(
+                db, provider=prov_obj,
+                notification_type="appointment_update",
+                title=notif_title,
+                body=notif_body,
+                reference_id=str(appt_id),
+                reference_type="appointment",
+            )
+    else:
+        appt_owner = (await db.execute(select(User).where(User.id == appt.user_id))).scalar_one_or_none()
+        if appt_owner:
+            notif_title = "Provider confirmed the appointment" if body.confirmed else "Provider denied the appointment"
+            notif_body = (
+                f"The provider confirmed your appointment on {appt.appointment_date} took place."
+                if body.confirmed else
+                f"The provider reported your appointment on {appt.appointment_date} did not take place."
+            )
+            if state == "both_confirmed":
+                notif_body += " The case has been moved to resolution for your verification."
+            elif state == "conflict":
+                notif_body += " Responses conflict — this appointment has been flagged for review."
+            await notify_community_user(
+                db, background_tasks,
+                user=appt_owner,
+                notification_type="appointment_update",
+                title=notif_title,
+                body_text=notif_body,
+                email_subject=f"Temba — {notif_title}",
+                sms_message=f"Temba: {notif_title}. Check your dashboard.",
+                reference_id=str(appt_id),
+                reference_type="appointment",
+            )
+
+    await write_audit(db, request, f"appointment.confirm.{state}", "appointment", str(appt_id), actor=current_user)
+    return appt
+
+
+@router.post("/{appt_id}/outcome", response_model=AppointmentPublic)
+async def record_outcome(
+    appt_id: UUID,
+    body: AppointmentOutcomeBody,
+    current_user: Annotated[User, Depends(get_current_user)],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Appointment:
+    """Record post-meeting outcome.
+
+    Community: Was your issue addressed? (yes / partially / no)
+    Provider:  Brief notes on the discussion.
+    Available after RESOLUTION_SUBMITTED or VERIFIED status.
+    """
+    appt = await _get_appointment_or_404(appt_id, db)
+
+    is_community = current_user.role == UserRole.COMMUNITY
+    is_provider = current_user.role == UserRole.PROVIDER
+
+    if is_community and appt.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if is_provider:
+        prov = await _get_provider_for_user(current_user, db)
+        if not prov or not _is_same_org(appt, prov):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    allowed_statuses = {
+        AppointmentStatus.RESOLUTION_SUBMITTED,
+        AppointmentStatus.VERIFIED,
+        AppointmentStatus.CLOSED_UNVERIFIED,
+    }
+    if appt.status not in allowed_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Outcome can only be recorded after the appointment resolution stage.",
+        )
+
+    if is_community and body.community_outcome is not None:
+        appt.community_outcome = body.community_outcome
+
+    if is_provider and body.provider_outcome_notes is not None:
+        appt.provider_outcome_notes = body.provider_outcome_notes
+
+    await write_audit(db, request, "appointment.outcome", "appointment", str(appt_id), actor=current_user)
     return appt
 
 

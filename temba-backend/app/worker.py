@@ -33,5 +33,13 @@ celery_app.conf.update(
             "task": "app.tasks.auto_close_unverified",
             "schedule": crontab(hour=1, minute=0),  # 01:00 Kigali time daily
         },
+        "send-appointment-reminders": {
+            "task": "app.tasks.send_appointment_reminders",
+            "schedule": crontab(minute="*/5"),  # every 5 minutes
+        },
+        "auto-complete-confirmed-appointments": {
+            "task": "app.tasks.auto_complete_confirmed_appointments",
+            "schedule": crontab(minute=30),  # half-past every hour
+        },
     },
 )

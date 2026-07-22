@@ -1,8 +1,8 @@
 import enum
 import uuid
-from datetime import date, datetime, time
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, Time
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -82,6 +82,22 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
     escalation_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     resolution_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ── Cancellation ───────────────────────────────────────────
+    cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Dual-party post-appointment confirmation ───────────────
+    community_confirmed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    provider_confirmed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    conflict_flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    auto_complete_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ── Post-confirmation outcome recording ────────────────────
+    community_outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)  # yes/partially/no
+    provider_outcome_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── 30-min reminder tracking ───────────────────────────────
+    reminder_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     user: Mapped["User"] = relationship(back_populates="appointments")  # type: ignore[name-defined]
     provider: Mapped["Provider"] = relationship(back_populates="appointments")  # type: ignore[name-defined]
