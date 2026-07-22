@@ -1,8 +1,9 @@
+import json
 from uuid import UUID
 from datetime import datetime
 
 from typing import Literal
-from pydantic import BaseModel, EmailStr, Field, HttpUrl
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, field_validator
 
 from app.models.provider import ProviderStatus, ProviderStaffRole, ServiceCategory
 from app.schemas.common import ORMModel
@@ -106,6 +107,13 @@ class ProviderPublic(ORMModel):
     avg_rating: float | None = None
     total_ratings: int = 0
     accountability_score: float = 0.0
+
+    @field_validator("service_categories", "custom_services", "working_days", "unavailable_dates", mode="before")
+    @classmethod
+    def _parse_json_list(cls, v: object) -> object:
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
 
 
 class ProviderStatusUpdate(ORMModel):

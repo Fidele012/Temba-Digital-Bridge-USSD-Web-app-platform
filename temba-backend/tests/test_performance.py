@@ -140,6 +140,7 @@ async def test_registration_response_time(client: AsyncClient):
     start = time.perf_counter()
     resp = await client.post("/api/v1/auth/register", json={
         "email": "perf_reg@test.com",
+        "phone": "+250780000107",
         "password": "PerfTest@123",
         "full_name": "Performance Test User",
         "role": "community",

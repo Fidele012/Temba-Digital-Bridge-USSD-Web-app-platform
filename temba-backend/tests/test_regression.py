@@ -49,6 +49,7 @@ async def test_regression_auth_endpoints_still_work(client: AsyncClient, db: Asy
     """
     resp = await client.post("/api/v1/auth/register", json={
         "email": "reg_auth@test.com",
+        "phone": "+250780000108",
         "password": "Regression@123",
         "full_name": "Regression User",
         "role": "community",

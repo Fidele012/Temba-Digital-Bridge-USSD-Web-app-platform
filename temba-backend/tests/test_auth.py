@@ -11,6 +11,7 @@ from app.models.user import UserRole
 async def test_register_success(client: AsyncClient, db: AsyncSession):
     resp = await client.post("/api/v1/auth/register", json={
         "email": "newuser@test.com",
+        "phone": "+250780000101",
         "password": "Test@12345",
         "full_name": "New User",
         "role": "community",
@@ -26,6 +27,7 @@ async def test_register_duplicate_email(client: AsyncClient, db: AsyncSession):
     user = await make_user(db, email="dup@test.com")
     resp = await client.post("/api/v1/auth/register", json={
         "email": "dup@test.com",
+        "phone": "+250780000102",
         "password": "Test@12345",
         "full_name": "Dup User",
         "role": "community",

@@ -32,6 +32,7 @@ async def test_full_community_report_journey(client: AsyncClient, db: AsyncSessi
     # Step 1: Register
     reg = await client.post("/api/v1/auth/register", json={
         "email": "system_journey@test.com",
+        "phone": "+250780000109",
         "password": "Journey@123",
         "full_name": "Jean Mutabazi",
         "role": "community",
@@ -74,7 +75,7 @@ async def test_full_community_report_journey(client: AsyncClient, db: AsyncSessi
     assert track.status_code == 200
     tracked = track.json()
     assert tracked["reference_number"] == ref
-    assert tracked["status"] == "open"
+    assert tracked["status"] == "Submitted - awaiting review"
 
 
 # ── Journey 2: Appointment Booking and Provider Approval ─────────────────────

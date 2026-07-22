@@ -21,6 +21,7 @@ async def test_fr1_community_registration_with_location(client: AsyncClient):
     """FR1: Community member can register with email, password, and Rwanda location."""
     resp = await client.post("/api/v1/auth/register", json={
         "email": "fr1_comm@test.com",
+        "phone": "+250780000105",
         "password": "Functional@123",
         "full_name": "Marie Uwimana",
         "role": "community",
@@ -40,6 +41,7 @@ async def test_fr1_provider_registration(client: AsyncClient):
     """FR1 + FR2: Water service provider can register with organisation details."""
     resp = await client.post("/api/v1/auth/register", json={
         "email": "fr1_prov@test.com",
+        "phone": "+250780000106",
         "password": "Provider@123",
         "full_name": "WASAC Admin",
         "role": "provider",

@@ -82,6 +82,33 @@ async def _noop_close() -> None:
 _redis_mod.close_redis = _noop_close
 
 
+# ── Notification mocks ───────────────────────────────────────────────────────
+# send_email_background / send_sms_background are called as BackgroundTasks;
+# the httpx ASGI transport awaits all background tasks before returning, so
+# real SMTP/AT calls add latency and produce noisy errors in the test output.
+# Patch both at the service module level AND at every endpoint module that
+# imported the functions by direct name binding.
+
+import app.services.notification_service as _notif_mod
+import app.api.v1.endpoints.auth as _auth_mod
+import app.api.v1.endpoints.providers as _providers_mod
+import app.api.v1.endpoints.ussd as _ussd_mod
+
+def _noop_send_email(*args, **kwargs) -> None:
+    pass
+
+def _noop_send_sms(*args, **kwargs) -> None:
+    pass
+
+_notif_mod.send_email_background = _noop_send_email
+_notif_mod.send_sms_background = _noop_send_sms
+
+_auth_mod.send_email_background = _noop_send_email
+_auth_mod.send_sms_background = _noop_send_sms
+_providers_mod.send_email_background = _noop_send_email
+_ussd_mod.send_sms_background = _noop_send_sms
+
+
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

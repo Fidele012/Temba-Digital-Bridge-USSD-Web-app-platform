@@ -6,7 +6,9 @@ GET  /service-requests/{id}
 PUT  /service-requests/{id}     → update status (provider/admin)
 DELETE /service-requests/{id}   → cancel (community, only if submitted/reviewing)
 """
-from datetime import datetime, timezone
+import random
+import string
+from datetime import datetime, date, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -55,14 +57,14 @@ async def create_service_request(
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ServiceRequest:
-    sr = ServiceRequest(user_id=current_user.id, **body.model_dump())
+    suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    ref = f"SRQ-{date.today().strftime('%Y%m%d')}-{suffix}"
+    sr = ServiceRequest(user_id=current_user.id, reference_number=ref, **body.model_dump())
     db.add(sr)
     await db.flush()
     sr.sla_deadline = sla_deadline_for(body.request_type.value, sr.created_at, "service_request")
     sr.resolution_deadline = resolution_deadline_for(sr.created_at, item_type="service_request")
     await write_audit(db, request, "service_request.create", "service_request", str(sr.id), actor=current_user)
-
-    ref = sr.reference_number or str(sr.id)[:8].upper()
     await notify_community_user(
         db, background_tasks,
         user=current_user,

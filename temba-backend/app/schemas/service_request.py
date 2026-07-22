@@ -29,6 +29,7 @@ class ServiceRequestUpdate(ORMModel):
 
 class ServiceRequestPublic(ORMModel):
     id: UUID
+    reference_number: str | None = None
     user_id: UUID
     provider_id: UUID | None
     request_type: ServiceRequestType

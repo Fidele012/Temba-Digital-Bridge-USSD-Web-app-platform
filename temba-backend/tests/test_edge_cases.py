@@ -146,6 +146,7 @@ async def test_register_with_rwandan_phone_number(client: AsyncClient):
 async def test_register_with_kinyarwanda_name(client: AsyncClient):
     resp = await client.post("/api/v1/auth/register", json={
         "email": "kiny@test.com",
+        "phone": "+250780000103",
         "password": "Test@12345",
         "full_name": "Uwimana Jean Baptiste",
         "role": "community",
@@ -221,6 +222,7 @@ async def test_register_full_name_with_hyphens_and_apostrophes(client: AsyncClie
     """Special chars: names with hyphens and apostrophes are common in Rwanda."""
     resp = await client.post("/api/v1/auth/register", json={
         "email": "hyphen_name@test.com",
+        "phone": "+250780000104",
         "password": "Test@12345",
         "full_name": "Marie-Claire D'Amour Ingabire",
         "role": "community",

@@ -112,15 +112,8 @@ async def test_ussd_report_full_flow(client: AsyncClient, db: AsyncSession):
     # *1 = Report water issue
     # *1 = Category: Contamination
     # *1 = Urgency: High
-    # *1 = Provider: first in list
-    # → should show confirmation screen
+    # *1 = Provider: first in list → submits report directly
     resp = await _post(client, "+250780200002", "1*2*1111*1*1*1*1")
-    assert resp.status_code == 200
-    assert "CON" in resp.text
-    assert "Confirm" in resp.text or "Emeza" in resp.text
-
-    # *1 = Confirm submission
-    resp = await _post(client, "+250780200002", "1*2*1111*1*1*1*1*1")
     assert resp.status_code == 200
     assert "END" in resp.text
     assert "RPT-" in resp.text
@@ -224,14 +217,8 @@ async def test_ussd_service_request_full_flow(client: AsyncClient, db: AsyncSess
     # 1*2*6666*6 = EN + Login + PIN + Submit service request
     # *1 = Water connection
     # *1 = Provider 1
-    # *1 = Urgency: High
-    # → confirmation screen
+    # *1 = Urgency: High → submits service request directly
     resp = await _post(client, "+250780700002", "1*2*6666*6*1*1*1")
-    assert resp.status_code == 200
-    assert "CON" in resp.text
-
-    # *1 = Confirm
-    resp = await _post(client, "+250780700002", "1*2*6666*6*1*1*1*1")
     assert resp.status_code == 200
     assert "END" in resp.text
     assert "SRQ-" in resp.text
@@ -251,14 +238,8 @@ async def test_ussd_kinyarwanda_report_flow(client: AsyncClient, db: AsyncSessio
     assert resp.status_code == 200
     assert "CON" in resp.text
 
-    # *1*1*1 = Category + Urgency + Provider → confirmation
+    # *1*1*1 = Category + Urgency + Provider → submits report directly
     resp = await _post(client, "+250780800001", "2*2*7777*1*1*1*1")
-    assert resp.status_code == 200
-    assert "CON" in resp.text
-    assert "Emeza" in resp.text or "1." in resp.text
-
-    # *1 = Confirm
-    resp = await _post(client, "+250780800001", "2*2*7777*1*1*1*1*1")
     assert resp.status_code == 200
     assert "END" in resp.text
     assert "RPT-" in resp.text
