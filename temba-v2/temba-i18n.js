@@ -2265,6 +2265,11 @@ function t(key) {
 }
 
 function applyTranslations() {
+  // Stamp the html element immediately so CSS [data-lang] selectors work
+  // before any element is painted — prevents flash of wrong language button state
+  document.documentElement.setAttribute('data-lang', currentLang);
+  document.documentElement.lang = currentLang === 'rw' ? 'rw' : 'en';
+
   // Translate all [data-i18n] elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
@@ -2283,9 +2288,6 @@ function applyTranslations() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
   });
-
-  // Update html lang attribute
-  document.documentElement.lang = currentLang === 'rw' ? 'rw' : 'en';
 }
 
 function syncLangButtons() {
@@ -2302,9 +2304,22 @@ function syncLangButtons() {
   });
 }
 
-/* ── Auto-apply on load ── */
-document.addEventListener('DOMContentLoaded', () => {
+/* ── Auto-apply language on every page load ──────────────────────────────
+   The script is placed at the end of <body> on all pages, so by the time
+   it runs the DOM is already parsed (readyState = 'interactive'|'complete').
+   Calling _applyOnLoad() synchronously here means translations are applied
+   in the SAME paint cycle as the initial HTML render — no flash of English.
+   The DOMContentLoaded branch covers the rare case where the script is
+   moved to <head> on some future page.
+   ─────────────────────────────────────────────────────────────────────── */
+function _applyOnLoad() {
   currentLang = localStorage.getItem(LANG_KEY) || 'en';
   applyTranslations();
   syncLangButtons();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _applyOnLoad);
+} else {
+  _applyOnLoad();
+}
