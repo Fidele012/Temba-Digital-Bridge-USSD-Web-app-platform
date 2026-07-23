@@ -3468,7 +3468,7 @@ function closeMobSidebar() {
 
 function renderGreeting() {
   const s = JSON.parse(localStorage.getItem('temba_session') || '{}');
-  const name = s.name || 'there';
+  const name = (s.name || 'there').split(' ')[0];
   const h = new Date().getHours();
   const gr = h < 12 ? t('greeting_morning') : h < 17 ? t('greeting_afternoon') : t('greeting_evening');
   document.getElementById('greetingText').textContent = `${gr}, ${name}`;

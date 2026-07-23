@@ -1038,9 +1038,9 @@ async function loadProviderProfile() {
   const greet = document.getElementById('providerGreeting');
   const hr = new Date().getHours();
   const tod = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
-  if (greet) greet.textContent = `${tod}, ${data.organization_name}`;
+  if (greet) greet.textContent = `${data.organization_name} Dashboard`;
   const sub = document.getElementById('providerSubtitle');
-  if (sub) sub.textContent = `Managing reports, requests, and appointments for ${data.organization_name}.`;
+  if (sub) sub.textContent = `Showing reports, service requests, and appointments assigned to ${data.organization_name}.`;
   // Show service categories as tags under subtitle if space
   const cats = (data.service_categories || []).join(' · ') || '';
   const catEl = document.getElementById('providerCatTags');
