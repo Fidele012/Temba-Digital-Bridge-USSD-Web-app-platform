@@ -35,7 +35,7 @@
           Temba Digital Bridge is a <strong style="color:#0A2540;">civic platform</strong> built to close the communication gap between Rwandan communities and the water service providers that serve them.
         </p>
         <p style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:1.5rem;">
-          Accessible via <strong>web app</strong> or <strong>USSD (*XXX#)</strong> on any phone — no smartphone or internet required. Available in <strong>English</strong> and <strong>Kinyarwanda</strong>.
+          Accessible via <strong>web app</strong> or <strong>USSD (*384*36640#)</strong> on any phone — no smartphone or internet required. Available in <strong>English</strong> and <strong>Kinyarwanda</strong>.
         </p>
         <div style="margin-bottom:1.5rem;">
           <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Registered Providers</div>

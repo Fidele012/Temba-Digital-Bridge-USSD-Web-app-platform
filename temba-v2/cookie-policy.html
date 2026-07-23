@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cookie Policy — Temba Digital Bridge</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230A2540'/%3E%3Cpath d='M16 5C16 5 8 16 8 21.5C8 26.2 11.6 29 16 29C20.4 29 24 26.2 24 21.5C24 16 16 5 16 5Z' fill='%2329B6F6'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="temba.css" />
+  <style>
+    body { background: #f0f4f8; }
+    .legal-page { max-width: 780px; margin: 0 auto; padding: 40px 24px 80px; }
+    .legal-header { text-align: center; margin-bottom: 40px; }
+    .legal-logo { display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; margin-bottom: 24px; }
+    .legal-logo img { height: 36px; }
+    .legal-logo span { font-size: 18px; font-weight: 800; color: var(--navy); }
+    .legal-title { font-size: 28px; font-weight: 800; color: var(--navy); margin: 0 0 8px; }
+    .legal-meta { font-size: 13px; color: var(--gray-500); }
+    .legal-card { background: #ffffff; border-radius: 12px; padding: 36px 40px; box-shadow: 0 2px 16px rgba(10,37,64,0.08); margin-bottom: 24px; }
+    @media (max-width: 600px) { .legal-card { padding: 24px 20px; } }
+    .legal-card h2 { font-size: 17px; font-weight: 700; color: var(--navy); margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #EFF6FF; }
+    .legal-card p, .legal-card li { font-size: 14px; color: #374151; line-height: 1.75; }
+    .legal-card ul { padding-left: 20px; margin: 8px 0 0; }
+    .legal-card li { margin-bottom: 6px; }
+    .legal-back { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); font-size: 14px; font-weight: 600; text-decoration: none; margin-bottom: 24px; }
+    .legal-back:hover { text-decoration: underline; }
+    .highlight-box { background: #EFF6FF; border-left: 4px solid var(--blue); border-radius: 4px; padding: 14px 16px; margin-bottom: 16px; font-size: 14px; color: #1e3a5f; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+    th { background: #EFF6FF; color: var(--navy); font-weight: 700; padding: 10px 12px; text-align: left; }
+    td { padding: 9px 12px; border-bottom: 1px solid #e5e7eb; color: #374151; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body>
+<div class="legal-page">
+  <a href="index.html" class="legal-back">&#8592; Back to Home</a>
+
+  <div class="legal-header">
+    <a href="index.html" class="legal-logo">
+      <img src="assets/temba-logo.png" alt="Temba Digital Bridge" />
+    </a>
+    <h1 class="legal-title">Cookie Policy</h1>
+    <p class="legal-meta">Temba Digital Bridge &nbsp;·&nbsp; Last updated: July 2026</p>
+  </div>
+
+  <div class="legal-card">
+    <h2>1. What Are Cookies?</h2>
+    <p>Cookies are small text files stored on your device when you visit a website. They help the site remember information about your visit — such as your preferred language, authentication state, and session data — making it easier to use the platform on your next visit.</p>
+    <p>Temba Digital Bridge uses only the cookies necessary to make the web application function correctly. We do not use advertising, tracking, or third-party marketing cookies.</p>
+  </div>
+
+  <div class="legal-card">
+    <h2>2. Cookies We Use</h2>
+    <div class="highlight-box">Temba Digital Bridge uses strictly necessary and functional cookies only. No third-party advertising or analytics cookies are used.</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Cookie / Storage Key</th>
+          <th>Purpose</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>temba_session</code></td>
+          <td>Stores your login session, name, role, and preferences (language, theme) in <em>localStorage</em> so you remain signed in between page loads.</td>
+          <td>Until sign-out or browser data is cleared</td>
+        </tr>
+        <tr>
+          <td><code>temba_lang</code></td>
+          <td>Remembers your chosen interface language (English or Kinyarwanda) across sessions.</td>
+          <td>Persistent (localStorage)</td>
+        </tr>
+        <tr>
+          <td><code>temba_theme</code></td>
+          <td>Remembers your preferred colour scheme (light or dark mode).</td>
+          <td>Persistent (localStorage)</td>
+        </tr>
+        <tr>
+          <td>Access token (in-memory)</td>
+          <td>A short-lived JWT used to authenticate API requests. Stored in memory only — never written to a cookie or localStorage.</td>
+          <td>30 minutes (expires automatically)</td>
+        </tr>
+        <tr>
+          <td>Refresh token (HTTP-only cookie)</td>
+          <td>Used to silently renew your access token without requiring you to sign in again. Set as an HTTP-only, Secure, SameSite cookie so it cannot be read by JavaScript.</td>
+          <td>7 days</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legal-card">
+    <h2>3. USSD Channel</h2>
+    <p>The USSD channel (<strong>*384*36640#</strong>) operates entirely over the mobile network and does not use cookies or browser storage of any kind. Your USSD PIN and session data are processed server-side and are never stored in a browser.</p>
+  </div>
+
+  <div class="legal-card">
+    <h2>4. Your Choices</h2>
+    <p>Because Temba Digital Bridge uses only strictly necessary and functional cookies, the application will not function correctly if these are disabled. You can, however, clear your browser's local storage or cookies at any time through your browser settings, which will sign you out and reset your preferences.</p>
+    <ul>
+      <li><strong>Chrome:</strong> Settings → Privacy and Security → Clear browsing data</li>
+      <li><strong>Firefox:</strong> Settings → Privacy &amp; Security → Cookies and Site Data → Clear Data</li>
+      <li><strong>Edge:</strong> Settings → Privacy, search and services → Clear browsing data</li>
+    </ul>
+    <p>On mobile devices, you can clear site data from your browser's site-settings menu.</p>
+  </div>
+
+  <div class="legal-card">
+    <h2>5. Changes to This Policy</h2>
+    <p>We may update this Cookie Policy from time to time as the platform evolves. Any material changes will be communicated through an in-app notice or by email. The "Last updated" date at the top of this page reflects the most recent revision.</p>
+  </div>
+
+  <div class="legal-card">
+    <h2>6. Contact Us</h2>
+    <p>If you have any questions about how we use cookies or browser storage, please contact us:</p>
+    <ul>
+      <li>Email: <a href="mailto:tembadigitalbridge@gmail.com" style="color:var(--blue);">tembadigitalbridge@gmail.com</a></li>
+      <li>Phone / WhatsApp: <a href="tel:+250790147995" style="color:var(--blue);">+250790147995</a></li>
+    </ul>
+  </div>
+
+  <p style="text-align:center;font-size:12.5px;color:var(--gray-400);margin-top:32px;">
+    &copy; 2026 Temba Digital Bridge. All rights reserved. &nbsp;·&nbsp;
+    <a href="privacy.html" style="color:var(--blue);">Privacy Policy</a> &nbsp;·&nbsp;
+    <a href="terms.html" style="color:var(--blue);">Terms of Use</a>
+  </p>
+</div>
+</body>
+</html>
